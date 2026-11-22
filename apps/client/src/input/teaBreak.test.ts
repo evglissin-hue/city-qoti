@@ -200,6 +200,28 @@ describe('V4C: choosing a tea break, day', () => {
     ).toBe(null);
   });
 
+  it('with no footfall yet (a new valley by day), circles where folk are about right now', () => {
+    const m = fake(9, {
+      agents: [
+        { id: 1, x: 80.5, z: 79.5 },
+        { id: 2, x: 82, z: 81, anim: AgentAnim.work },
+        // Raiders and wolves are not the town being busy.
+        { id: 3, x: 30, z: 30, flags: AgentFlags.raider },
+        { id: 4, x: 30.5, z: 31, flags: AgentFlags.wolf },
+        { id: 5, x: 31, z: 30.5, flags: AgentFlags.raider },
+      ],
+      residents: [1, 2],
+      places: [{ id: 1, x: 30, z: 30 }],
+      buildings: [{ id: 1, x: 80, z: 80 }],
+    });
+    const plan = chooseTeaBreak(m);
+    expect(plan?.kind === 'orbit' && Math.abs(plan.x - 80.5) < 1 && Math.abs(plan.z - 80.5) < 1).toBe(true);
+    // Nobody about and nothing walked: nothing to watch.
+    expect(
+      chooseTeaBreak(fake(9, { places: [{ id: 1, x: 30, z: 30 }], buildings: [{ id: 1, x: 80, z: 80 }] })),
+    ).toBe(null);
+  });
+
   it('a second circle goes at least 16 tiles away when it can, else stays', () => {
     const m = fake(11, {
       buildings: [

@@ -79,7 +79,7 @@ export const ROUND_FROM_HOUR = 17.5;
 export const ROUND_TO_HOUR = 21;
 /** Footfall is summed over a square this many tiles out from each candidate's middle. */
 const BUSY_REACH = 4;
-/** A place with folk there right now counts this much footfall for each of them. */
+/** Each resident about a place right now (and each seated there) counts this much footfall. */
 const PRESENT_WEIGHT = 24;
 /** A second circle goes somewhere at least this far from the first. */
 const ELSEWHERE = 16;
@@ -155,8 +155,8 @@ function footfallNear(day: Uint16Array, eve: Uint16Array, x: number, z: number):
 
 /**
  * The day's busiest place: of every place (its tiles' middle) and every standing building (its
- * footprint's middle), the one with the most footfall around it, a place's folk there now counting
- * extra. With `previous` an orbit, somewhere at least `ELSEWHERE` tiles from it if anywhere else is
+ * footprint's middle), the one with the most footfall around it, the residents about it right now
+ * (and those seated at a place) counting extra. With `previous` an orbit, somewhere at least `ELSEWHERE` tiles from it if anywhere else is
  * busy at all. Null when nothing is busy.
  */
 function busiestPlace(m: TeaBreakMirror, opts: TeaBreakChoice): { x: number; z: number } | null {
@@ -164,6 +164,22 @@ function busiestPlace(m: TeaBreakMirror, opts: TeaBreakChoice): { x: number; z: 
   const day = foot?.day ?? new Uint16Array(0);
   const eve = foot?.eve ?? new Uint16Array(0);
   const prev = opts.previous?.kind === 'orbit' ? opts.previous : null;
+  // Folk outdoors now (not raiders or wolves): the sim sends footfall only at 04:00 and hourly
+  // through the evening, so by day, and all through a new valley's first day, who is about right now
+  // is what says where it is busy.
+  const out: number[] = [];
+  const L = m.agents.latest;
+  for (let o = 0; o + AGENT_STRIDE <= L.length; o += AGENT_STRIDE) {
+    if (L[o + AgentField.flags]! & (AgentFlags.raider | AgentFlags.wolf)) continue;
+    if (!m.residents.has(L[o + AgentField.id]!)) continue;
+    out.push(L[o + AgentField.x]!, L[o + AgentField.z]!);
+  }
+  const folkNear = (x: number, z: number): number => {
+    let n = 0;
+    for (let i = 0; i < out.length; i += 2)
+      if (Math.abs(out[i]! - x) <= BUSY_REACH + 0.5 && Math.abs(out[i + 1]! - z) <= BUSY_REACH + 0.5) n++;
+    return n;
+  };
   let best: { x: number; z: number; score: number } | null = null;
   let bestElsewhere: { x: number; z: number; score: number } | null = null;
   const consider = (x: number, z: number, score: number) => {
@@ -182,7 +198,7 @@ function busiestPlace(m: TeaBreakMirror, opts: TeaBreakChoice): { x: number; z: 
     }
     const x = sx / tiles.length;
     const z = sz / tiles.length;
-    consider(x, z, footfallNear(day, eve, x, z) + p.present * PRESENT_WEIGHT);
+    consider(x, z, footfallNear(day, eve, x, z) + (p.present + folkNear(x, z)) * PRESENT_WEIGHT);
   }
   for (const b of m.buildings.values()) {
     if (b.stage !== 'built') continue;
@@ -190,7 +206,7 @@ function busiestPlace(m: TeaBreakMirror, opts: TeaBreakChoice): { x: number; z: 
     const [w, d] = def ? footprintSize(def, b.rot) : [1, 1];
     const x = b.x + w / 2;
     const z = b.z + d / 2;
-    consider(x, z, footfallNear(day, eve, x, z));
+    consider(x, z, footfallNear(day, eve, x, z) + folkNear(x, z) * PRESENT_WEIGHT);
   }
   const pick = (bestElsewhere ?? best) as { x: number; z: number } | null;
   return pick ? { x: pick.x, z: pick.z } : null;
