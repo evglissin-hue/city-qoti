@@ -541,6 +541,8 @@ export interface SpecializedClimbView {
   lose: string[];
   /** It rests today (a frozen river): its days wait for the thaw. */
   resting?: true;
+  /** The town holds more of what it makes than it can use (`carried`): no good day comes of it. */
+  surplus?: true;
 }
 
 /** I1 (C3C): the Workforce report. Jobs per building and the town's totals. */

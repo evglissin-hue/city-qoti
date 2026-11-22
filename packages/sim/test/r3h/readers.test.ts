@@ -91,8 +91,9 @@ describe('crew', () => {
   it("the Lodge's felling range grows by level: a tree at 9 tiles is felled only from level 2", () => {
     const lodgeAndTree = (level: number) => {
       const f = hamletFixture();
-      f.state.buildings.find((b) => b.id === f.b.stall)!.rt!.store[good('firewood')] = 500;
       const lodge = spot(f.state, 'foresters-lodge', 120, 80, level);
+      // Firewood over the Fuel mark, so the lodge fells for timber (spot cleared the town's stock).
+      f.state.buildings.find((b) => b.id === f.b.stall)!.rt!.store[good('firewood')] = 500;
       let n = 0;
       // Saplings along the far side keep the woods rule met, so it fells instead of planting.
       for (const z of [72, 73])

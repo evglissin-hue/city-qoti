@@ -10,13 +10,36 @@ import { good } from '../ledger/helpers';
 
 export { good };
 
-/** A built specialized building at a tile (rot 0), at a level, with fresh counters. */
+/**
+ * A built specialized building at a tile (rot 0), at a level, with fresh counters. A building whose
+ * good day is goods carried off finds the town wanting them: its outputs are cleared from every
+ * store (a fixture town sitting on a surplus would read every day as quiet).
+ */
 export function spot(state: WorldState, def: string, x: number, z: number, level = 1): Building {
   const d = content.buildingById.get(def)!;
   const b = insertBuilding(state, null, d, x, z, 0, 0, { site: false });
   if (level > 1) b.level = level;
   b.counters = emptyCounters();
+  if (d.levels?.good === 'carried') for (const [g] of d.methods?.[0]?.outputs ?? []) noStock(state, g);
   return b;
+}
+
+/** Clears a good from every building's store, output and input: the town holds none of it. */
+export function noStock(state: WorldState, id: string): void {
+  const g = content.goodIndex.get(id)!;
+  for (const o of state.buildings) {
+    if (!o.rt) continue;
+    o.rt.store[g] = 0;
+    o.rt.output[g] = 0;
+    o.rt.input[g] = 0;
+  }
+}
+
+/** Puts `qty` of a good in the first store that keeps goods: the town has plenty of it. */
+export function plenty(state: WorldState, id: string, qty: number): void {
+  const g = content.goodIndex.get(id)!;
+  const store = state.buildings.find((o) => o.rt && (content.buildingById.get(o.def)?.storage ?? 0) > 0)!;
+  store.rt!.store[g] = (store.rt!.store[g] ?? 0) + qty;
 }
 
 /** Sets the day's counters (the rest zero). */

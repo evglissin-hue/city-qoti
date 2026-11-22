@@ -5,7 +5,7 @@ import { specializedDay, STALL_CUSTOMERS } from '../../src/systems/levels/specia
 import { sum } from '../../src/systems/logistics/stores';
 import { hamletFixture } from '../fixtures/hamlet';
 import { building, hire } from '../ledger/helpers';
-import { good, plantWoods, spot, today } from './helpers';
+import { good, plantWoods, plenty, spot, today } from './helpers';
 
 describe('carried', () => {
   it('four fifths carried off is good', () => {
@@ -13,6 +13,16 @@ describe('carried', () => {
     const q = spot(state, 'quarry', 120, 100);
     today(q, { madeToday: 10, soldToday: 8 });
     expect(specializedDay(state, q)).toBe('good');
+  });
+
+  it('goods the town has no use for: quiet at level 1, failing above it', () => {
+    const { state } = hamletFixture();
+    const q = spot(state, 'quarry', 120, 100);
+    plenty(state, 'stone', 500);
+    today(q, { madeToday: 10, soldToday: 10 });
+    expect(specializedDay(state, q)).toBe('quiet');
+    q.level = 2;
+    expect(specializedDay(state, q)).toBe('failing');
   });
 
   it('made but not carried is failing', () => {

@@ -3,8 +3,11 @@
 // running (LEVEL_UP_DAYS, the businesses' own count) and slides back after LEVEL_DOWN_DAYS failing
 // days, as businesses do. What a good day is comes from its def (`levels.good`):
 //   carried    what it made today was carried off (four fifths of it, a business's steady custom),
-//              without running short of its raw good; a Lodge fells only with its woods above its
-//              site rule. A Fishery on a frozen river rests: those days count neither way.
+//              without running short of its raw good, while the town wants more of what it makes
+//              (not in surplus: more in store than SURPLUS_COVER_DAYS of the town's want, the mark at
+//              which a business retools); a Lodge fells only with its woods above its site rule. A
+//              surplus day is a failing one above level 1, so an oversized crew slides back and its
+//              wages stop. A Fishery on a frozen river rests: those days count neither way.
 //   customers  a Market Stall served STALL_CUSTOMERS[level - 1] households.
 //   served     every business it serves (the first `capacityOf` in its reach) had its raw good all
 //              day, and it serves at least one. A Sawmill on a frozen river rests.
@@ -29,6 +32,8 @@ import { woodsThin } from '../production/forestry';
 import { release } from '../residents/jobs';
 import { isFrozen } from '../seasons/api';
 import { capacityOf, servedIds } from '../specialized/api';
+import { SURPLUS_COVER_DAYS } from '../growth/retool';
+import { townNeeds, type TownNeeds } from '../growth/trades';
 import { LEVEL_DOWN_DAYS, LEVEL_UP_DAYS } from './index';
 import { outOfSeason } from './season';
 
@@ -86,11 +91,42 @@ function halfFull(b: Building, level: number): boolean {
 }
 
 /**
+ * True when the town holds more of every good the building makes than SURPLUS_COVER_DAYS of its
+ * want, with none of them short: it makes what nobody needs (growth/retool.ts's mark).
+ */
+export function makesSurplus(def: BuildingDef, n: TownNeeds): boolean {
+  const outputs = def.methods?.[0]?.outputs ?? [];
+  if (outputs.length === 0) return false;
+  for (const [id] of outputs) {
+    const g = content.goodIndex.get(id);
+    if (g === undefined) continue;
+    if ((n.short[g] ?? 0) > 0 || (n.stock[g] ?? 0) <= SURPLUS_COVER_DAYS * Math.max(1, n.want[g] ?? 0))
+      return false;
+  }
+  return true;
+}
+
+/**
+ * The town's needs for the levels pass: worked out once a tick and kept for the pass's other
+ * buildings (the specialized day ends run back to back at 23:30 and move no goods). Only the sim's
+ * day end reads it; views and the audit work theirs out fresh, so an inspector's look can never feed
+ * the sim a number its partner did not see.
+ */
+const passNeeds = new WeakMap<WorldState, { tick: number; needs: TownNeeds }>();
+function needsForPass(state: WorldState): TownNeeds {
+  const hit = passNeeds.get(state);
+  if (hit && hit.tick === state.tick) return hit.needs;
+  const needs = townNeeds(state);
+  passNeeds.set(state, { tick: state.tick, needs });
+  return needs;
+}
+
+/**
  * How the day went for a specialized building with levels, read from its counters before they reset
  * (and, for `served`, the counters of the businesses it serves). Pure: the inspector and the tests
- * read it too.
+ * read it too. `needs` is the town's (`townNeeds`), worked out here when not given.
  */
-export function specializedDay(state: WorldState, b: Building): SpecializedDay {
+export function specializedDay(state: WorldState, b: Building, needs?: TownNeeds): SpecializedDay {
   const def = content.buildingById.get(b.def);
   const levels: SpecializedLevelsDef | undefined = def?.levels;
   if (!def || !levels || !b.rt) return 'quiet';
@@ -100,6 +136,8 @@ export function specializedDay(state: WorldState, b: Building): SpecializedDay {
   switch (levels.good) {
     case 'carried': {
       if (c.shortToday || (c.madeToday > 0 && !carriedOff(c))) return 'failing';
+      // Goods the town has no use for: a quiet day at level 1, a failing one above it.
+      if (makesSurplus(def, needs ?? townNeeds(state))) return level >= 2 ? 'failing' : 'quiet';
       if (!carriedOff(c)) return 'quiet';
       // A Lodge's good day fells with its woods above its site rule (not planting them back).
       const fells = def.methods?.some((m) => m.kind === 'fell') === true;
@@ -186,10 +224,14 @@ export function joinWords(items: string[]): string {
 }
 
 /** Why a level slid, in words, by the def's good day. */
-function slideWhy(def: BuildingDef): string {
+function slideWhy(def: BuildingDef, surplus = false): string {
   switch (def.levels?.good) {
-    case 'carried':
-      return 'its goods sat in the yard waiting for porters four days running';
+    case 'carried': {
+      if (!surplus) return 'its goods sat in the yard waiting for porters four days running';
+      const made = def.methods?.[0]?.outputs[0]?.[0];
+      const name = made ? (content.goodById.get(made)?.name ?? made).toLowerCase() : 'goods';
+      return `the town had more ${name} than it could use four days running`;
+    }
     case 'customers':
       return 'four days of too few customers';
     case 'served': {
@@ -221,7 +263,14 @@ function trimCrew(state: WorldState, ctx: TickCtx, b: Building): void {
 }
 
 /** The level changed: the places, the art and the Chronicle hear of it. */
-function changed(state: WorldState, ctx: TickCtx, b: Building, def: BuildingDef, up: boolean): void {
+function changed(
+  state: WorldState,
+  ctx: TickCtx,
+  b: Building,
+  def: BuildingDef,
+  up: boolean,
+  surplus = false,
+): void {
   const level = levelOf(b);
   bumpPlaceInputs(state);
   if (def.host) invalidatePlaces(state);
@@ -232,7 +281,7 @@ function changed(state: WorldState, ctx: TickCtx, b: Building, def: BuildingDef,
       ['building', name],
       ['level', String(level)],
       ['more', up ? joinWords(levelGains(def, level)) || 'a little more of everything' : ''],
-      ['why', up ? '' : slideWhy(def)],
+      ['why', up ? '' : slideWhy(def, surplus)],
     ],
     refs: [b.id],
     // Chosen by the building and its level, so the town's dice stay where they were.
@@ -245,7 +294,8 @@ export function specializedDayEnd(state: WorldState, ctx: TickCtx, b: Building):
   const def = content.buildingById.get(b.def);
   if (!def?.levels || !b.rt) return;
   const c = (b.counters ??= emptyCounters());
-  const day = specializedDay(state, b);
+  const needs = def.levels.good === 'carried' ? needsForPass(state) : undefined;
+  const day = specializedDay(state, b, needs);
   // Resting (a frozen river): neither fails nor counts; the run waits for the thaw.
   if (day !== 'resting') {
     const level = levelOf(b);
@@ -263,7 +313,7 @@ export function specializedDayEnd(state: WorldState, ctx: TickCtx, b: Building):
         b.level = level - 1;
         c.levelDays = 0;
         trimCrew(state, ctx, b);
-        changed(state, ctx, b, def, false);
+        changed(state, ctx, b, def, false, needs && makesSurplus(def, needs));
       }
     } else {
       c.levelDays = 0;
@@ -321,5 +371,6 @@ export function specializedClimb(state: WorldState, b: Building): SpecializedCli
     lose: level > 1 ? levelGains(def, level) : [],
   };
   if (resting(state, b, def)) view.resting = true;
+  if (levels.good === 'carried' && makesSurplus(def, townNeeds(state))) view.surplus = true;
   return view;
 }
