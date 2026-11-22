@@ -54,13 +54,44 @@ describe('climbLine', () => {
   });
 
   it('words a windmill and a granary climbing', () => {
-    const wind = climbLine(climb({ good: 'served', next: ['room for a third baker'] }), def('windmill'));
+    const full = { taken: 2, room: 2 };
+    const wind = climbLine(
+      climb({ good: 'served', places: full, next: ['room for a third baker'] }),
+      def('windmill'),
+    );
     expect(wind).toMatch(/bakers kept in grain and the windmill grows to level 2: room for a third baker\.$/);
     const gran = climbLine(
-      climb({ good: 'full', next: ['a third porter', 'room for 1,680 goods'] }),
+      climb({
+        good: 'full',
+        today: { have: 100, need: 396 },
+        next: ['a third porter', 'room for 1,680 goods'],
+      }),
       def('granary'),
     );
-    expect(gran).toContain('a half-full store with every porter in');
+    expect(gran).toContain('396 goods in store and every porter in');
+  });
+
+  it('names the place a mill waits to fill (a full house climbs, the ruling of 2026-11-22)', () => {
+    const one = climbLine(
+      climb({ good: 'served', level: 2, places: { taken: 2, room: 3 }, next: ['room for a fourth baker'] }),
+      def('windmill'),
+    );
+    expect(one).toMatch(/^When a third baker takes the last place and all are kept in grain, /);
+    expect(one).toMatch(/the windmill grows to level 3: room for a fourth baker\.$/);
+    const two = climbLine(
+      climb({ good: 'served', places: { taken: 0, room: 2 }, next: ['room for a third baker'] }),
+      def('windmill'),
+    );
+    expect(two).toMatch(/^When two more bakers take the empty places/);
+  });
+
+  it('says a store keeps the room it earned, and never warns of a slide', () => {
+    const at2 = climbLine(climb({ good: 'full', level: 2, today: { have: 0, need: 840 } }), def('granary'));
+    expect(at2).toMatch(/A store keeps the room it has earned\.$/);
+    expect(at2).not.toMatch(/slips back/);
+    expect(climbLine(climb({ good: 'full', level: 3 }), def('granary'))).toBe(
+      'Level 3, as big as a granary gets. A store keeps the room it has earned.',
+    );
   });
 
   it('rests while the river is frozen', () => {

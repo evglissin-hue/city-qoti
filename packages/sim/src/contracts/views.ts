@@ -543,6 +543,8 @@ export interface SpecializedClimbView {
   resting?: true;
   /** The town holds more of what it makes than it can use (`carried`): no good day comes of it. */
   surplus?: true;
+  /** A mill (`served`): the places taken and its room; a good day wants every place taken. */
+  places?: { taken: number; room: number };
 }
 
 /** I1 (C3C): the Workforce report. Jobs per building and the town's totals. */

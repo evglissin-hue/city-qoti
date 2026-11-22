@@ -8,9 +8,13 @@
 //              which a business retools; a surplus day is quiet); a Lodge fells only with its woods
 //              above its site rule. A Fishery on a frozen river rests: those days count neither way.
 //   customers  a Market Stall served STALL_CUSTOMERS[level - 1] households.
-//   served     every business it serves (the first `capacityOf` in its reach) had its raw good all
-//              day, and it serves at least one. A Sawmill on a frozen river rests.
-//   full       its store is at least half full at the level's storage, with every porter it wants.
+//   served     a full house: every place at its level's capacity taken (`capacityOf`, R3B's master
+//              room and R3C's calling room included) and every business it serves had its raw good
+//              all day (the master's ruling of 2026-11-22). A served business gone short fails the
+//              day; an empty place never does. A Sawmill on a frozen river rests.
+//   full       its store holds its def's `fullShare` of the level's storage (a third toward level 2,
+//              half toward level 3) with every porter it wants. Stores never slide: a granary fills
+//              at harvest and empties over winter by design, and a store keeps the room it earned.
 // A failing day falls short of the level it stands at (the terms it climbed on): goods left in the
 // yard, too few customers, a business it serves short, a store under half of the level below. Any
 // other day breaks a run either way. A level is a bigger building with a bigger crew, reach, store
@@ -79,14 +83,15 @@ export function servedToday(state: WorldState, b: Building): Building[] {
   return out;
 }
 
-/** The store's units at 23:30 and its level's storage (for `full`). */
+/** The store's units at 23:30 (for `full`). */
 function stored(b: Building): number {
   return b.rt ? sum(b.rt.store) : 0;
 }
 
-/** True when the store is at least half full at the given level's storage. */
-function halfFull(b: Building, level: number): boolean {
-  return stored(b) * 2 >= storageOf({ def: b.def, level });
+/** Units a store at `level` holds on a good day toward the next: its def's share of its storage. */
+export function fullMark(def: BuildingDef, level: number): number {
+  const share = def.levels?.fullShare?.[level - 1] ?? 50;
+  return Math.ceil((storageOf({ def: def.id, level }) * share) / 100);
 }
 
 /**
@@ -151,12 +156,12 @@ export function specializedDay(state: WorldState, b: Building, needs?: TownNeeds
     case 'served': {
       const list = servedToday(state, b);
       if (list.some((s) => s.counters?.shortToday)) return 'failing';
-      return list.length > 0 ? 'good' : 'quiet';
+      // A full house climbs; fewer served (an empty place) only holds.
+      return list.length > 0 && list.length >= capacityOf(state, b) ? 'good' : 'quiet';
     }
-    case 'full': {
-      if (level >= 2 && !halfFull(b, level - 1)) return 'failing';
-      return halfFull(b, level) && b.rt.workers.length >= jobsOf(b) ? 'good' : 'quiet';
-    }
+    case 'full':
+      // Never failing: a store keeps the room it earned through the winter's emptying.
+      return stored(b) >= fullMark(def, level) && b.rt.workers.length >= jobsOf(b) ? 'good' : 'quiet';
     default:
       return 'quiet';
   }
@@ -333,6 +338,7 @@ export function specializedClimb(state: WorldState, b: Building): SpecializedCli
   const max = specializedMaxLevel(def);
   const c = b.counters ?? emptyCounters();
   let today: { have: number; need: number };
+  let places: { taken: number; room: number } | undefined;
   switch (levels.good) {
     case 'carried':
       today = { have: c.soldToday, need: c.madeToday };
@@ -346,10 +352,11 @@ export function specializedClimb(state: WorldState, b: Building): SpecializedCli
     case 'served': {
       const list = servedToday(state, b);
       today = { have: list.filter((s) => !s.counters?.shortToday).length, need: list.length };
+      places = { taken: list.length, room: capacityOf(state, b) };
       break;
     }
     case 'full':
-      today = { have: stored(b), need: Math.ceil(storageOf({ def: b.def, level }) / 2) };
+      today = { have: stored(b), need: fullMark(def, level) };
       break;
   }
   const view: SpecializedClimbView = {
@@ -363,6 +370,7 @@ export function specializedClimb(state: WorldState, b: Building): SpecializedCli
     next: level < max ? levelGains(def, level + 1) : [],
     lose: level > 1 ? levelGains(def, level) : [],
   };
+  if (places) view.places = places;
   if (resting(state, b, def)) view.resting = true;
   if (levels.good === 'carried' && makesSurplus(def, townNeeds(state))) view.surplus = true;
   return view;

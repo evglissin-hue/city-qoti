@@ -36,9 +36,26 @@ function goodDay(climb: SpecializedClimbView, def: BuildingDef): string {
       return `${servedTrade(def)} kept in ${raw ? goodName(raw).toLowerCase() : 'supplies'}`;
     }
     case 'full':
-      return 'a half-full store with every porter in';
+      return `${climb.today.need.toLocaleString('en-US')} goods in store and every porter in`;
   }
 }
+
+const ORDINAL = ['', 'first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth'];
+
+/** The trade a mill serves, one of them ("baker"), lowercase. */
+function servedOne(def: BuildingDef): string {
+  const trade = content.tradeById.get(def.enables?.[0] ?? '');
+  return trade ? trade.name.toLowerCase() : 'business';
+}
+
+/** A mill's raw good for its trade ("grain"), lowercase. */
+function servedRaw(def: BuildingDef): string {
+  const raw = content.tradeById.get(def.enables?.[0] ?? '')?.method?.inputs[0]?.[0];
+  return raw ? goodName(raw).toLowerCase() : 'supplies';
+}
+
+/** A store at level 2 and up keeps its room through the winter (the master's ruling of 2026-11-22). */
+const KEEPS_ROOM = 'A store keeps the room it has earned.';
 
 /** The level line: what the next level needs and how far along it is, or what a slide would cost. */
 export function climbLine(climb: SpecializedClimbView, def: BuildingDef): string {
@@ -59,11 +76,24 @@ export function climbLine(climb: SpecializedClimbView, def: BuildingDef): string
     const lose = climb.lose.length ? `, giving up ${joinWords(climb.lose)}` : '';
     return `A poor day: ${numberWord(left)} more in a row and ${name} slips back to level ${Math.max(1, climb.level - 1)}${lose}.`;
   }
-  if (climb.level >= climb.max) return `Level ${climb.level}, as big as a ${def.name.toLowerCase()} gets.`;
+  const keeps = climb.good === 'full' && climb.level >= 2 ? ` ${KEEPS_ROOM}` : '';
+  if (climb.level >= climb.max)
+    return `Level ${climb.level}, as big as a ${def.name.toLowerCase()} gets.${keeps}`;
   const left = Math.max(1, climb.upDays - climb.days);
   const more = `${cap(numberWord(left))} more good ${left === 1 ? 'day' : 'days'}`;
   const brings = climb.next.length ? `: ${joinWords(climb.next)}` : '';
-  return `${more} of ${goodDay(climb, def)} and ${name} grows to level ${climb.level + 1}${brings}.`;
+  // A mill climbs on a full house: while a place stands empty, the line names who it waits for.
+  const p = climb.places;
+  if (climb.good === 'served' && p && p.taken < p.room) {
+    const open = p.room - p.taken;
+    const who =
+      open === 1
+        ? `a ${ORDINAL[p.room] ?? 'new'} ${servedOne(def)} takes the last place`
+        : `${numberWord(open)} more ${servedTrade(def)} take the empty places`;
+    const days = `${numberWord(climb.upDays)} good ${climb.upDays === 1 ? 'day' : 'days'}`;
+    return `When ${who} and all are kept in ${servedRaw(def)}, ${days} of it and ${name} grows to level ${climb.level + 1}${brings}.`;
+  }
+  return `${more} of ${goodDay(climb, def)} and ${name} grows to level ${climb.level + 1}${brings}.${keeps}`;
 }
 
 /** Today's count against the mark, or null when there is nothing to say. */

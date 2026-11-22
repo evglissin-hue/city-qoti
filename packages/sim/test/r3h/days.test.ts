@@ -1,10 +1,11 @@
 // R3H: each good day by example (levels/specialized.ts, specializedDay): counters and state are set
 // by hand and the verdict read, so a rule that drifts shows up here before the climb does.
 import { describe, expect, it } from 'vitest';
-import { specializedDay, STALL_CUSTOMERS } from '../../src/systems/levels/specialized';
+import { servedToday, specializedDay, STALL_CUSTOMERS } from '../../src/systems/levels/specialized';
 import { sum } from '../../src/systems/logistics/stores';
 import { hamletFixture } from '../fixtures/hamlet';
 import { building, hire } from '../ledger/helpers';
+import { place } from '../village/helpers';
 import { good, plantWoods, plenty, spot, today } from './helpers';
 
 describe('carried', () => {
@@ -103,14 +104,28 @@ describe('customers', () => {
 });
 
 describe('served', () => {
-  it('a Windmill whose baker went short is failing, whose bakers had grain is good', () => {
+  it('a served baker gone short fails the day; an empty place only holds', () => {
     const { state, b } = hamletFixture();
     const mill = building(state, b.windmill);
     const baker = building(state, b.bakery);
     today(baker, { shortToday: true });
     expect(specializedDay(state, mill)).toBe('failing');
+    // One baker in a mill with room for two: everyone supplied, but not a full house.
     today(baker, { madeToday: 6, soldToday: 6 });
+    expect(servedToday(state, mill)).toHaveLength(1);
+    expect(specializedDay(state, mill)).toBe('quiet');
+  });
+
+  it('a full house, every baker kept in grain, is a good day', () => {
+    const { state, b } = hamletFixture();
+    const mill = building(state, b.windmill);
+    // A second baker beside the lane, in the mill's reach: both of its places taken.
+    const second = place(state, 'workshop', 68, 47, 0, 0, 'baker');
+    second.trade = 'baker';
+    expect(servedToday(state, mill).map((s) => s.id)).toEqual([b.bakery, second.id].sort((x, y) => x - y));
     expect(specializedDay(state, mill)).toBe('good');
+    today(second, { shortToday: true });
+    expect(specializedDay(state, mill)).toBe('failing');
   });
 
   it('a Windmill that serves nobody is quiet', () => {
@@ -121,29 +136,30 @@ describe('served', () => {
 });
 
 describe('full', () => {
-  it('half full at the level with every porter is good; a seat empty makes it quiet', () => {
+  it('a third full at level 1 with every porter is good; a seat empty makes it quiet', () => {
     const { state } = hamletFixture();
     const g = spot(state, 'granary', 120, 100);
-    g.rt!.store[good('grain')] = 600;
-    expect(sum(g.rt!.store)).toBe(600);
+    // 33% of 1,200 is 396 (fullShare, the master's ruling of 2026-11-22).
+    g.rt!.store[good('grain')] = 396;
+    expect(sum(g.rt!.store)).toBe(396);
     hire(state, g.id, 1);
     expect(specializedDay(state, g)).toBe('quiet');
     hire(state, g.id, 1);
     expect(specializedDay(state, g)).toBe('good');
-    g.rt!.store[good('grain')] = 599;
+    g.rt!.store[good('grain')] = 395;
     expect(specializedDay(state, g)).toBe('quiet');
   });
 
-  it('at level 2 half of 1,680 is good; under half of the level below (1,200) is failing', () => {
+  it('at level 2 half of 1,680 is good, and a store never fails however empty', () => {
     const { state } = hamletFixture();
     const g = spot(state, 'granary', 120, 100, 2);
     hire(state, g.id, 3);
     g.rt!.store[good('grain')] = 840;
     expect(specializedDay(state, g)).toBe('good');
-    g.rt!.store[good('grain')] = 700;
+    g.rt!.store[good('grain')] = 839;
     expect(specializedDay(state, g)).toBe('quiet');
-    g.rt!.store[good('grain')] = 599;
-    expect(specializedDay(state, g)).toBe('failing');
+    g.rt!.store[good('grain')] = 0;
+    expect(specializedDay(state, g)).toBe('quiet');
   });
 });
 

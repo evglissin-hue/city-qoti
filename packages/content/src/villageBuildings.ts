@@ -219,8 +219,8 @@ export const tradingPost: BuildingDef = {
   tags: ['trading-post', 'storehouse', 'outlet'],
   requires: { rank: 'village' },
   specialized: true,
-  // R3H: its levels (half full with every porter at work); every number tune.
-  levels: { crew: [2, 3, 4], storage: [200, 280, 360], good: 'full' },
+  // R3H: its levels (a third full, then half, with every porter at work; stores keep the room they earn); every number tune.
+  levels: { crew: [2, 3, 4], storage: [200, 280, 360], fullShare: [33, 50], good: 'full' },
   art: { kit: 'trading-post' },
 };
 

@@ -248,8 +248,8 @@ export const storehouse: BuildingDef = {
   charm: [{ category: 'noise', value: -3, radius: 2 }],
   tags: ['storehouse', 'outlet'],
   specialized: true,
-  // R3H: its levels (half full with every porter at work); every number tune.
-  levels: { crew: [4, 5, 6], storage: [800, 1120, 1440], good: 'full' },
+  // R3H: its levels (a third full, then half, with every porter at work; stores keep the room they earn); every number tune.
+  levels: { crew: [4, 5, 6], storage: [800, 1120, 1440], fullShare: [33, 50], good: 'full' },
   reach: 24,
   stores: ['fuel', 'materials', 'wares', 'treats'],
   art: { kit: 'storehouse' },
@@ -282,8 +282,8 @@ export const granary: BuildingDef = {
   charm: [{ category: 'noise', value: -2, radius: 2 }],
   tags: ['storehouse', 'outlet', 'granary'],
   specialized: true,
-  // R3H: its levels (half full with every porter at work); every number tune.
-  levels: { crew: [2, 3, 4], storage: [1200, 1680, 2160], good: 'full' },
+  // R3H: its levels (a third full, then half, with every porter at work; stores keep the room they earn); every number tune.
+  levels: { crew: [2, 3, 4], storage: [1200, 1680, 2160], fullShare: [33, 50], good: 'full' },
   reach: 24,
   stores: ['food'],
   art: { kit: 'storehouse', params: { kit: 'granary' } },

@@ -208,20 +208,13 @@ describe('level-stuck: served', () => {
 });
 
 describe('level-stuck: full', () => {
-  it('flags a store of a family nothing built makes, quiet once something does', () => {
+  it('never flags a store: stores keep the room they earned and never fail (the ruling of 2026-11-22)', () => {
     const f = hamletFixture();
     const s = f.state;
-    // Nothing in the hamlet but the bakery makes Food.
+    // Nothing in the hamlet but the bakery makes Food: an empty level 2 granary still is no dead end.
     remove(s, f.b.bakery);
     const granary = spot(s, 'granary', 120, 100, 2);
-    const w = new HealthWatch();
-    const flags = lookDays(w, s, 1, RUN, granary, {});
-    expect(flags).toHaveLength(1);
-    expect(flags[0]!.text).toContain('granary');
-
-    const g = hamletFixture();
-    const full = spot(g.state, 'granary', 120, 100, 2);
-    expect(lookDays(new HealthWatch(), g.state, 1, 2 * RUN, full, {})).toEqual([]);
+    expect(lookDays(new HealthWatch(), s, 1, 2 * RUN, granary, {})).toEqual([]);
   });
 });
 
