@@ -93,6 +93,22 @@
   color: var(--ink-soft, #6b5a48);
 }
 
+/* The Chapter card's line: in the card's top corner, level with its kicker, so it takes no room
+   from the story and the buttons stay where they were. */
+.chapter-print {
+  position: absolute;
+  top: 44px;
+  right: 22px;
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.chapter-print button.link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
 /* The book is never on screen: only the print stylesheet below shows it. */
 .storybook-print {
   display: none;
