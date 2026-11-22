@@ -34,10 +34,10 @@ function shapeOf(g: BufferGeometry): Shape {
   const box: Shape['box'] = [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity];
   let sum = 0;
   for (let i = 0; i < a.count; i++) {
-    const p = [a.getX(i), a.getY(i), a.getZ(i)] as const;
+    const p: [number, number, number] = [a.getX(i), a.getY(i), a.getZ(i)];
     for (let k = 0; k < 3; k++) {
-      box[k] = Math.min(box[k]!, p[k]);
-      box[k + 3] = Math.max(box[k + 3]!, p[k]);
+      box[k] = Math.min(box[k]!, p[k]!);
+      box[k + 3] = Math.max(box[k + 3]!, p[k]!);
     }
     sum += p[0] * 1.3 + p[1] * 2.7 + p[2] * 3.1;
   }
