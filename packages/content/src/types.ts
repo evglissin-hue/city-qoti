@@ -1686,8 +1686,8 @@ export interface SuppliesTuning {
   restCharmPercent: number;
   /**
    * R3A (additive): ticks a tile the lamplighter's walk is reckoned at when the settling gives each
-   * lamp its reach tick (a brisk walk on the road); a round too long for the half hour is pressed
-   * into it. Absent reads 5.
+   * lamp its reach tick, from where he stands at the settling; a lamp he cannot reach before
+   * `litHour` comes on then with the rest. Absent reads 5.
    */
   walkTicks?: number;
   /**

@@ -7,6 +7,7 @@
 import { content } from '@qoti/content';
 import { GOOD_FAMILIES, MAP_SIZE } from '../../constants';
 import type { Building, EntityId, LampState, PieceSupply, TickCtx, WorldState } from '../../contracts';
+import { findById } from '../../state/entities';
 import { placeState } from '../../state/evenings';
 import { balancesView } from '../../view/balances';
 import { suppliesView } from '../../view/supplies';
@@ -17,7 +18,7 @@ import { doorTile } from '../movement/api';
 import { placeIndex } from '../places';
 import { drawForPlaces, placesPurse, type PlacesPurse } from '../carrier/places';
 import { pieceRests } from './api';
-import { walkLamps, type LitLantern } from './lamplighter';
+import { walkLamps, type LitLantern, type Walker } from './lamplighter';
 import {
   Kind,
   pieceRanks,
@@ -196,7 +197,7 @@ export function settle(state: WorldState, ctx: TickCtx): void {
         tile: ix.tile[i]!,
         rank: ranks[i]!,
       }));
-      lamps = lampsFor(order, start, sup.lamplighters, night);
+      lamps = lampsFor(order, start, walkers(state), night);
     }
 
     // Cloth: put up once a season, if the purse can pay for it.
@@ -303,6 +304,16 @@ function canPay(purse: PlacesPurse, good: number, qty: number): boolean {
   return (purse.free[good] ?? 0) >= qty && (purse.surplus[familyOf(good)] ?? 0) >= qty;
 }
 
+/** The lamplighters (by id) and the tiles they set out from: where each stands at the settling. */
+function walkers(state: WorldState): Walker[] {
+  const out: Walker[] = [];
+  for (const id of state.supplies.lamplighters) {
+    const r = findById(state.residents, id);
+    if (r) out.push({ id, tile: r.tile });
+  }
+  return out;
+}
+
 /**
  * Tonight's lamps from the walk (lamplighter.ts). With nobody to walk it returns the lit ones as they
  * are; should it ever return anything else than the lit lanterns, every lamp comes on at the hour, so
@@ -311,7 +322,7 @@ function canPay(purse: PlacesPurse, good: number, qty: number): boolean {
 function lampsFor(
   order: readonly LitLantern[],
   start: number,
-  held: readonly EntityId[],
+  held: readonly Walker[],
   night: number,
 ): LampState[] {
   const walked = walkLamps(order, start, held, night);

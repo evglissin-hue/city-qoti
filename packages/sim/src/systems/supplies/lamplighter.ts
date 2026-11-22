@@ -52,26 +52,36 @@ function walkOrder(group: LitLantern[], from: number, out: LitLantern[]): number
   return at;
 }
 
+/** A lamplighter at the settling: who, and the tile he sets out from (where he stands at 17:30). */
+export interface Walker {
+  id: EntityId;
+  tile: number;
+}
+
 /**
- * Tonight's lamps (sorted by id) with the tick each is reached: the walk from `start` (the storehouse
- * the candles came from) split among `held` (the lamplighters, sorted), each lamp's `by` set; with
- * nobody holding the job every lamp comes on at `litHour` sharp and has no `by`. `night` is the day
- * index settled.
+ * Tonight's lamps (sorted by id) with the tick each is reached. The lit lanterns are shared among the
+ * `walkers` (the lamplighters, by id) in contiguous runs of the town's walking order from `start` (the
+ * storehouse the candles came from: the kept lanterns first, then the rest, each walked nearest-next);
+ * each walks his own run from where he stands, the kept ones first, nearest-next, at
+ * `SUPPLIES.walkTicks` a tile and `lightTicks` at each lamp (and as long to take up his pole). A lamp he reaches before `litHour` comes
+ * on then (lamps on one tile share the tick); the rest of his run comes on at `litHour` sharp with the
+ * town, as every lamp does with nobody in the job (and then no `by`). So every reach lies between the
+ * settling and `litHour`: the walk is there to be watched, and the rules never wait for it.
  */
 export function walkLamps(
   lit: readonly LitLantern[],
   start: number,
-  held: readonly EntityId[],
+  walkers: readonly Walker[],
   night: number,
 ): LampState[] {
   const S = content.supplies;
   const lampOut: LampState[] = [];
-  if (held.length === 0) {
-    const reach = tickAt(night, S.litHour);
-    for (const l of lit) lampOut.push({ id: l.id, reach });
+  const litTick = tickAt(night, S.litHour);
+  if (walkers.length === 0) {
+    for (const l of lit) lampOut.push({ id: l.id, reach: litTick });
     return lampOut.sort((a, b) => a.id - b.id);
   }
-  // The walking order: the kept lanterns first, then the rest, each walked nearest-next.
+  // The town's walking order, shared out in contiguous runs (the first runs one longer).
   const order: LitLantern[] = [];
   const at = walkOrder(
     lit.filter((l) => l.rank >= Rank.keep),
@@ -84,8 +94,8 @@ export function walkLamps(
     order,
   );
   const settle = settleTick(night);
-  const span = tickAt(night, S.litHour) - settle;
-  const k = held.length;
+  const pace = S.walkTicks ?? 5;
+  const k = walkers.length;
   const base = Math.floor(order.length / k);
   const extra = order.length % k;
   let from = 0;
@@ -93,21 +103,34 @@ export function walkLamps(
     const n = base + (h < extra ? 1 : 0);
     const run = order.slice(from, from + n);
     from += n;
-    // Walk the run from the start: each lamp is reached after the steps to it, then lit.
-    const raw: number[] = [];
-    let cum = 0;
-    let prev = start;
-    for (const l of run) {
-      cum += tileDist(prev, l.tile) * S.walkTicks!;
-      raw.push(cum);
-      cum += S.lightTicks;
+    const w = walkers[h]!;
+    // His own walk over his run, from where he stands: the kept ones first, nearest-next.
+    const route: LitLantern[] = [];
+    const then = walkOrder(
+      run.filter((l) => l.rank >= Rank.keep),
+      w.tile,
+      route,
+    );
+    walkOrder(
+      run.filter((l) => l.rank < Rank.keep),
+      then,
+      route,
+    );
+    // He takes up the candles and his pole first (and sets off at his next thought).
+    let cum = S.lightTicks;
+    let prev = w.tile;
+    let last = -1;
+    for (const l of route) {
+      const steps = tileDist(prev, l.tile);
+      // A second lamp on the same tile is lit in the same breath.
+      if (steps > 0 || last < 0) {
+        if (last >= 0) cum += S.lightTicks;
+        cum += steps * pace;
+        last = settle + cum;
+      }
+      lampOut.push({ id: l.id, reach: last < litTick ? last : litTick, by: w.id });
       prev = l.tile;
     }
-    const total = raw.length > 0 ? raw[raw.length - 1]! : 0;
-    run.forEach((l, i) => {
-      const t = total > span ? Math.floor((raw[i]! * span) / total) : raw[i]!;
-      lampOut.push({ id: l.id, reach: settle + t, by: held[h]! });
-    });
   }
   return lampOut.sort((a, b) => a.id - b.id);
 }
@@ -134,27 +157,27 @@ function holds(list: readonly EntityId[], id: EntityId): boolean {
   return false;
 }
 
-/** Where a lamplighter is bound this tick: the lamp he is at (or on his way to), or null off his round. */
+/**
+ * Where a lamplighter is bound this tick: the next lamp of his he reaches before `litHour` (by reach,
+ * then id), staying at each for `lightTicks`; null off his round (not a lamplighter, before the
+ * settling, after his last such lamp, or with none he can reach before the town lights up).
+ */
 function roundTarget(state: WorldState, r: Resident): { tile: number } | null {
   const sup = state.supplies;
   if (!holds(sup.lamplighters, r.id) || sup.night < 0) return null;
   const tick = state.tick;
   if (tick < settleTick(sup.night)) return null;
-  const mine: LampState[] = [];
-  for (const l of sup.lamps) if (l.by === r.id) mine.push(l);
-  if (mine.length === 0) return null;
-  mine.sort((a, b) => a.reach - b.reach || a.id - b.id);
+  const litTick = tickAt(sup.night, content.supplies.litHour);
   const lightTicks = content.supplies.lightTicks;
-  const last = mine[mine.length - 1]!;
-  const end = Math.min(last.reach + lightTicks, tickAt(sup.night, content.supplies.litHour) + TICKS_PER_HOUR);
-  if (tick >= end) return null;
-  let target = last;
-  for (const l of mine) {
-    if (l.reach + lightTicks > tick) {
-      target = l;
-      break;
-    }
+  let target: LampState | null = null;
+  let any = false;
+  for (const l of sup.lamps) {
+    if (l.by !== r.id || l.reach >= litTick) continue;
+    any = true;
+    if (l.reach + lightTicks <= tick) continue;
+    if (!target || l.reach < target.reach || (l.reach === target.reach && l.id < target.id)) target = l;
   }
+  if (!any || !target) return null;
   const d = findById(state.decor, target.id);
   return d ? { tile: pieceTile(d) } : null;
 }

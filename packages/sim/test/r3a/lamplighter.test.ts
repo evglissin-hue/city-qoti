@@ -47,9 +47,9 @@ describe('walkLamps', () => {
     expect(lamps.map((l) => l.id)).toEqual([100, 101, 102, 103, 104]);
   });
 
-  it('reaches lamps in walking order, nearest first, all within [settle, litHour]', () => {
-    const lamps = walkLamps(row(4), T(48, 50), [7], NIGHT);
-    expect(lamps[0]!.reach).toBe(settle + 2 * WALK);
+  it('reaches lamps in walking order from where he stands, nearest first, all within [settle, litHour]', () => {
+    const lamps = walkLamps(row(3), T(48, 50), [{ id: 7, tile: T(48, 50) }], NIGHT);
+    expect(lamps[0]!.reach).toBe(settle + S.lightTicks + 2 * WALK);
     for (let i = 1; i < lamps.length; i++)
       expect(lamps[i]!.reach - lamps[i - 1]!.reach).toBe(2 * WALK + S.lightTicks);
     for (const l of lamps) {
@@ -59,35 +59,63 @@ describe('walkLamps', () => {
     }
   });
 
+  it('sets out from his own tile, not the store', () => {
+    // He stands at x 56, beside the fourth lamp: it comes on at once, the first lamp last.
+    const lamps = walkLamps(row(4), T(48, 50), [{ id: 7, tile: T(56, 50) }], NIGHT);
+    expect(findLamp(lamps, 103).reach).toBe(settle + S.lightTicks);
+    expect(findLamp(lamps, 100).reach).toBeGreaterThan(findLamp(lamps, 101).reach);
+  });
+
   it('walks the kept lanterns first, even when they stand farther off', () => {
     const near = { id: 1, tile: T(50, 50), rank: Rank.normal };
-    const far = { id: 2, tile: T(80, 50), rank: Rank.keep };
-    const lamps = walkLamps([near, far], T(48, 50), [7], NIGHT);
+    const far = { id: 2, tile: T(58, 50), rank: Rank.keep };
+    const lamps = walkLamps([near, far], T(48, 50), [{ id: 7, tile: T(48, 50) }], NIGHT);
     expect(findLamp(lamps, 2).reach).toBeLessThan(findLamp(lamps, 1).reach);
   });
 
-  it('presses a long round into the half hour, order kept, and lamps reached in one tick share it', () => {
+  it('lights what he can reach by 18:00 on the way, and the rest of a long round comes on at 18:00', () => {
     const dense = Array.from({ length: 130 }, (_, i) => ({
       id: 100 + i,
       tile: T(20 + (i % 65), 50 + Math.floor(i / 65)),
       rank: Rank.normal as number,
     }));
-    const lamps = walkLamps(dense, T(19, 50), [7], NIGHT);
+    const lamps = walkLamps(dense, T(19, 50), [{ id: 7, tile: T(19, 50) }], NIGHT);
     for (const l of lamps) {
       expect(l.reach).toBeGreaterThanOrEqual(settle);
       expect(l.reach).toBeLessThanOrEqual(lit);
     }
-    const walked = lamps.map((l) => l.reach).sort((a, b) => a - b);
-    expect(walked[walked.length - 1]).toBe(lit);
-    expect(new Set(walked).size).toBeLessThan(lamps.length);
+    // Along the row, one lamp after another, then the town's hour for the rest.
+    const before = lamps.filter((l) => l.reach < lit).sort((a, b) => a.reach - b.reach);
+    expect(before.length).toBeGreaterThan(3);
+    expect(before.map((l) => l.id)).toEqual([...before.map((l) => l.id)].sort((a, b) => a - b));
+    expect(lamps.filter((l) => l.reach === lit).length).toBe(130 - before.length);
   });
 
-  it('splits contiguous runs among two lamplighters, the first run one longer, each walked from the start', () => {
-    const lamps = walkLamps(row(5), T(48, 50), [7, 9], NIGHT);
+  it('lamps on one tile come on in the same tick', () => {
+    const pair = [
+      { id: 1, tile: T(52, 50), rank: Rank.normal },
+      { id: 2, tile: T(52, 50), rank: Rank.normal },
+    ];
+    const lamps = walkLamps(pair, T(48, 50), [{ id: 7, tile: T(48, 50) }], NIGHT);
+    expect(lamps[0]!.reach).toBe(settle + S.lightTicks + 4 * WALK);
+    expect(lamps[1]!.reach).toBe(lamps[0]!.reach);
+  });
+
+  it('shares contiguous runs between two lamplighters, the first run one longer, each from his own tile', () => {
+    const lamps = walkLamps(
+      row(5),
+      T(48, 50),
+      [
+        { id: 7, tile: T(48, 50) },
+        { id: 9, tile: T(56, 50) },
+      ],
+      NIGHT,
+    );
     expect(lamps.map((l) => l.by)).toEqual([7, 7, 7, 9, 9]);
-    // Lamp 103 stands at x 56: eight tiles from the start.
-    expect(findLamp(lamps, 103).reach).toBe(settle + 8 * WALK);
-    expect(findLamp(lamps, 100).reach).toBe(settle + 2 * WALK);
+    // Lamp 103 stands at x 56, where the second lamplighter stands.
+    expect(findLamp(lamps, 103).reach).toBe(settle + S.lightTicks);
+    expect(findLamp(lamps, 104).reach).toBe(settle + 2 * S.lightTicks + 2 * WALK);
+    expect(findLamp(lamps, 100).reach).toBe(settle + S.lightTicks + 2 * WALK);
   });
 });
 
@@ -171,7 +199,7 @@ describe('the lamplighter override', () => {
     s.supplies.night = NIGHT;
     s.supplies.lamps = [
       { id: a, reach: settle + 20, by: r.id },
-      { id: b, reach: settle + 120, by: r.id },
+      { id: b, reach: settle + 80, by: r.id },
     ];
     s.supplies.lamplighters = [r.id];
     return { s, r, a, b };
@@ -202,15 +230,28 @@ describe('the lamplighter override', () => {
     expect(lamplighterRound(s, r, 17)).toEqual({ kind: 'leisure', tile: tile(a) });
     s.tick = settle + 20 + S.lightTicks;
     expect(lamplighterRound(s, r, 17)).toEqual({ kind: 'leisure', tile: tile(b) });
-    s.tick = settle + 120 + S.lightTicks - 1;
+    s.tick = settle + 80 + S.lightTicks - 1;
     expect(lamplighterRound(s, r, 17)).toEqual({ kind: 'leisure', tile: tile(b) });
     r.move = null;
     r.tile = T(0, 0);
     expect(lamplighterPose(s, r)).toBe(1);
     r.tile = tile(b);
     expect(lamplighterPose(s, r)).toBe(2);
-    s.tick = settle + 120 + S.lightTicks;
+    s.tick = settle + 80 + S.lightTicks;
     expect(lamplighterRound(s, r, 17)).toBeNull();
     expect(lamplighterPose(s, r)).toBe(0);
+  });
+
+  it('never sets out for a lamp left to come on at 18:00 with the town', () => {
+    const { s, r, a, b } = round();
+    s.supplies.lamps = [
+      { id: a, reach: settle + 20, by: r.id },
+      { id: b, reach: lit, by: r.id },
+    ];
+    s.tick = settle + 20 + S.lightTicks;
+    expect(lamplighterRound(s, r, 17)).toBeNull();
+    s.supplies.lamps = [{ id: b, reach: lit, by: r.id }];
+    s.tick = settle;
+    expect(lamplighterRound(s, r, 17)).toBeNull();
   });
 });
