@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { clickTile, HAMLET_QUERY, waitLive } from './helpers';
+import { clickTile, HAMLET_QUERY, openBook, waitLive } from './helpers';
 
 // C3E smoke: the new valley flow makes a standard valley, every hamlet panel opens against a live
 // valley, and Ctrl+Z undoes this seat's own last change.
@@ -25,7 +25,7 @@ test('New valley makes a standard valley; the books, reports and inspectors open
     ['chronicle', 'chronicle'],
     ['achievements', 'achievements'],
   ] as const) {
-    await page.getByTestId(`book-${book}`).click();
+    await openBook(page, book);
     await expect(page.getByTestId(panel)).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(page.getByTestId(panel)).toHaveCount(0);
@@ -37,7 +37,7 @@ test('New valley makes a standard valley; the books, reports and inspectors open
 
   // Ledger: the Purse (R1C replaced Reports and Policies).
   await page.getByTestId('lens-ledger').click();
-  await page.getByTestId('book-purse').click();
+  await openBook(page, 'purse');
   for (const tab of ['budget', 'taxes', 'loans']) {
     await page.getByTestId(`purse-${tab}`).click();
     await expect(page.getByTestId(`purse-${tab}`)).toHaveAttribute('aria-selected', 'true');
@@ -98,7 +98,7 @@ test('the hamlet fixture: residents and buildings inspected live from the sim wo
   await expect(baker).toContainText('Hazel Thistledown');
   await expect(baker).toContainText('4 grain');
 
-  await page.getByTestId('book-patterns').click();
+  await openBook(page, 'patterns');
   await expect(page.getByTestId('patterns')).toContainText('Hints in the margin');
 });
 
@@ -112,7 +112,7 @@ test('a creative valley stays the quiet sandbox: no coins, no books, the house o
   await waitLive(page);
   expect(await page.evaluate(() => window.__qoti.mode())).toBe('sandbox');
   await expect(page.getByTestId('treasury')).toHaveCount(0);
-  await expect(page.getByTestId('book-wishes')).toHaveCount(0);
+  await expect(page.getByTestId('books')).toHaveCount(0);
   await page.getByTestId('tool-building').click();
   await expect(page.getByTestId('variant-house')).toBeVisible();
 });
