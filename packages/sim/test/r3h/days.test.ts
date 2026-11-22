@@ -15,14 +15,14 @@ describe('carried', () => {
     expect(specializedDay(state, q)).toBe('good');
   });
 
-  it('goods the town has no use for: quiet at level 1, failing above it', () => {
+  it('goods the town has no use for make a quiet day, at any level', () => {
     const { state } = hamletFixture();
     const q = spot(state, 'quarry', 120, 100);
     plenty(state, 'stone', 500);
     today(q, { madeToday: 10, soldToday: 10 });
     expect(specializedDay(state, q)).toBe('quiet');
     q.level = 2;
-    expect(specializedDay(state, q)).toBe('failing');
+    expect(specializedDay(state, q)).toBe('quiet');
   });
 
   it('made but not carried is failing', () => {

@@ -57,8 +57,7 @@ export function climbLine(climb: SpecializedClimbView, def: BuildingDef): string
   if (climb.days < 0) {
     const left = Math.max(1, climb.downDays + climb.days);
     const lose = climb.lose.length ? `, giving up ${joinWords(climb.lose)}` : '';
-    const poor = climb.surplus ? 'A poor day, with more in store than the town can use' : 'A poor day';
-    return `${poor}: ${numberWord(left)} more in a row and ${name} slips back to level ${Math.max(1, climb.level - 1)}${lose}.`;
+    return `A poor day: ${numberWord(left)} more in a row and ${name} slips back to level ${Math.max(1, climb.level - 1)}${lose}.`;
   }
   if (climb.level >= climb.max) return `Level ${climb.level}, as big as a ${def.name.toLowerCase()} gets.`;
   const left = Math.max(1, climb.upDays - climb.days);

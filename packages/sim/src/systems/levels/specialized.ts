@@ -5,9 +5,8 @@
 //   carried    what it made today was carried off (four fifths of it, a business's steady custom),
 //              without running short of its raw good, while the town wants more of what it makes
 //              (not in surplus: more in store than SURPLUS_COVER_DAYS of the town's want, the mark at
-//              which a business retools); a Lodge fells only with its woods above its site rule. A
-//              surplus day is a failing one above level 1, so an oversized crew slides back and its
-//              wages stop. A Fishery on a frozen river rests: those days count neither way.
+//              which a business retools; a surplus day is quiet); a Lodge fells only with its woods
+//              above its site rule. A Fishery on a frozen river rests: those days count neither way.
 //   customers  a Market Stall served STALL_CUSTOMERS[level - 1] households.
 //   served     every business it serves (the first `capacityOf` in its reach) had its raw good all
 //              day, and it serves at least one. A Sawmill on a frozen river rests.
@@ -136,8 +135,9 @@ export function specializedDay(state: WorldState, b: Building, needs?: TownNeeds
   switch (levels.good) {
     case 'carried': {
       if (c.shortToday || (c.madeToday > 0 && !carriedOff(c))) return 'failing';
-      // Goods the town has no use for: a quiet day at level 1, a failing one above it.
-      if (makesSurplus(def, needs ?? townNeeds(state))) return level >= 2 ? 'failing' : 'quiet';
+      // Goods the town has no use for make no good day (nor a failing one: demand comes and goes
+      // with the sites, and a quarry sliding every time it caught up only made noise).
+      if (makesSurplus(def, needs ?? townNeeds(state))) return 'quiet';
       if (!carriedOff(c)) return 'quiet';
       // A Lodge's good day fells with its woods above its site rule (not planting them back).
       const fells = def.methods?.some((m) => m.kind === 'fell') === true;
@@ -224,14 +224,10 @@ export function joinWords(items: string[]): string {
 }
 
 /** Why a level slid, in words, by the def's good day. */
-function slideWhy(def: BuildingDef, surplus = false): string {
+function slideWhy(def: BuildingDef): string {
   switch (def.levels?.good) {
-    case 'carried': {
-      if (!surplus) return 'its goods sat in the yard waiting for porters four days running';
-      const made = def.methods?.[0]?.outputs[0]?.[0];
-      const name = made ? (content.goodById.get(made)?.name ?? made).toLowerCase() : 'goods';
-      return `the town had more ${name} than it could use four days running`;
-    }
+    case 'carried':
+      return 'its goods sat in the yard waiting for porters four days running';
     case 'customers':
       return 'four days of too few customers';
     case 'served': {
@@ -263,14 +259,7 @@ function trimCrew(state: WorldState, ctx: TickCtx, b: Building): void {
 }
 
 /** The level changed: the places, the art and the Chronicle hear of it. */
-function changed(
-  state: WorldState,
-  ctx: TickCtx,
-  b: Building,
-  def: BuildingDef,
-  up: boolean,
-  surplus = false,
-): void {
+function changed(state: WorldState, ctx: TickCtx, b: Building, def: BuildingDef, up: boolean): void {
   const level = levelOf(b);
   bumpPlaceInputs(state);
   if (def.host) invalidatePlaces(state);
@@ -281,7 +270,7 @@ function changed(
       ['building', name],
       ['level', String(level)],
       ['more', up ? joinWords(levelGains(def, level)) || 'a little more of everything' : ''],
-      ['why', up ? '' : slideWhy(def, surplus)],
+      ['why', up ? '' : slideWhy(def)],
     ],
     refs: [b.id],
     // Chosen by the building and its level, so the town's dice stay where they were.
@@ -313,7 +302,7 @@ export function specializedDayEnd(state: WorldState, ctx: TickCtx, b: Building):
         b.level = level - 1;
         c.levelDays = 0;
         trimCrew(state, ctx, b);
-        changed(state, ctx, b, def, false, needs && makesSurplus(def, needs));
+        changed(state, ctx, b, def, false);
       }
     } else {
       c.levelDays = 0;
