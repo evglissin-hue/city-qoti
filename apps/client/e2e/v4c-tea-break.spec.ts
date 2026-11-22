@@ -193,6 +193,10 @@ async function twoSeats(browser: Browser) {
   const a = await (await browser.newContext()).newPage();
   await a.goto(`/${QUERY}`);
   await waitLive(a);
+  await expect
+    .poll(() => a.evaluate(() => !!(window as unknown as { __qotiTeaBreak?: unknown }).__qotiTeaBreak))
+    .toBe(true);
+  await closeCards(a);
   await a.getByTestId('speed-0').click();
   await a.getByTestId('menu-open').click();
   await a.getByTestId('settings-open').click();
@@ -214,6 +218,8 @@ async function twoSeats(browser: Browser) {
 test('two seats: one seat on a tea break sends nothing and moves nobody else', async ({ browser }) => {
   test.setTimeout(900_000);
   const { a, b } = await twoSeats(browser);
+  await closeCards(a);
+  await closeCards(b);
   await a.waitForTimeout(1500);
   const sent: string[] = [];
   const watch = (ws: {
