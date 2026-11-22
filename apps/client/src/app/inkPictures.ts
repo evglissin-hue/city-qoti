@@ -8,7 +8,7 @@
 // The seam: R3D's `ui/pictures.ts` (`PictureRef`, `pictureFor`, `setPictureSource`) is not on V4's
 // branches yet. Whichever of R3X and V4X lands second deletes the structural copy of `PictureRef`
 // below and makes the one call at startup: `setPictureSource(inkPictureSource(session))`.
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import type { ChronicleEntryView, PatternView, PlaceView } from '@qoti/sim';
 import type { RenderApi } from '../render/api';
 import type { SeasonRender } from './snapshots';
@@ -165,22 +165,37 @@ export function seasonPicture(session: PictureSession, season: number, year: num
   return inkAlbum(session).picture(`season:${year}:${season}`, heartAim(session.mirror), SLOT_SIZE);
 }
 
+/** Whether an element is on show: in the document and not inside a hidden ancestor (a queued card). */
+export function onShow(el: Element | null): boolean {
+  return !!el && el.isConnected && el.closest('[hidden]') === null;
+}
+
 /**
- * A slot's picture while it is shown: asks once when mounted (or when `key` changes) and never
- * after unmounting. Null until the picture comes (the slot shows its drawing meanwhile).
+ * A slot's picture while it is shown: asks once the slot is on show (`onShow(el())`, checked after
+ * every render, so a card waiting hidden in the queue asks only when its turn comes), again when
+ * `key` changes, and never after unmounting. Null until the picture comes (the slot shows its
+ * drawing meanwhile).
  */
-export function useInkPicture(key: string | null, ask: () => Promise<string | null>): string | null {
+export function useInkPicture(
+  key: string | null,
+  ask: () => Promise<string | null>,
+  el: () => Element | null,
+): string | null {
   const [url, setUrl] = useState<{ key: string; url: string } | null>(null);
+  const asked = useRef<string | null>(null);
+  const live = useRef(true);
   useEffect(() => {
-    if (key === null) return;
-    let live = true;
-    void ask().then((u) => {
-      if (live && u) setUrl({ key, url: u });
-    });
+    live.current = true;
     return () => {
-      live = false;
+      live.current = false;
     };
-    // `ask` is rebuilt each render; the key says what it asks for.
-  }, [key]);
+  }, []);
+  useEffect(() => {
+    if (key === null || asked.current === key || !onShow(el())) return;
+    asked.current = key;
+    void ask().then((u) => {
+      if (live.current && u && asked.current === key) setUrl({ key, url: u });
+    });
+  });
   return url && url.key === key ? url.url : null;
 }

@@ -146,6 +146,20 @@ describe('V4B: nothing is captured while no book is open', () => {
     expect(captures[0]).toMatchObject({ style: 'ink', size: SLOT_SIZE });
   });
 
+  it('waits while its card is queued behind another (hidden), and asks when its turn comes', async () => {
+    const { session, captures } = withCamera();
+    session.ui.almanac.value = { kind: 'card', view: mockSeasonCard };
+    // GameUI mounts a waiting card inside a hidden wrapper.
+    view = await mount(h('div', { hidden: true }, h(SeasonCardPanel, { session })));
+    await settle();
+    expect(view.root.querySelector('[data-testid="season-card-picture"]')).not.toBeNull();
+    expect(captures).toHaveLength(0);
+    view.unmount();
+    view = await mount(h(SeasonCardPanel, { session }));
+    await settle();
+    expect(captures).toHaveLength(1);
+  });
+
   it('keeps the line drawing where no picture can be taken', async () => {
     const { session } = mockSession();
     view = await mount(h(PatternBookPanel, { session }));
