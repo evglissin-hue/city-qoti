@@ -178,6 +178,8 @@ export function buildingParams(b: BuildingView): Record<string, number | string 
   // R1E: a business draws its trade's look at its level (packages/art kits/business.ts).
   const trade = b.trade ? content.tradeById.get(b.trade) : undefined;
   if (trade) Object.assign(p, businessParams(artKitId(trade.look), trade.makes, b.level, trade.look.params));
+  // R3H: a specialized building above level 1 draws its level (level 1 keeps its keys and geometry).
+  if (def?.levels && b.level !== undefined && b.level > 1) p.level = b.level;
   if (def?.tags?.includes('plot')) p.soil = plotSoil(b);
   if (rowAt && def && isRowKit(artKitId(def.art))) Object.assign(p, rowAt(b));
   if (wallAt && def && WALL_KITS.has(artKitId(def.art))) Object.assign(p, wallAt(b));

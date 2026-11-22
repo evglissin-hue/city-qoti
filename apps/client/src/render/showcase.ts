@@ -45,6 +45,8 @@ interface Plan {
   store?: [string, number][];
   upgrading?: boolean;
   site?: 0 | 1 | 2 | 3;
+  /** R3H: a specialized building's level (debug scene `levels`). */
+  level?: number;
 }
 
 interface Mover {
@@ -132,7 +134,45 @@ function rt(p: Plan): BuildingRuntimeView {
   };
 }
 
-export function villageShowcase(mirror: Mirror, opts: { dense?: boolean } = {}): ShowcaseResult {
+/**
+ * R3H (debug only): every specialized building at levels 1, 2 and 3 side by side, in two rows on the
+ * open ground between the farm lane and the street (`villageShowcase(mirror, { levels: true })`;
+ * `__qoti.levelRows` lists where). Each trio stands at `x` of its row with a tile between.
+ */
+export const LEVEL_ROWS: { def: string; x: number; z: number; w: number }[] = [];
+
+function levelPlans(plans: Plan[]): void {
+  LEVEL_ROWS.length = 0;
+  const rows: string[][] = [
+    ['foresters-lodge', 'quarry', 'fishery'],
+    ['market-stall', 'storehouse', 'sawmill', 'windmill'],
+    ['brickworks', 'granary', 'trading-post'],
+  ];
+  rows.forEach((defs, r) => {
+    let x = 42;
+    const z = 41 + r * 4;
+    for (const def of defs) {
+      const [w] = sizeOf(def, 0);
+      LEVEL_ROWS.push({ def, x, z, w });
+      for (let lv = 1; lv <= 3; lv++) {
+        plans.push({
+          def,
+          x: x + (lv - 1) * (w + 1),
+          z,
+          rot: 0,
+          level: lv,
+          ...(def === 'granary' || def === 'storehouse' ? { store: [['grain', 6]] } : {}),
+        });
+      }
+      x += 3 * (w + 1) + 1;
+    }
+  });
+}
+
+export function villageShowcase(
+  mirror: Mirror,
+  opts: { dense?: boolean; levels?: boolean } = {},
+): ShowcaseResult {
   const L = mirror.layers;
   const road = new Uint8Array(L.road as Uint8Array);
   const height = new Uint8Array(L.height as Uint8Array);
@@ -270,8 +310,13 @@ export function villageShowcase(mirror: Mirror, opts: { dense?: boolean } = {}):
     { def: 'farmstead', x: 84, z: 41, rot: 2, style: 'timber', zone: 'farms' },
   ];
   plans.push(...north, ...south, ...farms);
+  // R3H: the levels scene stands only the level rows, so nothing crowds them.
+  if (opts.levels) {
+    plans.length = 0;
+    levelPlans(plans);
+  }
   // Homes grown along the south side of lane A, behind the street's workshops.
-  row(plans, ['cottage', 'cottage', 'townhouse', 'cottage'], 34, 58, 50, 2, 'timber', 'homes-low');
+  if (!opts.levels) row(plans, ['cottage', 'cottage', 'townhouse', 'cottage'], 34, 58, 50, 2, 'timber', 'homes-low');
   if (opts.dense) {
     const mix = ['cottage', 'cottage', 'townhouse', 'cottage', 'corner-shop', 'townhouse'];
     row(plans, mix, 34, 62, 82, 0, 'timber', 'homes-low');
@@ -333,6 +378,7 @@ export function villageShowcase(mirror: Mirror, opts: { dense?: boolean } = {}):
       foundation: false,
       ...(p.style ? { style: p.style } : {}),
       ...(lot ? { lot } : {}),
+      ...(p.level !== undefined ? { level: p.level } : {}),
       ...hands.next(p.def),
       rt: rt(p),
     };
