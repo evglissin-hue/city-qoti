@@ -196,6 +196,28 @@ describe('where a household shops', () => {
   });
 });
 
+describe('where a household shops, by what a shelf holds', () => {
+  it('walks past a nearer shelf holding fewer units than the household has mouths', () => {
+    const f = villageFixture();
+    const s = f.state;
+    const h = worker(f);
+    const [a, b] = f.b.stalls;
+    const door = doorTile(findById(s.buildings, a)!) + 1;
+    for (const bld of s.buildings) if (bld.rt && bld.id !== a && bld.id !== b) bld.rt.store.fill(0);
+    // Stall a is nearer and cheap, but holds one unit for four mouths; stall b holds plenty.
+    stall(s, a, [['vegetables', 1]]);
+    stall(s, b, [['vegetables', 20]]);
+    s.market.prices[good('vegetables')] = 100;
+    h.pantry.fill(0);
+    h.savings = 100000;
+    expect(h.members.length).toBeGreaterThan(1);
+    expect(shopOutlet(s, h, door)).toBe(b);
+    // With the pantry nearly full the one unit will do, and the nearest shelf is taken.
+    h.pantry[good('vegetables')] = h.members.length - 1;
+    expect(shopOutlet(s, h, door)).toBe(a);
+  });
+});
+
 describe('the meals-missed watch', () => {
   /** The tick of the first hour from MEALS_HOUR on the given day. */
   function lookTick(day: number): number {
@@ -247,6 +269,20 @@ describe('the meals-missed watch', () => {
     flagged(w, s);
     s.tick = lookTick(5);
     expect(flagged(w, s)).toBe(false);
+  });
+
+  it('is quiet when the shelf holds fewer units than the hungry households have mouths', () => {
+    const { f, s, h } = hungryTown();
+    const w = new HealthWatch();
+    for (const bld of s.buildings) if (bld.rt) bld.rt.store.fill(0);
+    stall(s, f.b.stalls[0], [['vegetables', 1]]);
+    expect(h.members.length).toBeGreaterThan(1);
+    s.tick = lookTick(4);
+    flagged(w, s);
+    s.tick = lookTick(5);
+    expect(flagged(w, s)).toBe(false);
+    stall(s, f.b.stalls[0], [['vegetables', 20]]);
+    expect(mealsMissed(s, hungryHouseholds(s))).toMatch(/went without breakfast/);
   });
 
   it('needs two mornings running: a gap of a day starts the count again', () => {

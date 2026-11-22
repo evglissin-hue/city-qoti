@@ -38,7 +38,7 @@ import { rankAtLeast } from '../state/village';
 import { familyIndex, jobsOf, methodOf } from '../state/zones';
 import { isStandard } from '../state/hamlet';
 import { carrierCovers, passClosed } from '../systems/carrier/api';
-import { nearestOutletWithFood } from '../systems/economy/outlets';
+import { nearestOutletWithFood, outletFood } from '../systems/economy/outlets';
 import { doorTile } from '../systems/movement/api';
 import { dayIndex, hourOf, isBuildTime } from '../systems/economy/time';
 import { currentPlan, isFestivalDay } from '../systems/festivals/api';
@@ -256,20 +256,32 @@ export function hungryHouseholds(state: WorldState): Set<number> {
  */
 export function mealsMissed(state: WorldState, before: ReadonlySet<number>): string | null {
   const now = hungryHouseholds(state);
-  const shelves = new Map<number, number>();
-  let n = 0;
+  // The households each nearest shelf serves, with their mouths: a shelf holding fewer units than
+  // the households queuing at it have mouths is a shortage (the Ledger's line), not food in reach.
+  const shelves = new Map<number, { households: number; mouths: number }>();
   for (const h of state.households) {
     if (!now.has(h.id) || !before.has(h.id)) continue;
     const home = findById(state.buildings, h.homeId);
     if (!home) continue;
     const shelf = nearestOutletWithFood(state, doorTile(home));
     if (!shelf) continue;
-    n++;
-    shelves.set(shelf, (shelves.get(shelf) ?? 0) + 1);
+    const at = shelves.get(shelf) ?? { households: 0, mouths: 0 };
+    at.households++;
+    at.mouths += Math.max(1, h.members.length);
+    shelves.set(shelf, at);
+  }
+  let n = 0;
+  let top = 0;
+  let topN = 0;
+  for (const [id, at] of shelves) {
+    if (outletFood(state, id) < at.mouths) continue;
+    n += at.households;
+    if (at.households > topN) {
+      top = id;
+      topN = at.households;
+    }
   }
   if (n === 0) return null;
-  let top = 0;
-  for (const [id, c] of shelves) if (c > (shelves.get(top) ?? 0)) top = id;
   const shelf = findById(state.buildings, top);
   return (
     `${n} household${n === 1 ? '' : 's'} went without breakfast two mornings running with food on ` +

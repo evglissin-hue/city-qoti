@@ -40,25 +40,36 @@ function cheapestOn(state: WorldState, outlet: number): number {
   return best;
 }
 
-/** How far (tiles, straight line) a household will walk past its nearest shelf for cheaper food: a stall's reach. */
+/** Free food units on one outlet's shelf, every kind together. */
+function foodOn(state: WorldState, outlet: number): number {
+  let n = 0;
+  for (const g of foodIndexes()) n += outletFree(state, outlet, g);
+  return n;
+}
+
+/** How far (tiles, straight line) a household will walk past its nearest shelf for better food: a stall's reach. */
 const CHEAPER_SHELF_REACH = 14;
 
 /**
- * P3A (meals): where a household shops. The nearest outlet with food, except that a household whose
- * purse cannot pay tomorrow's breakfast there walks to the shelf in reach with the cheapest food
- * (a stall that held only dear fish while grain sat on the next street fed nobody).
+ * P3A (meals): where a household shops. The nearest outlet with food, except that a household that
+ * cannot get tomorrow's breakfast there walks to the shelf in reach that gives it the most (the
+ * units the shelf holds and the purse pays for, the cheapest food on a tie). A stall that held only
+ * dear fish, or two units for four mouths, while grain sat on the next street fed nobody.
  */
 export function shopOutlet(state: WorldState, h: Household, homeDoor: number): number {
   const near = nearestOutletWithFood(state, homeDoor);
   if (!near || !marketOpen(state)) return near;
   const short = Math.max(1, h.members.length) - pantryFood(h);
-  const here = cheapestOn(state, near);
-  if (short <= 0 || h.savings >= here * short) return near;
+  if (short <= 0) return near;
+  const units = (id: number) =>
+    Math.min(short, foodOn(state, id), Math.floor(h.savings / Math.max(1, cheapestOn(state, id))));
+  let best = near;
+  let bestUnits = units(near);
+  if (bestUnits >= short) return near;
+  let bestPrice = cheapestOn(state, near);
+  let bestD = Infinity;
   const hx = homeDoor % MAP_SIZE;
   const hz = Math.floor(homeDoor / MAP_SIZE);
-  let best = near;
-  let bestPrice = here;
-  let bestD = Infinity;
   const seen = new Set<number>();
   for (const g of foodIndexes()) {
     for (const id of outletsWith(state, g)) {
@@ -68,11 +79,17 @@ export function shopOutlet(state: WorldState, h: Household, homeDoor: number): n
       if (door < 0) continue;
       const dx = (door % MAP_SIZE) - hx;
       const dz = Math.floor(door / MAP_SIZE) - hz;
-      if (dx * dx + dz * dz > CHEAPER_SHELF_REACH * CHEAPER_SHELF_REACH) continue;
-      const price = cheapestOn(state, id);
       const d = dx * dx + dz * dz;
-      if (price < bestPrice || (price === bestPrice && id !== near && best !== near && d < bestD)) {
+      if (d > CHEAPER_SHELF_REACH * CHEAPER_SHELF_REACH) continue;
+      const u = units(id);
+      const price = cheapestOn(state, id);
+      if (
+        u > bestUnits ||
+        (u === bestUnits &&
+          (price < bestPrice || (price === bestPrice && id !== near && best !== near && d < bestD)))
+      ) {
         best = id;
+        bestUnits = u;
         bestPrice = price;
         bestD = d;
       }
