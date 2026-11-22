@@ -319,6 +319,8 @@ export function lightsLayer(): LightsLayer {
   let clock: SuppliesClock | null = null;
   let edges: number[] = [];
   let suppliesDirty = true;
+  /** Feed the lamps and the candle mask again even if the lit set and the homes are the same. */
+  let refeed = true;
   /** The Mirror's supplies view the clock was built from (a new view object is a new view). */
   let seenView: SuppliesView | null | undefined;
   let lastKey = '';
@@ -456,8 +458,10 @@ export function lightsLayer(): LightsLayer {
     dirty = false;
     lastShare = -1;
     lastHourKey = -1;
-    // The lamps, fires and candles are fed again from the clock on this frame.
+    // The lamps, fires and candles are fed again from the clock on this frame, from scratch: a lamp
+    // that moved (the ground, a rebuilt piece) keeps its id, so the lit set alone would not tell.
     suppliesDirty = true;
+    refeed = true;
     feed('decor-lights', others);
   }
 
@@ -510,10 +514,10 @@ export function lightsLayer(): LightsLayer {
   }
 
   /** R3F: the candle mask (every tile of each candle-lit home's footprint, while they burn). */
-  function setCandles(homes: ReadonlySet<EntityId>): boolean {
+  function setCandles(homes: ReadonlySet<EntityId>, force = false): boolean {
     if (!ctx || !env) return false;
     const same = homes.size === maskHomes.size && [...homes].every((h) => maskHomes.has(h));
-    if (same) return false;
+    if (same && !force) return false;
     maskHomes = homes;
     const tex = candleMask(env).uCandles.value;
     const data = tex.image.data as Uint8Array;
@@ -541,7 +545,7 @@ export function lightsLayer(): LightsLayer {
     const lit = litLamps(c, tick).filter((id) => lamps.has(id));
     const burn = candlesBurn(c, tick);
     let changed = false;
-    if (lit.length !== litNow.length || lit.some((id, i) => id !== litNow[i])) {
+    if (refeed || lit.length !== litNow.length || lit.some((id, i) => id !== litNow[i])) {
       litNow = lit;
       feed(
         'lanterns',
@@ -551,10 +555,11 @@ export function lightsLayer(): LightsLayer {
       changed = true;
     }
     candlesNow = burn;
-    if (setCandles(burn ? c.candles : new Set())) {
+    if (setCandles(burn ? c.candles : new Set(), refeed)) {
       lastShare = -1;
       changed = true;
     }
+    refeed = false;
     return changed;
   }
 

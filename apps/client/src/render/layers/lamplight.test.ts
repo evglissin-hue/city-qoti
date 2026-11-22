@@ -12,16 +12,8 @@ import {
   type DecorView,
   type SuppliesView,
 } from '@qoti/sim';
-import type {
-  MeshLambertMaterial} from 'three';
-import {
-  PerspectiveCamera,
-  Scene,
-  ShaderLib,
-  UniformsUtils,
-  Vector3,
-  type InstancedMesh,
-} from 'three';
+import type { MeshLambertMaterial } from 'three';
+import { PerspectiveCamera, Scene, ShaderLib, UniformsUtils, Vector3, type InstancedMesh } from 'three';
 import { describe, expect, it } from 'vitest';
 import { Mirror } from '../../state/mirror';
 import { createWorldEnv } from '../env';
@@ -398,5 +390,20 @@ describe("the lamplighter's pole (R3F)", () => {
     expect(poleLit(23)).toBe(true);
     expect(poleLit(3)).toBe(true);
     expect(poleLit(8)).toBe(false);
+  });
+});
+
+describe('a lamp that moves (R3F)', () => {
+  it('moves its pool and its lit glass with it, the lit set unchanged', () => {
+    const m = mirrorWith(view());
+    const r = run(m, SETTLE + 40);
+    r.step(SETTLE + 40);
+    const before = [...r.env.lightWriter.discs()].find((d) => d.radius === 1.4 && d.x < 41.5)!;
+    m.decor.set(1, decor(1, 'lantern', 40.5, 50.5));
+    r.layer.update({ full: false, buildings: false, decor: true, rects: new Map() } as never);
+    const s = r.step(SETTLE + 41);
+    expect(s.changed).toBe(true);
+    const after = [...r.env.lightWriter.discs()].filter((d) => d.radius === 1.4).map((d) => d.z);
+    expect(after.some((z) => Math.abs(z - (before.z + 10)) < 0.01)).toBe(true);
   });
 });
