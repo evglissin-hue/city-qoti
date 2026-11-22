@@ -16,13 +16,16 @@ permissions:
 
 jobs:
   check:
-    runs-on: ubuntu-latest
+    # Pinned: ubuntu-latest began moving to 26.04, where Playwright's --with-deps cannot find its
+    # font packages (fonts-unifont, fonts-freefont-ttf) and the Install Chromium step fails.
+    runs-on: ubuntu-24.04
     # I2 added two-browser specs (plans, requests, moving online): the e2e step alone runs about
     # 20 minutes on a runner, after 8 minutes installing Chromium.
     # R1X: with R1's specs and V2.0's Measure this laptop (about ten minutes in software) the e2e
     # step runs about 55 minutes and the unit tests 8, so 60 cut the run off in Measure, before
     # the bench.
-    timeout-minutes: 90
+    # R3 and V4: runs with the wave's specs reach 90 minutes on a slow runner and were cut off.
+    timeout-minutes: 120
     env:
       WRANGLER_SEND_METRICS: 'false'
     steps:
