@@ -49,8 +49,6 @@ export interface StoryEntry {
   date: string;
   /** The gazette's small heading for the kind ("Firsts"), or null. */
   mark: string | null;
-  /** Routine news (an arrival, a birth, the weekly wishes) set small, unless it has a picture. */
-  brief: boolean;
   /** The sim marked it as notable: a snapshot may have been taken of it. */
   notable: boolean;
 }
@@ -128,9 +126,6 @@ export const STORY_MARK: ReadonlyMap<string, string> = new Map([
   ['wolves', 'The Watch'],
 ]);
 
-/** Kinds that are the town's routine news: set small and close, so the stories stand out. */
-const BRIEF_KINDS: ReadonlySet<string> = new Set(['birth', 'household-arrived', 'wishes-digest']);
-
 /** The Charters whose sealing closes a chapter, in order, with the chapter's name. */
 const CHAPTERS: readonly { charter: string; name: string }[] = [
   { charter: CHAPTER_CHARTER, name: 'The Village chapter' },
@@ -199,7 +194,6 @@ export function chapterSeasons(entries: readonly ChronicleEntryView[], ch: Story
       text: e.text,
       date: `${SEASON_NAMES[c.season]}, day ${c.day}`,
       mark: STORY_MARK.get(e.kind) ?? null,
-      brief: BRIEF_KINDS.has(e.kind),
       notable: !!e.snapshot,
     });
   }
@@ -305,6 +299,29 @@ export function storyHouseholds(m: Mirror): StoryHousehold[] {
 export interface SlotPicture {
   url: string;
   from: 'source' | 'snapshot';
+  /** A brightness factor for print, when the picture is too dark for white paper (`printLift`). */
+  lift?: number;
+}
+
+/**
+ * Mean light (0 to 1) at or above which a picture prints as it is. Measured on the valley's own
+ * pictures: daylight 0.22 to 0.33, dusk 0.20 to 0.29, a lamplit night 0.11 to 0.13, so only nights
+ * are lifted.
+ */
+export const PRINT_DIM_BELOW = 0.18;
+/** A dark picture is lifted toward the threshold's light (so the lift starts at 1, with no jump). */
+const PRINT_LIFT_TO = PRINT_DIM_BELOW;
+const PRINT_LIFT_MAX = 1.6;
+
+/**
+ * How much to brighten a picture for print, from its mean light (0 to 1): null when it is light
+ * enough, else a gentle lift toward an evening that still reads on white paper, never more than
+ * PRINT_LIFT_MAX, so a night stays a night.
+ */
+export function printLift(mean: number | null): number | null {
+  if (mean === null || !Number.isFinite(mean) || mean >= PRINT_DIM_BELOW) return null;
+  const want = PRINT_LIFT_TO / Math.max(mean, 0.01);
+  return Math.round(Math.min(PRINT_LIFT_MAX, Math.max(1, want)) * 100) / 100;
 }
 
 /**

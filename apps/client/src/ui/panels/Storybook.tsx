@@ -20,6 +20,7 @@ import {
   chapterSpan,
   chapterTownBookPages,
   seatName,
+  printLift,
   slotPicture,
   storybookChapters,
   storyHouseholds,
@@ -54,6 +55,39 @@ function savedPaper(): Paper {
     // Storage blocked: fall back to the language's guess.
   }
   return defaultPaper(typeof navigator === 'undefined' ? undefined : navigator.language);
+}
+
+/**
+ * A picture's mean light, 0 to 1 (Rec. 709 luma over a small sample), or null where it cannot be
+ * read (no canvas, as in tests, or an image that will not load). Never throws.
+ */
+async function meanLight(url: string): Promise<number | null> {
+  try {
+    const img = new Image();
+    img.src = url;
+    await img.decode();
+    const w = 32;
+    const h = 24;
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const g = canvas.getContext('2d', { willReadFrequently: true });
+    if (!g) return null;
+    g.drawImage(img, 0, 0, w, h);
+    const d = g.getImageData(0, 0, w, h).data;
+    let sum = 0;
+    for (let i = 0; i < d.length; i += 4) sum += 0.2126 * d[i]! + 0.7152 * d[i + 1]! + 0.0722 * d[i + 2]!;
+    return sum / (w * h * 255);
+  } catch {
+    return null;
+  }
+}
+
+/** The picture with its print lift, when it is too dark for white paper. */
+async function withLift(p: SlotPicture | null): Promise<SlotPicture | null> {
+  if (!p) return null;
+  const lift = printLift(await meanLight(p.url));
+  return lift === null ? p : { ...p, lift };
 }
 
 /** Where each picture slot stands: still looking (undefined), found, or empty (null). */
@@ -204,7 +238,9 @@ function ChapterBook({
       ...townPages.map((p): [PictureRef, null] => [{ book: 'townBook', id: p.id }, null]),
     ];
     void Promise.all(
-      asks.map(async ([ref, fallback]) => found.set(slotKey(ref), await slotPicture(ref, fallback))),
+      asks.map(async ([ref, fallback]) =>
+        found.set(slotKey(ref), await withLift(await slotPicture(ref, fallback))),
+      ),
     ).then(() => {
       if (!gone) setPictures(found);
     });
@@ -538,18 +574,15 @@ function Entry({
   picture: SlotPicture | null;
   first: boolean;
 }) {
-  const cls = [
-    'sb-entry',
-    entry.brief && !picture ? 'brief' : '',
-    picture ? 'pictured' : '',
-    first ? 'first' : '',
-  ]
-    .filter(Boolean)
-    .join(' ');
+  const cls = ['sb-entry', picture ? 'pictured' : '', first ? 'first' : ''].filter(Boolean).join(' ');
   return (
     <div class={cls} data-kind={entry.kind}>
       {picture && (
-        <figure class="sb-picture" data-testid="storybook-entry-picture">
+        <figure
+          class={`sb-picture ${picture.lift ? 'dim' : ''}`}
+          style={picture.lift ? { '--sb-lift': String(picture.lift) } : undefined}
+          data-testid="storybook-entry-picture"
+        >
           <img src={picture.url} alt="" />
         </figure>
       )}
@@ -565,7 +598,10 @@ function Entry({
 function BookPage({ page, picture }: { page: StoryPage; picture: SlotPicture | null }) {
   return (
     <div class={`sb-page ${page.book}`} data-testid={`storybook-page-${page.book}`}>
-      <figure class={`sb-slot ${picture ? '' : 'empty'}`}>
+      <figure
+        class={`sb-slot ${picture ? '' : 'empty'} ${picture?.lift ? 'dim' : ''}`}
+        style={picture?.lift ? { '--sb-lift': String(picture.lift) } : undefined}
+      >
         {picture ? (
           <img src={picture.url} alt="" />
         ) : (

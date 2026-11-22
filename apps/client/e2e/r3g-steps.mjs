@@ -40,7 +40,7 @@ export async function openStorybook(page, base, file, before = async () => {}) {
  * Takes up to `n` of the chapter's notable entries' pictures the photographer's way: the camera on
  * the entry's spot, a 4:3 crop of the canvas at the middle, as the session's snapshot of that entry.
  */
-export async function layInPictures(page, n) {
+export async function layInPictures(page, n, hour = 13) {
   const shots = await page.evaluate((n) => {
     const m = window.__qoti.mirror();
     const end = m.chronicle.value.find((e) => e.kind === 'trial-passed')?.tick ?? m.tick.value;
@@ -52,12 +52,12 @@ export async function layInPictures(page, n) {
   const ui = await page.evaluate(() => !!window.__qoti.ui());
   if (!ui) return 0;
   // The chapter card covers the view: hide the interface while the pictures are taken.
-  // Only the valley in the frame, by daylight, as a Chronicle picture is taken.
+  // Only the valley in the frame, at the hour asked (daylight unless the caller wants evenings).
   const hide = await page.addStyleTag({
     content: '#app * { visibility: hidden !important; } #app canvas { visibility: visible !important; }',
   });
   await hide.evaluate((el) => el.setAttribute('id', 'r3g-hide'));
-  await page.evaluate(() => window.__qoti.setHour(13));
+  await page.evaluate((h) => window.__qoti.setHour(h), hour);
   const vp = page.viewportSize();
   const h = Math.round(vp.height * 0.7);
   const w = Math.round((h * 4) / 3);

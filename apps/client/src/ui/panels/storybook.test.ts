@@ -25,11 +25,13 @@ import {
   chapterSeasons,
   chapterSpan,
   chapterTownBookPages,
+  PRINT_DIM_BELOW,
+  printLift,
   slotPicture,
+  type StorybookChapter,
   storybookChapters,
   storyHouseholds,
   townBookOf,
-  type StorybookChapter,
 } from '../storybook';
 import { defaultPaper, forewordCounts, pageRules, StorybookPanel } from './Storybook';
 
@@ -151,7 +153,7 @@ describe('chapterSeasons', () => {
     expect(seasons[0]!.entries[0]!.date).toBe('Spring, day 1');
   });
 
-  it('marks routine kinds brief, and notable follows the snapshot', () => {
+  it('marks each kind, and notable follows the snapshot', () => {
     const [season] = chapterSeasons(
       [
         entry(10, 'household-arrived'),
@@ -163,7 +165,8 @@ describe('chapterSeasons', () => {
       chapter(0, 100),
     );
     const e = season!.entries;
-    expect(e.map((x) => x.brief)).toEqual([true, true, true, false, false]);
+    // One body size for every entry: nothing in the model sets routine news apart.
+    expect(e.every((x) => !('brief' in x))).toBe(true);
     expect(e.map((x) => x.notable)).toEqual([false, false, false, false, true]);
     expect(e[3]!.mark).toBe('Weddings');
   });
@@ -393,5 +396,23 @@ describe('the panel', () => {
     expect(pageRules('letter', 'Town')).toContain('size: letter');
     const rules = pageRules('a4', 'The "Quoted" \\ Town');
     expect(rules).toContain('content: "The Quoted  Town"');
+  });
+});
+
+describe('the print lift for dark pictures', () => {
+  it('leaves day and dusk alone and lifts a night gently, within bounds', () => {
+    expect(printLift(null)).toBeNull();
+    // The valley's own pictures: daylight 0.22 to 0.33, dusk 0.20 to 0.29.
+    for (const mean of [0.33, 0.26, 0.22, 0.2, PRINT_DIM_BELOW])
+      expect(printLift(mean), String(mean)).toBeNull();
+    // A lamplit night, 0.11 to 0.13: lifted, the darker the more, never past 1.6.
+    const light = printLift(0.13)!;
+    const dark = printLift(0.11)!;
+    expect(light).toBeGreaterThan(1.3);
+    expect(dark).toBeGreaterThan(light);
+    expect(dark).toBeLessThanOrEqual(1.6);
+    expect(printLift(0)).toBe(1.6);
+    // Just under the threshold the lift starts at about 1: no jump.
+    expect(printLift(PRINT_DIM_BELOW - 0.001)!).toBeLessThan(1.02);
   });
 });

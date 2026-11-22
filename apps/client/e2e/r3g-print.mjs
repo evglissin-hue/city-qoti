@@ -27,10 +27,16 @@ const browser = await chromium.launch(
 const page = await browser.newPage({ viewport: { width: 1250, height: 800 } });
 page.on('pageerror', (e) => console.log('pageerror', e.message));
 await openStorybook(page, base, valley, async () => {
-  await layInPictures(page, 14);
+  // R3G_PICTURE_HOUR=21 takes the pictures by lamplight, to see dark pictures lifted for print.
+  await layInPictures(page, 14, Number(process.env.R3G_PICTURE_HOUR ?? 13));
   await layInTownBook(page);
 });
 await page.screenshot({ path: `${out}/r3g-panel-1250.png` });
+const lifted = await page.evaluate(() => [
+  document.querySelectorAll('.storybook-print .sb-picture').length,
+  document.querySelectorAll('.storybook-print .sb-picture.dim').length,
+]);
+console.log(`pictures ${lifted[0]}, lifted for print ${lifted[1]}`);
 console.log('panel shot');
 
 for (const paper of ['a4', 'letter']) {
