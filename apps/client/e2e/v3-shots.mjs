@@ -59,6 +59,7 @@ const SCENES = {
   },
   far120: far(120),
   far200: far(200),
+  far220: far(220),
   far240: far(240),
 };
 

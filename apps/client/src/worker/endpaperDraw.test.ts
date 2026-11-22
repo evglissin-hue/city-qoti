@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { endpaperInk as K } from '../../../../packages/art/src/palette';
 import * as render from '../render/endpaper';
 import type { EndpaperInput } from '../render/endpaper';
-import { drawMap, roadTable, type Ctx, type MakeCanvas } from './endpaperDraw';
+import { drawMap, drawNight, nightSize, roadTable, type Ctx, type MakeCanvas } from './endpaperDraw';
 import {
   ENDPAPER_MARGIN,
   endpaperSpan,
@@ -397,5 +397,61 @@ describe('the map geometry', () => {
     const line = riverCenterline(riverInput().water, TILES);
     expect(line?.axis).toBe('x');
     expect(line!.pts.length).toBeGreaterThan(40);
+  });
+});
+
+describe('V4B: the footfall under the roofs, and the night layer', () => {
+  it('lays the evening footfall before the roofs, so the roofs stay clean', () => {
+    const strong = new Uint16Array(TILES * TILES);
+    for (let x = 6; x < 20; x++) strong[tile(x, 12)] = 800;
+    const log = run(
+      blank({
+        roofs: [{ x: 8, z: 11, w: 2, d: 2, rot: 0 }],
+        inks: { footfall: { tiles: strong, color: render.MAP_FOOTFALL_INK } },
+      }),
+    );
+    const foot = log.findIndex((c) => c.name === 'stroke' && c.stroke === css(render.MAP_FOOTFALL_INK));
+    const roof = log.findIndex((c) => c.name === 'fill' && c.fill === css(K.roof));
+    expect(foot).toBeGreaterThanOrEqual(0);
+    expect(roof).toBeGreaterThan(foot);
+    // Warm, not the old sage or the Town overlay's teal.
+    expect(render.MAP_FOOTFALL_INK).not.toBe(K.footfall);
+  });
+
+  /** The night layer's red channel, drawn for `lamps` at `size`. */
+  function night(lamps: Float32Array | undefined, size: number): Uint8ClampedArray {
+    const { g, log } = fakeCtx();
+    drawNight(g, blank(lamps ? { lamps } : {}), size);
+    const put = log.find((c) => c.name === 'putImageData')!;
+    return (put.args[0] as { data: Uint8ClampedArray }).data;
+  }
+  const red = (d: Uint8ClampedArray, size: number, x: number, z: number): number => {
+    const sc = size / endpaperSpan(TILES);
+    const px = Math.floor((x + ENDPAPER_MARGIN) * sc);
+    const py = Math.floor((z + ENDPAPER_MARGIN) * sc);
+    return d[(py * size + px) * 4]!;
+  };
+
+  it('pools light where each lamp stands, opaque black elsewhere, none without lamps', () => {
+    const size = nightSize(SIZE);
+    expect(size).toBe(Math.max(64, SIZE / 4));
+    const d = night(Float32Array.from([10, 10, 1, 20, 12, 0.3, 4, 4, 0]), size);
+    expect(red(d, size, 10, 10)).toBeGreaterThan(80);
+    // A fainter light pools fainter; a strength of 0 and open country stay dark.
+    expect(red(d, size, 20, 12)).toBeGreaterThan(0);
+    expect(red(d, size, 20, 12)).toBeLessThan(red(d, size, 10, 10));
+    expect(red(d, size, 4, 4)).toBe(0);
+    expect(red(d, size, 15, 22)).toBe(0);
+    expect(d[3]).toBe(255);
+    const dark = night(undefined, size);
+    expect(dark.some((v, i) => i % 4 !== 3 && v !== 0)).toBe(false);
+  });
+
+  it('adds pools that meet, and never runs past full', () => {
+    const size = 256;
+    const one = night(Float32Array.from([12, 9, 1]), size);
+    const many = night(Float32Array.from([12, 9, 1.5, 12, 9, 1.5, 12, 9, 1.5, 12, 9, 1.5]), size);
+    expect(red(many, size, 12, 9)).toBeGreaterThan(red(one, size, 12, 9));
+    expect(red(many, size, 12, 9)).toBeLessThanOrEqual(255);
   });
 });

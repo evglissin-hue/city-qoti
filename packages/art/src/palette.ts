@@ -296,7 +296,7 @@ export const storybookInk = {
   /** The sky where nothing stands: a breath of blue on the paper. */
   sky: 0xc9d8da,
   /** The endpaper at night: the deeper parchment, and the lamplight pooling on it. */
-  nightPaper: 0xcdbb98,
+  nightPaper: 0xd5c4a2,
   lampPool: 0xffc46e,
   /** The map's evening footfall, warmer and lighter than the old sage, laid under the roofs. */
   footfall: 0xc08a5c,
