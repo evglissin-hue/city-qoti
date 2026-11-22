@@ -319,6 +319,8 @@ export function lightsLayer(): LightsLayer {
   let clock: SuppliesClock | null = null;
   let edges: number[] = [];
   let suppliesDirty = true;
+  /** The Mirror's supplies view the clock was built from (a new view object is a new view). */
+  let seenView: SuppliesView | null | undefined;
   let lastKey = '';
   let lastTick = 0;
   let litNow: EntityId[] = [];
@@ -610,11 +612,15 @@ export function lightsLayer(): LightsLayer {
     },
     update(change) {
       if (change.full || change.buildings || change.decor || change.rects.has('height')) dirty = true;
-      if (change.supplies) suppliesDirty = true;
     },
     frame() {
-      if (!env) return false;
+      if (!env || !ctx) return false;
       if (dirty) collect();
+      // `supplies.updated` replaces the view whole: a new object is a new night, priority or rest.
+      if (ctx.mirror.supplies.value !== seenView) {
+        seenView = ctx.mirror.supplies.value;
+        suppliesDirty = true;
+      }
       let changed = supplies(nowTick());
       const share = env.windowShare.value;
       const shareMoved = lastShare !== share;

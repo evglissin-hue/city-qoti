@@ -44,6 +44,8 @@ export function buntingRun(
       const q = pts[i + 1]!;
       const m: V3 = [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2 - 0.075, (p[2] + q[2]) / 2];
       const flag = FESTIVAL_COLORS[(i + off) % FESTIVAL_COLORS.length]!;
+      // R3F: faded bunting has lost a flag here and there to the weather.
+      if (fade && i % 3 === 1) continue;
       const hex = fade ? faded(flag) : flag;
       // Two faces back to back, so a flag reads from both sides.
       const dx = q[0] - p[0];
@@ -96,7 +98,7 @@ export const bonfire: Kit = {
     s.cylinder(0, 0, 0.24, 0.22, 0, 0.015, 0x4a3a2e, 10);
     s.surface(SURFACE.plain);
     s.glow(cold ? 0 : 2);
-    s.blob(0, 0.03, 0, 0.14, cold ? 0.04 : 0.03, 0.14, cold ? palette.ash : 0xff9a4a, 0);
+    s.blob(0, cold ? 0.035 : 0.03, 0, 0.14, cold ? 0.035 : 0.03, 0.14, cold ? palette.ash : 0xff9a4a, 0);
     s.glow(0);
     s.surface(SURFACE.timber);
     for (let i = 0; i < 6; i++) {

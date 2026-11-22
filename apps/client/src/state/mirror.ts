@@ -137,8 +137,6 @@ export interface MirrorChange {
   gaps: boolean;
   streets: boolean;
   footfall: boolean;
-  /** R3: supplies.updated arrived (tonight's lamps, resting pieces and candle-lit homes). */
-  supplies: boolean;
   /** The evening edition, when evening.closed arrived in this update (21:00). */
   evening: EveningView | null;
 }
@@ -186,7 +184,6 @@ function emptyChange(full = false): MirrorChange {
     gaps: full,
     streets: full,
     footfall: full,
-    supplies: full,
     evening: null,
   };
 }
@@ -739,7 +736,6 @@ export class Mirror implements MapReader {
         // R3 (R3F reads it; R3D's panels read their own views)
         case 'supplies.updated':
           this.supplies.value = e.s;
-          change.supplies = true;
           break;
       }
     }

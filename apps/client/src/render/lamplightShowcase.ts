@@ -28,22 +28,38 @@ const FIRST_HOME = 991_000;
 /** The lamplighter's agent row id (no resident: the agents layer dresses him from the id). */
 export const LAMPLIGHTER_ID = 992_001;
 
-/** Every supplied piece and its rest, in the lineup's order (two columns a row). */
-export const LINEUP: readonly [def: string, rest: RestKind][] = [
-  ['lantern', 'unlit'],
-  ['hanging-lantern', 'unlit'],
-  ['lamp-post', 'unlit'],
-  ['bonfire', 'cold'],
-  ['brazier', 'cold'],
-  ['cafe-table', 'bare'],
-  ['festival-table', 'bare'],
-  ['bunting', 'faded'],
-  ['flower-arch', 'faded'],
-  ['maypole', 'faded'],
-  ['festival-stage', 'faded'],
-  ['fountain', 'dry'],
-  ['birdbath', 'dry'],
+/**
+ * Every supplied piece and its rest, a row of the lineup by kind (lamps, fires and tables, cloth,
+ * water); each piece stands supplied on the left and resting on its right (+x), so a camera at yaw
+ * 0 sees each pair side by side.
+ */
+export const LINEUP: readonly (readonly [def: string, rest: RestKind])[][] = [
+  [
+    ['lantern', 'unlit'],
+    ['hanging-lantern', 'unlit'],
+    ['lamp-post', 'unlit'],
+  ],
+  [
+    ['bonfire', 'cold'],
+    ['brazier', 'cold'],
+    ['cafe-table', 'bare'],
+    ['festival-table', 'bare'],
+  ],
+  [
+    ['bunting', 'faded'],
+    ['flower-arch', 'faded'],
+    ['maypole', 'faded'],
+    ['festival-stage', 'faded'],
+  ],
+  [
+    ['fountain', 'dry'],
+    ['birdbath', 'dry'],
+  ],
 ];
+/** Tiles between pairs along a row, between a piece and its resting self, and between rows. */
+const PAIR_STEP = 4.2;
+const PAIR_GAP = 1.6;
+const ROW_STEP = 3;
 
 export interface LamplightPose {
   /** The hour the light is pinned to (the caller pins it with `__qoti.setHour`). */
@@ -69,6 +85,8 @@ export interface LamplightShowcase {
   lamps: EntityId[];
   homes: EntityId[];
   lineup: [number, number];
+  /** Each lineup row's middle (lamps, fires and tables, cloth, water). */
+  rows: [number, number][];
   /** Holds the scene at an hour: the first `lit` lamps lit, the lamplighter at the next. */
   pose(p: LamplightPose): void;
   /** Lets the round play from the Mirror's clock: tonight's walk from 17:30 (sim running). */
@@ -141,20 +159,23 @@ export function lamplightShowcase(mirror: Mirror, cx = 96, cz = 90): LamplightSh
     lamps.push(decor(def, x, vergeZ, def === 'hanging-lantern' ? 48 : 0));
   }
 
-  // The lineup: each piece supplied (left) beside its resting self (right), in rows.
-  const lx = cx + 13;
+  // The lineup: each piece supplied (left) beside its resting self (right), a row by kind.
+  const lx = cx + 11;
   const lz = bz - 7;
   const resting: { id: EntityId; kind: RestKind }[] = [];
-  /** The lineup's supplied lamps: lit all night, from the round's start. */
+  /** The lineup's supplied lamps: lit from `litHour`, as a lamp with no walk comes on. */
   const shown: EntityId[] = [];
-  LINEUP.forEach(([def, rest], i) => {
-    const col = i % 3;
-    const row = Math.floor(i / 3);
-    const x = lx + col * 5;
-    const z = lz + row * 3.2;
-    const id = decor(def, x, z);
-    if (rest === 'unlit') shown.push(id);
-    resting.push({ id: decor(def, x + 2, z), kind: rest });
+  /** Each lineup row's middle, for shots. */
+  const rows: [number, number][] = [];
+  LINEUP.forEach((pieces, row) => {
+    const z = lz + row * ROW_STEP;
+    pieces.forEach(([def, rest], col) => {
+      const x = lx + col * PAIR_STEP;
+      const id = decor(def, x, z);
+      if (rest === 'unlit') shown.push(id);
+      resting.push({ id: decor(def, x + PAIR_GAP, z), kind: rest });
+    });
+    rows.push([lx + ((pieces.length - 1) * PAIR_STEP + PAIR_GAP) / 2, z]);
   });
   mirror.apply({ t: mirror.lastTurn.value, events, patches: [] });
 
@@ -189,7 +210,11 @@ export function lamplightShowcase(mirror: Mirror, cx = 96, cz = 90): LamplightSh
           reach: posed ? (i < lit ? round.start : tickAt(round.night + 1, S.outHour) - 1) : reachOf(i),
           out: tickAt(round.night + 1, S.outHour),
         })),
-        ...shown.map((id) => ({ id, reach: round.start, out: tickAt(round.night + 1, S.outHour) })),
+        ...shown.map((id) => ({
+          id,
+          reach: Math.max(round.start, tickAt(round.night, S.litHour)),
+          out: tickAt(round.night + 1, S.outHour),
+        })),
       ].sort((a, b) => a.id - b.id),
       resting: [...(restOn ? resting : []), ...dark].sort((a, b) => a.id - b.id),
       candles,
@@ -260,7 +285,8 @@ export function lamplightShowcase(mirror: Mirror, cx = 96, cz = 90): LamplightSh
     street: [cx, roadZ + 0.5],
     lamps,
     homes,
-    lineup: [lx + 6, lz + 6],
+    lineup: [lx + (3 * PAIR_STEP + PAIR_GAP) / 2, lz + ((LINEUP.length - 1) * ROW_STEP) / 2],
+    rows,
     pose(p) {
       const t = tonight(p.hour);
       round = { night: nightOf(t), start: t - 1 };

@@ -133,8 +133,11 @@ export function decorLayer(opts: DecorLayerOptions = {}): RenderLayer {
   /** V2X: each orchard def's near geometry by thinning step, and the step on screen. */
   const fruit = new Map<string, StepCache<BufferGeometry>>();
   let onScreen = 1;
-  /** R3F: the rests the field was last built with, as a key ("id:kind" joined), to rebuild on a change only. */
+  /** R3F: the rests the field was last built with, as a key, to rebuild on a change only. */
   let restKey = '';
+  let seenView: SuppliesView | null | undefined;
+  const keyOf = (rests: Map<EntityId, RestKind>): string =>
+    [...rests].map(([id, k]) => `${id}:${k}`).join(',');
 
   function kindFor(key: string): FieldKind {
     const hash = key.indexOf('#');
@@ -149,8 +152,9 @@ export function decorLayer(opts: DecorLayerOptions = {}): RenderLayer {
   function rebuild(): void {
     if (!ctx || !field) return;
     const m = ctx.mirror;
-    const rests = restsOf(m.supplies.value);
-    restKey = [...rests].map(([id, k]) => `${id}:${k}`).join(',');
+    seenView = m.supplies.value;
+    restKey = keyOf(restsOf(seenView));
+    const rests = restsOf(seenView);
     field.set(
       [...m.decor.values()].map((d) => ({
         key: decorKey(d.def, decorLook(d.def, rests.get(d.id))),
@@ -172,15 +176,15 @@ export function decorLayer(opts: DecorLayerOptions = {}): RenderLayer {
     update(change) {
       if (change.full || change.decor || change.rects.has('height') || change.rects.has('occupant'))
         rebuild();
-      else if (change.supplies && ctx) {
-        // R3F: a piece's rest changed (the settling, a priority, a well built): rebuild only when
-        // the rests differ, so the lamps' nightly updates cost nothing here.
-        const rests = restsOf(ctx.mirror.supplies.value);
-        if ([...rests].map(([id, k]) => `${id}:${k}`).join(',') !== restKey) rebuild();
-      }
     },
     frame() {
       if (!field || !ctx?.env) return false;
+      // R3F: a new supplies view (the settling, a priority, a well built) rebuilds the field only
+      // when the rests differ, so the lamps' nightly updates cost nothing here.
+      if (ctx.mirror.supplies.value !== seenView) {
+        seenView = ctx.mirror.supplies.value;
+        if (keyOf(restsOf(seenView)) !== restKey) rebuild();
+      }
       field.setDetail(ctx.env.detailDistance);
       // V2X: the orchard's thinning, a static-layer event that happens when the step changes.
       const step = fruitStep(ctx.env.shown.season, ctx.env.shown.day, floor);

@@ -34,20 +34,25 @@ export function lampGlassGlow(opts?: KitBuildOptions): number {
   return restOf(opts) === 'unlit' || opts?.params?.flame === 'off' ? 0 : 2;
 }
 
-/** A lamp's glass color: warm lit every night (today's); smoked glass while unlit. */
+/**
+ * A lamp's glass color: warm, lit every night (today's); clean and cool while it waits for the
+ * lamplighter (`flame: 'off'`), so the lit glass's warmth is the change; sooty and dark resting
+ * unlit (no candle tonight).
+ */
 export function lampGlassColor(opts?: KitBuildOptions): number {
-  return lampGlassGlow(opts) ? palette.lantern : palette.lanternDark;
+  if (lampGlassGlow(opts)) return palette.lantern;
+  return restOf(opts) === 'unlit' ? palette.lanternDark : palette.lanternGlass;
 }
 
-/** The candle seen low in an unlit lamp's glass, waiting for the lamplighter (cream wax). */
-const WAX = 0xeadcb8;
+/** The candle seen low in a lamp's clean glass, waiting for the lamplighter (cream wax). */
+const WAX = 0xf0e2bc;
 
 /**
  * R3F: a lamp's glass from (x0, y0, z0) to (x1, y1, z1), at either level. Lit every night (no
  * params): one warm pane box, glow 2, as before R3. Unlit for the client to light (`flame: 'off'`):
- * smoked glass with the candle's pale wax showing in its lower third, so a lamp waiting for the
+ * clean cool glass with the candle's wax showing in its lower third, so a lamp waiting for the
  * lamplighter (and every lamp by day) reads as a lamp with a candle in it. Resting unlit (no candle
- * tonight): smoked glass alone, empty. The lit glass the client draws covers the whole box.
+ * tonight): sooty glass alone, empty. The lit glass the client draws covers the whole box.
  */
 export function lampGlass(
   s: ShapeBuilder,
@@ -78,7 +83,7 @@ export function lampGlass(
     () => {
       if (!candle) s.box(x0, y0, z0, x1, y1, z1, glass);
       else {
-        s.box(x0, y0, z0, x1, wax, z1, mixHex(glass, WAX, 0.55));
+        s.box(x0, y0, z0, x1, wax, z1, mixHex(glass, WAX, 0.7));
         s.box(x0, wax, z0, x1, y1, z1, glass);
       }
     },
@@ -202,15 +207,15 @@ export const brazier: Kit = {
     );
     s.surface(SURFACE.plain);
     if (cold) {
-      // A heap of ash with a few charred ends poking out: no glow anywhere.
-      s.blob(0, 0.36, 0, 0.12, 0.045, 0.12, palette.ash, 1, rnd, 0.15);
+      // A heap of grey ash over the rim with a few charred ends poking out: no glow anywhere.
+      s.blob(0, 0.395, 0, 0.14, 0.06, 0.14, palette.ash, 1, rnd, 0.15);
       s.nearOnly(() => {
         for (let i = 0; i < 3; i++) {
           const a = (i / 3) * Math.PI * 2 + rnd();
           beam(
             s,
-            [Math.cos(a) * 0.08, 0.37, Math.sin(a) * 0.08],
-            [Math.cos(a + 2.4) * 0.05, 0.4, Math.sin(a + 2.4) * 0.05],
+            [Math.cos(a) * 0.09, 0.42, Math.sin(a) * 0.09],
+            [Math.cos(a + 2.4) * 0.05, 0.46, Math.sin(a + 2.4) * 0.05],
             0.016,
             vary(palette.char, rnd, 0.5),
           );
@@ -219,7 +224,7 @@ export const brazier: Kit = {
     } else {
       // Live coals under a few tongues of flame (lit every night: glow 2).
       s.glow(2);
-      s.blob(0, 0.37, 0, 0.12, 0.05, 0.12, palette.coals, 1, rnd, 0.15);
+      s.blob(0, 0.4, 0, 0.14, 0.05, 0.14, palette.coals, 1, rnd, 0.15);
       s.nearOnly(() => {
         for (let i = 0; i < 4; i++) {
           const a = (i / 4) * Math.PI * 2 + rnd() * 0.6;
@@ -230,8 +235,8 @@ export const brazier: Kit = {
             Math.sin(a) * r,
             0.035,
             0,
-            0.38,
-            0.38 + h,
+            0.42,
+            0.42 + h,
             i === 0 ? 0xffc35a : 0xff9a4a,
             5,
             a,

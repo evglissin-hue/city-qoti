@@ -74,6 +74,16 @@ export function festivalFxLayer(): FestivalFxLayer {
   const tilt = new Vector3();
   const flameColors = [new Color(0xffb347), new Color(0xff8a3a), new Color(0xffd27a)];
 
+  /** R3F: the supplies view the fires were built with, and its cold pieces as a key. */
+  let seenSupplies: unknown;
+  let lastCold = '';
+  function coldKey(): string {
+    return (ctx?.mirror.supplies.value?.resting ?? [])
+      .filter((r) => r.kind === 'cold')
+      .map((r) => r.id)
+      .join(',');
+  }
+
   function clearFires(): void {
     for (const im of [flames, embers]) {
       if (!im) continue;
@@ -89,6 +99,8 @@ export function festivalFxLayer(): FestivalFxLayer {
     clearFires();
     const mirror = ctx.mirror;
     fires = [];
+    seenSupplies = mirror.supplies.value;
+    lastCold = coldKey();
     // R3F: a bonfire resting cold tonight (no firewood) burns no flames.
     const cold = new Set(
       (mirror.supplies.value?.resting ?? []).filter((r) => r.kind === 'cold').map((r) => r.id),
@@ -254,13 +266,18 @@ export function festivalFxLayer(): FestivalFxLayer {
       }
     },
     update(change) {
-      if (change.full || change.decor || change.supplies || change.rects.has('height')) rebuild();
+      if (change.full || change.decor || change.rects.has('height')) rebuild();
       if (change.together.includes('fireworks')) {
         const [x, z] = townMiddle();
         startShow(x, z);
       }
     },
     frame(dt) {
+      // R3F: a new supplies view may put a bonfire out (cold) or light it again.
+      if (ctx && ctx.mirror.supplies.value !== seenSupplies) {
+        seenSupplies = ctx.mirror.supplies.value;
+        if (coldKey() !== lastCold) rebuild();
+      }
       if (!flames && !sparks) return false;
       animate(dt);
       return true;

@@ -111,10 +111,12 @@ export const palette = {
   riverMid: 0x6fa9a4,
   riverDeep: 0x2f6f7c,
 
-  // R3F: resting pieces (docs/spec/19-evenings.md, Supplies). An unlit lantern's smoked glass, a
+  // R3F: resting pieces (docs/spec/19-evenings.md, Supplies). A lantern's clean glass waiting for
+  // the lamplighter (cool, so the lit glass's warmth is the change), an unlit lantern's sooty glass, a
   // cold fire's ash and charred wood, a brazier's live coals, and a dry basin's stone and the stain
   // where the water stood. Faded cloth washes toward `paper`.
   lanternDark: 0x5b524b,
+  lanternGlass: 0x9eabb0,
   ash: 0x9b958d,
   char: 0x3a2e27,
   coals: 0xd8643a,

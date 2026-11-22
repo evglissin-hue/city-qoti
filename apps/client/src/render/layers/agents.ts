@@ -373,7 +373,7 @@ export function agentsLayer(): AgentsLayer {
   let breathCount = 0;
   // R3F: the light at the tip of each lamplighter's pole (unlit, so it reads as a flame by day and
   // by night alike, and blooms after dark).
-  const tipGeometry = new IcosahedronGeometry(0.017, 1);
+  const tipGeometry = new IcosahedronGeometry(0.021, 1);
   const tipMaterial = new MeshBasicMaterial({ color: new Color(0xffc870).multiplyScalar(1.5) });
   let tips: InstancedMesh | null = null;
   let tipCount = 0;
