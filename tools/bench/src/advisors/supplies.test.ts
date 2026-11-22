@@ -3,14 +3,14 @@
 // as they stand; and the two lanes stay apart (the Ledger sends no decor or priority, the Hearth no
 // zone, carrier rule or business). State is built by hand where the stand-ins cannot reach it.
 import { content } from '@qoti/content';
-import { PENNIES_PER_COIN, TILE_FP, type Building, type WorldState } from '@qoti/sim';
+import { PENNIES_PER_COIN, TILE_FP, type Building, type Resident, type WorldState } from '@qoti/sim';
 import { describe, expect, it } from 'vitest';
 import { autoplay } from '../autoplay';
 import { startingTown } from '../hamlet';
 import { Planner } from '../planner';
 import { G } from '../town';
 import { advisors } from '.';
-import { PLACES_OFF_COINS, PLACES_ON_COINS, supplies } from './supplies';
+import { CANDLE_POP, PLACES_OFF_COINS, PLACES_ON_COINS, supplies } from './supplies';
 
 /** A planner on a Village-rank town with 12 lanterns and no candles (so Wares are short), seen as the supplies advisor. */
 function seen(): { p: Planner; w: WorldState } {
@@ -99,6 +99,9 @@ describe('the supplies advisor', () => {
       biz(9304, 'carpenter'),
     );
     w.economy.treasury = 100 * PENNIES_PER_COIN;
+    // A young town's workshops feed it: the candle chain waits for CANDLE_POP residents.
+    while (w.residents.length < CANDLE_POP)
+      w.residents.push({ id: 90000 + w.residents.length, activity: { kind: 'home' } } as unknown as Resident);
     const store = w.buildings.find((b) => b.rt && content.buildingById.get(b.def)?.storage)!;
     store.stage = 'built';
     store.rt!.store[G('honey')] = 10;

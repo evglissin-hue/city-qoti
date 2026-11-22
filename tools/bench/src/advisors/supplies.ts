@@ -47,8 +47,12 @@ import type { Advisor, AdvisorDef } from './types';
 export const PLACES_ON_COINS = REPAY_RESERVE + 150;
 /** Coins under which the carrier stops buying for places. */
 export const PLACES_OFF_COINS = REPAY_RESERVE;
-/** Residents before a farm is pinned to hives: a young town's farms feed it (oak stalled when one was retooled on day 19). */
-const HIVE_POP = 60;
+/**
+ * Residents before the candle chain (hives, then a chandler) is pinned: a young town's farms and
+ * workshops feed it (oak stalled when a farm was retooled on day 19; birch lost a third of its
+ * Craftsfolk to a hive and a chandler pinned at 60 to 68 residents).
+ */
+export const CANDLE_POP = 80;
 /** Honey in town before a chandler is pinned. */
 const HONEY_MIN = 4;
 /** Chandlers the town is asked for at most. */
@@ -115,6 +119,7 @@ class Supplies implements Advisor {
   /** Hives where the flowers allow, then a chandler beside the honey, while lanterns outrun the candles. */
   private candles(): void {
     const w = this.w;
+    if (w.residents.length < CANDLE_POP) return;
     const lanterns = this.lanterns();
     if (lanterns === 0) return;
     const per = content.decorById.get('lantern')?.supply?.per ?? 4;
@@ -125,11 +130,7 @@ class Supplies implements Advisor {
         .length;
     const chandlers = Math.min(CHANDLERS_MAX, Math.ceil(draw / CHANDLER_DAILY));
     const hivesWanted = Math.ceil(chandlers / 2);
-    if (
-      w.residents.length >= HIVE_POP &&
-      built('hives') < hivesWanted &&
-      this.hiveTries.length < HIVE_TRIES
-    ) {
+    if (built('hives') < hivesWanted && this.hiveTries.length < HIVE_TRIES) {
       const flowers = content.tradeById.get('hives')?.wants.pollinators ?? 0;
       // A farmstead whose chunk's pollinators already meet the want: the sim would retool a pin that fails it.
       const at = this.spare('farms', 'hives').find((b) => habitatAt(w, b.x, b.z, 'pollinator') >= flowers);
