@@ -2,8 +2,9 @@
 // more, fires and cloth among the places, a stock above the reserves, a few lamplighters). Run by system
 // id through the pipeline, as the sim runs them, over whole days:
 //   (a) the settling: the supplies system's run at 17:30 (the run after which the night turns over);
-//   (b) the walk: the residents system's time per tick over 17:30 to 18:00 minus its time over 16:00 to
-//       16:30 the same day, with lamplighters walking (the override registered);
+//   (b) the walk: the residents system's time per tick over 17:30 to 18:00 with the lamplighters walking,
+//       minus the same window the same day of a twin of the scene (copied through serialize before the
+//       first timed day) with nobody in the job (`supplies.lamplighters` emptied);
 //   (c) supplies in all: the supplies system's total time over a day, over 24, in ms an hour.
 // Gaps, supplies, masters and the Town Book together stay under 1 ms an hour; supplies take half of it.
 import { content } from '@qoti/content';
@@ -14,6 +15,9 @@ import {
   TICKS_PER_DAY,
   TICKS_PER_HOUR,
   bumpPlaceInputs,
+  createTickCtx,
+  deserialize,
+  serialize,
   type SimCtx,
   type WorldState,
 } from '@qoti/sim';
@@ -31,6 +35,8 @@ const CLOTH = 40;
 const LAMPLIGHTERS_WANTED = 4;
 const T16 = (10 * TICKS_PER_HOUR) % TICKS_PER_DAY;
 const T17 = (11 * TICKS_PER_HOUR) % TICKS_PER_DAY;
+const WALK_FROM = T17 + HALF_HOUR;
+const WALK_TO = T17 + 2 * HALF_HOUR;
 
 const good = (id: string): number => content.goodIndex.get(id)!;
 
@@ -107,35 +113,28 @@ function stock(world: WorldState): void {
 
 interface Days {
   settling: number[];
-  walkDiffs: number[];
-  walk: number[];
-  base: number[];
+  /** Per day, the residents system's ms for each tick of the 17:30 to 18:00 window. */
+  walk: number[][];
   suppliesMsPerHour: number[];
   lamps: number;
   lamplighters: number;
+  reached: number[];
+}
+
+/** The untimed lead-in: a day whole, with stock above the reserves. */
+function warm(world: WorldState, ctx: SimCtx): void {
+  world.tick = Math.ceil(world.tick / TICKS_PER_DAY) * TICKS_PER_DAY;
+  advance(world, ctx, T16);
+  stock(world);
+  advance(world, ctx, TICKS_PER_DAY - T16);
 }
 
 function days(world: WorldState, ctx: SimCtx): Days {
   const residents = pipeline.find((s) => s.id === 'residents')!;
   const suppliesSys = pipeline.find((s) => s.id === 'supplies')!;
-  const out: Days = {
-    settling: [],
-    walkDiffs: [],
-    walk: [],
-    base: [],
-    suppliesMsPerHour: [],
-    lamps: 0,
-    lamplighters: 0,
-  };
-  // The town lives a day whole, untimed, then the timed days run back to back.
-  world.tick = Math.ceil(world.tick / TICKS_PER_DAY) * TICKS_PER_DAY;
-  advance(world, ctx, T16);
-  stock(world);
-  advance(world, ctx, TICKS_PER_DAY - T16);
-  hireLamplighters(world, ctx, LAMPLIGHTERS_WANTED);
+  const out: Days = { settling: [], walk: [], suppliesMsPerHour: [], lamps: 0, lamplighters: 0, reached: [] };
   for (let day = 0; day < DAYS; day++) {
     const walkMs: number[] = [];
-    const baseMs: number[] = [];
     let suppliesTotal = 0;
     for (let k = 0; k < TICKS_PER_DAY; k++) {
       const tod = world.tick % TICKS_PER_DAY;
@@ -143,8 +142,6 @@ function days(world: WorldState, ctx: SimCtx): Days {
       if (tod === T16) stock(world);
       for (const s of pipeline) {
         if (t % (s.every ?? 1) !== (s.offset ?? 0)) continue;
-        const inWalk = tod >= T17 + HALF_HOUR && tod < T17 + 2 * HALF_HOUR;
-        const inBase = tod >= T16 && tod < T16 + HALF_HOUR;
         if (s === suppliesSys) {
           const night = world.supplies.night;
           const t0 = performance.now();
@@ -155,21 +152,19 @@ function days(world: WorldState, ctx: SimCtx): Days {
             out.settling.push(ms);
             out.lamps = world.supplies.lamps.length;
             out.lamplighters = world.supplies.lamplighters.length;
+            out.reached.push(world.supplies.lamps.filter((l) => l.by !== undefined && l.by !== null).length);
           }
-        } else if (s === residents && (inWalk || inBase)) {
+        } else if (s === residents && tod >= WALK_FROM && tod < WALK_TO) {
           const t0 = performance.now();
           s.tick(world, ctx);
-          (inWalk ? walkMs : baseMs).push(performance.now() - t0);
+          walkMs.push(performance.now() - t0);
         } else s.tick(world, ctx);
       }
       ctx.events.length = 0;
       ctx.dirty.clear();
     }
     out.suppliesMsPerHour.push(suppliesTotal / 24);
-    for (let k = 0; k < Math.min(walkMs.length, baseMs.length); k++)
-      out.walkDiffs.push(walkMs[k]! - baseMs[k]!);
-    out.walk.push(...walkMs);
-    out.base.push(...baseMs);
+    out.walk.push(walkMs);
   }
   return out;
 }
@@ -185,7 +180,24 @@ export function r3aBench(): { lines: string[]; failures: string[]; report: objec
   townHall(world);
   const scatter = scatterPlaces(world);
   const [lanterns = 0, fires = 0, cloth = 0] = furnish(world, scatter);
+  warm(world, town.ctx);
+  hireLamplighters(world, town.ctx, LAMPLIGHTERS_WANTED);
+  // The twin: the same scene and the same lamps settled, with nobody in the lamplighters' job.
+  const twinWorld = deserialize(serialize(world));
+  const twinCtx = createTickCtx(twinWorld);
+  twinWorld.supplies.lamplighters.length = 0;
   const d = days(world, town.ctx);
+  const twin = days(twinWorld, twinCtx);
+  const walkDiffs: number[] = [];
+  const walkAll: number[] = [];
+  const twinAll: number[] = [];
+  d.walk.forEach((day, i) => {
+    const other = twin.walk[i]!;
+    for (let k = 0; k < Math.min(day.length, other.length); k++) walkDiffs.push(day[k]! - other[k]!);
+    walkAll.push(...day);
+    twinAll.push(...other);
+  });
+  const reached = median(d.reached);
 
   const setup = `${town.residents} residents, ${lanterns} lanterns, ${fires} braziers, ${cloth} maypoles, ${scatter.benches} benches, ${d.lamps} lamps lit, ${d.lamplighters} lamplighters`;
   if (lanterns < 300) failures.push(`r3a scene has ${lanterns} lanterns (wants 300)`);
@@ -198,10 +210,10 @@ export function r3aBench(): { lines: string[]; failures: string[]; report: objec
     `r3a settling    ${setup}: ${settleMed.toFixed(3)} ms median, ${worst(d.settling).toFixed(3)} worst, over ${d.settling.length} evenings (budget ${R3A_BUDGET.settlingMs} ms)  ${ok(d.settling.length > 0 && settleMed <= R3A_BUDGET.settlingMs)}`,
   );
 
-  const walkMs = median(d.walkDiffs);
+  const walkMs = median(walkDiffs);
   if (walkMs > R3A_BUDGET.walkMsPerTick) failures.push(`r3a walk ${walkMs.toFixed(3)} ms a tick`);
   lines.push(
-    `r3a walk        17:30 to 18:00 over 16:00 to 16:30: ${walkMs.toFixed(3)} ms a tick median difference (walk ${median(d.walk).toFixed(3)}, baseline ${median(d.base).toFixed(3)}, worst walk tick ${worst(d.walk).toFixed(2)}), over ${DAYS} days (budget ${R3A_BUDGET.walkMsPerTick} ms)  ${ok(walkMs <= R3A_BUDGET.walkMsPerTick)}`,
+    `r3a walk        17:30 to 18:00 against a twin with no lamplighters: ${walkMs.toFixed(3)} ms a tick median difference (walk ${median(walkAll).toFixed(3)}, twin ${median(twinAll).toFixed(3)}, worst walk tick ${worst(walkAll).toFixed(2)}; ${reached} of ${d.lamps} lamps reached before 18:00), over ${DAYS} days (budget ${R3A_BUDGET.walkMsPerTick} ms)  ${ok(walkMs <= R3A_BUDGET.walkMsPerTick)}`,
   );
 
   const perHour = median(d.suppliesMsPerHour);
@@ -223,8 +235,9 @@ export function r3aBench(): { lines: string[]; failures: string[]; report: objec
       settlingMs: settleMed,
       settlingWorstMs: worst(d.settling),
       walkMsPerTickDifference: walkMs,
-      walkMedianMs: median(d.walk),
-      baselineMedianMs: median(d.base),
+      walkMedianMs: median(walkAll),
+      twinMedianMs: median(twinAll),
+      lampsReached: reached,
       suppliesMsPerHour: perHour,
     },
   };
