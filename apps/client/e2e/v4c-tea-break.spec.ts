@@ -9,6 +9,7 @@ import { waitLive } from './helpers';
 const expect = baseExpect.configure({ timeout: 120_000 });
 
 const QUERY = '?debug&quality=low&noguide&teabreak&fixture=grown';
+const ONLINE_QUERY = '?debug&quality=low&noguide&teabreak&fixture=hamlet';
 
 interface View {
   x: number;
@@ -191,7 +192,7 @@ test.describe('one seat', () => {
 
 async function twoSeats(browser: Browser) {
   const a = await (await browser.newContext()).newPage();
-  await a.goto(`/${QUERY}`);
+  await a.goto(`/${ONLINE_QUERY}`);
   await waitLive(a);
   await expect
     .poll(() => a.evaluate(() => !!(window as unknown as { __qotiTeaBreak?: unknown }).__qotiTeaBreak))
@@ -208,7 +209,7 @@ async function twoSeats(browser: Browser) {
   await a.getByRole('button', { name: 'Done' }).click();
   const b = await (await browser.newContext()).newPage();
   const invite = new URL(link);
-  invite.search = QUERY;
+  invite.search = '?debug&quality=low&noguide&teabreak';
   await b.goto(invite.toString());
   await b.getByTestId('join').click();
   await waitLive(b);
@@ -216,7 +217,7 @@ async function twoSeats(browser: Browser) {
 }
 
 test('two seats: one seat on a tea break sends nothing and moves nobody else', async ({ browser }) => {
-  test.setTimeout(900_000);
+  test.setTimeout(400_000);
   const { a, b } = await twoSeats(browser);
   await closeCards(a);
   await closeCards(b);
