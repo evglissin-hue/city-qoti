@@ -57,3 +57,12 @@ Supplies and the lamplighter (R3A); specialties named for masters' goods (R3C); 
 - Do not edit `systems/supplies/**`, `systems/townbook/**`, `systems/market/round.ts` or the client; ask in your PR.
 - P3A (on `main`, beside the wave) changes the levels pass (businesses climb after two good days) and job ranks: merge `main` before you change the levels pass, and build on its version. R3H calls `specializedDayEnd` from the same pass for specialized buildings: keep that call.
 - Runs as the build and review loop (`31-parallel-development.md`), one or two rounds of quality check, dead-end hunt and player's chair before the PR.
+
+## As built (R3B, 2026-11-22)
+
+Run as the build and review loop: the master wrote the contracts and the masters' API, two executors built the masters' rules (E1) and the goods side (E2) in parallel worktrees, and the master merged, reviewed and fixed (an orchard's fruit boiled into jam counted as made and never sold, which could have slid a mastered orchard; the master path read a stale sign instead of the crew; four lines of words started a sentence with a lower-case place).
+
+- **Contracts** (additive, optional, no save bump): `BuildingRuntime.masterProgress` (the master's own cycle), `Apprenticeship.ownDays` (the ten days of their own), `StoryArc.mastery`.
+- **Files**: `systems/masters/{api,index,craft,make}.ts`, `systems/production/master.ts` (and `crewPower`'s `skip`), `systems/market/{balances,baskets}.ts`, `systems/levels/index.ts` (`masterGrace`), `systems/residents/life.ts` (apprentices, `loseMasters`), `view/masters.ts`; content `masters.ts` (words, Chronicle templates, unlocks), `masterDecor.ts`, the story masteries, the pie contest; tests `packages/sim/test/r3b/**` (14 files).
+- **Calls the brief left open**: craft days count only where a master can be made (the twelve trades and the four specialized buildings in `content.masters`), so the lists stay short; losing one is told at 06:00 in the residents' morning, where a leaving household still has its names; the grace counts calendar days from the night the business first finds no master on its crew; a story master never retires into a notice; the pie contest asks for 6 pies, in spring, summer and autumn.
+- **Measured**: see `docs/spec/19-evenings.md`, Masters, As built, and the PR (#67).
