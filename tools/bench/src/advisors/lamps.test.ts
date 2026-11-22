@@ -8,7 +8,15 @@ import { describe, expect, it } from 'vitest';
 import { startingTown } from '../hamlet';
 import { G } from '../town';
 import { advisors } from '.';
-import { candlesAllow, firewoodAllows, lamps, priorityChanges, specialtyNear } from './lamps';
+import {
+  candlesAllow,
+  firewoodAllows,
+  lamps,
+  FIRE_FLOOR,
+  LANTERN_FLOOR,
+  priorityChanges,
+  specialtyNear,
+} from './lamps';
 
 const S = 128;
 
@@ -95,28 +103,38 @@ describe('the lamps advisor', () => {
   it('places a lantern only while the candles cover it at Village rank; a Hamlet places freely', () => {
     expect(candlesAllow(town(0, 0, 'hamlet'))).toBe(true);
     expect(candlesAllow(town(40, 0, 'hamlet'))).toBe(true);
-    // Eight lanterns need two candles a night; a ninth needs a third.
-    expect(candlesAllow(town(8, 2))).toBe(false);
-    expect(candlesAllow(town(8, 3))).toBe(true);
-    expect(candlesAllow(town(0, 0))).toBe(false);
-    expect(candlesAllow(town(4, 1), 1)).toBe(false);
-    expect(candlesAllow(town(4, 2), 1)).toBe(true);
-    // More than one at once: nine lanterns need three candles.
-    expect(candlesAllow(town(4, 2), 5)).toBe(false);
+    // The first few lanterns need no cover.
+    expect(candlesAllow(town(0, 0))).toBe(true);
+    expect(candlesAllow(town(LANTERN_FLOOR - 1, 0))).toBe(true);
+    // With no candle anywhere and every lantern lit regardless (the stand-ins), candles gate nothing.
+    expect(candlesAllow(town(LANTERN_FLOOR, 0))).toBe(true);
+    expect(candlesAllow(town(LANTERN_FLOOR, 1))).toBe(false);
+    // Twenty lanterns need five candles a night; a twenty-first needs a sixth.
+    expect(candlesAllow(town(20, 5))).toBe(false);
+    expect(candlesAllow(town(20, 6))).toBe(true);
+    // More than one at once: twenty-five lanterns need seven candles.
+    expect(candlesAllow(town(20, 6), 5)).toBe(false);
+    expect(candlesAllow(town(20, 7), 5)).toBe(true);
   });
 
   it('counts a built chandler toward the candle cover', () => {
-    const w = town(8, 0);
+    const w = town(20, 1);
     expect(candlesAllow(w)).toBe(false);
     const base = w.buildings[0]!;
     w.buildings.push({ ...base, id: 9100, stage: 'built', trade: 'chandler' } as Building);
     expect(candlesAllow(w)).toBe(true);
   });
 
-  it('keeps braziers for when firewood stands above the winter mark', () => {
+  it('keeps braziers for when firewood stands above the winter mark, past the first few', () => {
+    const fires = (w: WorldState) => {
+      for (let i = 0; i < FIRE_FLOOR; i++)
+        w.decor.push({ id: 9500 + i, def: 'brazier', fx: 5 * TILE_FP, fz: 5 * TILE_FP, rot: 0, builtBy: 0 });
+      return w;
+    };
     expect(firewoodAllows(town(0, 0, 'hamlet'))).toBe(true);
-    expect(firewoodAllows(town(0, 0))).toBe(false);
-    const stocked = town(0, 0);
+    expect(firewoodAllows(town(0, 0))).toBe(true);
+    expect(firewoodAllows(fires(town(0, 0)))).toBe(false);
+    const stocked = fires(town(0, 0));
     const store = stocked.buildings.find((b) => b.rt && content.buildingById.get(b.def)?.storage)!;
     store.rt!.store[G('firewood')] = 5000;
     expect(firewoodAllows(stocked)).toBe(true);

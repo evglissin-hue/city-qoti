@@ -20,6 +20,7 @@ import {
   methodOf,
   placesView,
   rankAtLeast,
+  suppliesView,
   townStock,
   winterMark,
   type Building,
@@ -32,6 +33,10 @@ import type { Advisor, AdvisorDef } from './types';
 
 /** Commands one visit may send (as the places advisor's VISIT_COMMANDS). */
 const VISIT_COMMANDS = 3;
+/** Fires (braziers, bonfires) allowed whatever the woodpile. */
+export const FIRE_FLOOR = 3;
+/** Lanterns allowed whatever the candles (about four candles a night for a young Village's wishes). */
+export const LANTERN_FLOOR = 16;
 /** Days a place keeps a priority before the advisor changes it again (no flip-flopping as places merge and grow). */
 const PRIORITY_DAYS = 4;
 /** Candles a built chandler is counted to make a day (honey-limited: a hive pair feeds about two cycles). */
@@ -84,6 +89,15 @@ export function lanternCover(w: WorldState): number {
 }
 
 /**
+ * Whether candles light nothing here: no candle in town, and yet every lantern standing is lit
+ * tonight (read from the supplies view, as the stand-ins, R3A not merged, leave it). Gating on
+ * candles would only starve the town of lanterns for nothing then.
+ */
+function suppliesDead(w: WorldState, standing: number): boolean {
+  return candleStock(w) === 0 && suppliesView(w).lamps.length >= standing;
+}
+
+/**
  * Whether the town's candles cover `more` further lanterns on top of those standing: the stock plus
  * what the chandlers make a day against a night's draw. Below the supplies' rank a lantern burns for
  * nothing, so it always does.
@@ -91,6 +105,10 @@ export function lanternCover(w: WorldState): number {
 export function candlesAllow(w: WorldState, more = 1): boolean {
   if (!rankAtLeast(w, content.supplies.fromRank)) return true;
   const standing = lanternIds(w).size;
+  // A first few lanterns the town can always light (a handful of candles a night): the wishes for
+  // lanterns and the streets' charm do not wait on a chandler.
+  if (standing + more <= LANTERN_FLOOR) return true;
+  if (suppliesDead(w, standing)) return true;
   return nightlyDraw(standing + more) <= candleStock(w) + candlesMadeDaily(w);
 }
 
@@ -100,6 +118,13 @@ export function candlesAllow(w: WorldState, more = 1): boolean {
  */
 export function firewoodAllows(w: WorldState): boolean {
   if (!rankAtLeast(w, content.supplies.fromRank)) return true;
+  // The first few fires keep the winter's Craftsfolk warm whatever the woodpile (R2X's braziers).
+  let fires = 0;
+  for (const d of w.decor) {
+    const sup = content.decorById.get(d.def)?.supply;
+    if (sup?.kind === 'evening' && sup.good === 'firewood') fires++;
+  }
+  if (fires < FIRE_FLOOR) return true;
   const f = w.carrier.families[fuelFamily];
   const days = Math.max(winterMark(w, fuelFamily) ?? 0, f?.reserve ?? 0) + FIRE_SPARE_DAYS;
   // Nobody burns anything yet (no use to count days against): any firewood in hand will do.
