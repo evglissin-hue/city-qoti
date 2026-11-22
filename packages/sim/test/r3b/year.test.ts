@@ -18,6 +18,10 @@ import v8 from '../golden/v8-willow-day70.json';
 import { expectMoneyInvariant, moneySnapshot } from '../money';
 
 const YEAR_DAYS = 24;
+// The sim package has no DOM or Node types (determinism): the clock and the log come off globalThis,
+// as the gaps budget test does.
+const clock = (globalThis as unknown as { performance: { now(): number } }).performance;
+const log = (globalThis as unknown as { console: { log(s: string): void } }).console;
 
 function loadV8(): WorldState {
   const state = deserialize(base64ToBytes(v8.save));
@@ -104,10 +108,10 @@ describe('the masters day budget', () => {
     state.tick = Math.floor(state.tick / TICKS_PER_DAY) * TICKS_PER_DAY + MASTERS_OFFSET;
     const runs = 40;
     masters.tick(state, ctx);
-    const t0 = performance.now();
+    const t0 = clock.now();
     for (let i = 0; i < runs; i++) masters.tick(state, ctx);
-    const ms = (performance.now() - t0) / runs;
-    console.log(
+    const ms = (clock.now() - t0) / runs;
+    log.log(
       `[r3b] masters day on ${state.residents.length} residents: ${ms.toFixed(3)} ms (an hour's share ${(ms / 24).toFixed(4)} ms)`,
     );
     // Once a day; the shared row is 1 ms an hour for gaps, supplies, masters and the Town Book.
