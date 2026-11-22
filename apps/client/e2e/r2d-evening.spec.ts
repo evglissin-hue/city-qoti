@@ -1,6 +1,6 @@
 import { fileURLToPath } from 'node:url';
 import { expect, test, type Page } from '@playwright/test';
-import { waitLive } from './helpers';
+import { takeTool, waitLive } from './helpers';
 
 // R2D: a Village evening with places, read from the screen alone. The evening round's sim is still
 // stand-ins (R2A to R2C), so `&evening` lays the mock evening over the village fixture: places at the
@@ -134,7 +134,7 @@ test('the evening street brush marks a stretch, and undo clears it', async ({ pa
   const { from, to } = run!;
   await page.evaluate(([x, z]) => window.__qoti.focusTile(x, z, 14), from);
   await page.waitForTimeout(800);
-  await page.getByTestId('tool-evening').click();
+  await takeTool(page, 'evening');
   const a = await page.evaluate(([x, z]) => window.__qoti.screenOf(x, z), from);
   const b = await page.evaluate(([x, z]) => window.__qoti.screenOf(x, z), to);
   await page.mouse.move(a!.x, a!.y);
