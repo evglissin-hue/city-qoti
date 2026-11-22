@@ -18,6 +18,14 @@ import { winterMark } from './api';
 
 const MATERIALS = 2;
 
+/** The families some supplied piece draws a good from (GOOD_FAMILIES indexes). */
+const DRAWN_FAMILIES: ReadonlySet<number> = new Set(
+  content.decor.flatMap((d) => {
+    const g = d.supply?.good ? content.goodById.get(d.supply.good) : undefined;
+    return g ? [familyIndex(g.family)] : [];
+  }),
+);
+
 /** The mark in hundredths of a day: the season plan's mark, falling by the winter days left (whole numbers only). */
 function markHundredths(state: WorldState, family: number): number | null {
   const base = winterMark(state, family);
@@ -53,14 +61,37 @@ export interface PlacesPurse {
   surplus: number[];
   /** By good index: free units in the storehouses and makers' output buffers (never a shelf). */
   free: number[];
+  /** Where places take from, listed once for the purse (drawForPlaces reads it). */
+  sources: readonly Source[];
+  /** The sources holding each good, nearest a tile first, by `${good}:${tile}` (sorted once a purse). */
+  order: Map<string, Source[]>;
 }
 
 /** A building places may take from: its door and what it can give. */
 interface Source {
   b: Building;
   door: number;
-  /** True for a storehouse (taken from `store`), false for a maker (taken from `output`). */
+  /** A storehouse (taken from `store`, any good), or a maker (taken from `output`, its outputs only). */
   store: boolean;
+  /** A maker's outputs, by good index (empty for a storehouse). */
+  makes: readonly number[];
+}
+
+/** A method's outputs by good index, by trade or def (a maker only ever holds what it makes). */
+const OUTPUTS = new Map<string, number[]>();
+
+function outputsOf(b: Building): number[] {
+  const key = b.trade ? `t:${b.trade}` : `d:${b.def}`;
+  let out = OUTPUTS.get(key);
+  if (!out) {
+    out = [];
+    for (const [id] of methodOf(b)?.outputs ?? []) {
+      const g = content.goodIndex.get(id);
+      if (g !== undefined) out.push(g);
+    }
+    OUTPUTS.set(key, out);
+  }
+  return out;
 }
 
 /** Storehouses and makers (a built building with a method and no store of its own), in building order. */
@@ -69,22 +100,17 @@ function sources(state: WorldState): Source[] {
   for (const b of state.buildings) {
     if (b.stage !== 'built' || !b.rt) continue;
     const def = content.buildingById.get(b.def);
-    if (isStorehouse(def)) out.push({ b, door: doorTile(b, def), store: true });
-    else if (!def?.storage && methodOf(b)) out.push({ b, door: doorTile(b, def), store: false });
+    if (isStorehouse(def)) out.push({ b, door: doorTile(b, def), store: true, makes: [] });
+    else if (!def?.storage) {
+      const makes = outputsOf(b);
+      if (makes.length > 0) out.push({ b, door: doorTile(b, def), store: false, makes });
+    }
   }
   return out;
 }
 
-/** Whether a maker's method outputs the good (a maker only ever holds what it makes). */
-function makes(b: Building, g: number): boolean {
-  const m = methodOf(b);
-  if (!m) return false;
-  for (const [id] of m.outputs) if (content.goodIndex.get(id) === g) return true;
-  return false;
-}
-
 function sourceFree(s: Source, g: number): number {
-  if (!s.store && !makes(s.b, g)) return 0;
+  if (!s.store && !s.makes.includes(g)) return 0;
   const rt = s.b.rt!;
   return Math.max(0, ((s.store ? rt.store[g] : rt.output[g]) ?? 0) - (rt.reservedOut[g] ?? 0));
 }
@@ -117,13 +143,22 @@ export function placesPurse(state: WorldState): PlacesPurse {
   const carried = carriedToday(state);
   const surplus: number[] = [];
   for (let f = 0; f < state.carrier.families.length; f++) {
+    // Only the families some piece draws from have a floor to work out (Wares, Fuel).
+    if (!DRAWN_FAMILIES.has(f)) {
+      surplus.push(0);
+      continue;
+    }
     const have = familyStock(stock, f);
     const mine = carried ? Math.min(have, familyStock(carried, f)) : 0;
     surplus.push(Math.max(0, have - mine - placesFloor(state, f)) + mine);
   }
   const free = new Array<number>(content.goods.length).fill(0);
-  for (const s of sources(state)) for (let g = 0; g < free.length; g++) free[g]! += sourceFree(s, g);
-  return { surplus, free };
+  const list = sources(state);
+  for (const s of list) {
+    if (s.store) for (let g = 0; g < free.length; g++) free[g]! += sourceFree(s, g);
+    else for (const g of s.makes) free[g]! += sourceFree(s, g);
+  }
+  return { surplus, free, sources: list, order: new Map() };
 }
 
 /**
@@ -141,14 +176,19 @@ export function drawForPlaces(
   const family = familyIndex(content.goods[good]!.family);
   let want = Math.min(qty, purse.free[good] ?? 0, purse.surplus[family] ?? 0);
   if (want <= 0) return 0;
-  const list = sources(state)
-    .filter((s) => sourceFree(s, good) > 0)
-    .sort(
-      (a, b) =>
-        Number(b.store) - Number(a.store) ||
-        tileDistance(a.door, from) - tileDistance(b.door, from) ||
-        a.b.id - b.b.id,
-    );
+  const key = `${good}:${from}`;
+  let list = purse.order.get(key);
+  if (!list) {
+    list = purse.sources
+      .filter((s) => sourceFree(s, good) > 0)
+      .sort(
+        (a, b) =>
+          Number(b.store) - Number(a.store) ||
+          tileDistance(a.door, from) - tileDistance(b.door, from) ||
+          a.b.id - b.b.id,
+      );
+    purse.order.set(key, list);
+  }
   let taken = 0;
   for (const s of list) {
     if (want <= 0) break;

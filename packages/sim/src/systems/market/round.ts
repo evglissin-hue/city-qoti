@@ -87,9 +87,14 @@ export function shelfOf(b: Building): { stock: number[]; reserved: number[] | nu
 
 /** Whether it has a Treat on the shelf right now (read live; never cache it). */
 export function treatsOnShelf(_state: WorldState, b: Building): boolean {
-  const shelf = shelfOf(b);
-  if (!shelf) return false;
-  for (const g of TREATS) if ((shelf.stock[g] ?? 0) - (shelf.reserved?.[g] ?? 0) > 0) return true;
+  const rt = b.rt;
+  if (!rt) return false;
+  // As shelfOf reads it, without making an object: this is read on every walker's pass.
+  if (treatsKind(b.def) === TreatsKind.tavern) {
+    for (const g of TREATS) if ((rt.input[g] ?? 0) > 0) return true;
+    return false;
+  }
+  for (const g of TREATS) if ((rt.store[g] ?? 0) - (rt.reservedOut[g] ?? 0) > 0) return true;
   return false;
 }
 
