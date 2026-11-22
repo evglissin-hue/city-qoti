@@ -81,7 +81,7 @@ One row per cycle. A cycle is one agent session working from one brief on one br
 | R3.0 Supplies, masters and Town Book contracts | R3 | serial | `cycle-r3-0-supplies-contracts.md` | R2X | PR open ([evglissin-hue/city-qoti#60](https://github.com/evglissin-hue/city-qoti/pull/60)) from `cycle/r3-0-supplies-contracts` into `cycle/r3x-integration` (no PR into `main`: the wave lands through R3X): R3's contracts (supplies, masters, the Town Book, the thread counts, callings earned), save version 9 with its migration from 8 and a real version 8 fixture, the masters' goods and the R3 content, stand-ins and the cross-track API wired to its readers, the skating spots fixed at the freeze, the wave notes with the rulings and the eight briefs (R3A to R3G, R3X) |
 | R3A Supplies and the lamplighter | R3 | parallel | `cycle-r3a-supplies-lamplighter.md` | R3.0 | waiting: after R3.0 (xhigh) |
 | R3B Masters | R3 | parallel | `cycle-r3b-masters.md` | R3.0 | waiting: after R3.0 (xhigh) |
-| R3C The Town Book and earned callings | R3 | parallel | `cycle-r3c-town-book.md` | R3.0 | waiting: after R3.0 (high) |
+| R3C The Town Book and earned callings | R3 | parallel | `cycle-r3c-town-book.md` | R3.0 | in progress on `cycle/r3c-town-book`, draft PR into `cycle/r3x-integration` |
 | R3D Follow the thread, the Town Book and R3's interface | R3 | parallel | `cycle-r3d-follow-the-thread.md` | R3.0 | waiting: after R3.0 (xhigh) |
 | R3E The bench | R3 | parallel | `cycle-r3e-bench.md` | R3.0 | waiting: after R3.0 (high) |
 | R3F Lamplight and resting pieces | R3 | parallel | `cycle-r3f-lamplight.md` | R3.0 | waiting: after R3.0 (Opus, xhigh; R3's look, the master's ruling) |
