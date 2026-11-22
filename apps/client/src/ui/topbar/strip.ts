@@ -66,6 +66,11 @@ export interface ChipReading {
   markAt: number | null;
   /** Under the reserve: the bar turns warm. */
   low: boolean;
+  /**
+   * P3B: weeks in hand (a full bar's worth or more, above the reserve): the chip sits quiet, its
+   * name and figure in soft ink with no bar and no count of days (the tooltip keeps them).
+   */
+  easy: boolean;
   /** One entry per flavor, true when on offer. */
   pips: boolean[];
   title: string;
@@ -123,6 +128,7 @@ export function chipReading(line: BalanceLine): ChipReading {
     fill: clamp01(days / COVER_FULL_DAYS),
     reserveAt: clamp01(line.reserve / COVER_FULL_DAYS),
     low: days < line.reserve,
+    easy: !empty && days >= COVER_FULL_DAYS && days >= line.reserve,
     title,
   };
 }
@@ -147,6 +153,8 @@ export interface MaterialReading {
   warm: boolean;
   /** 0 to 1: the share of the need the store covers; a calm full bar when nothing is short. */
   fill: number;
+  /** P3B: something in store and no site short of it: the chip sits quiet, with no bar. */
+  easy: boolean;
   title: string;
 }
 
@@ -177,6 +185,7 @@ export function materialReadings(inp: MaterialInputs): MaterialReading[] {
       of: short ? `${compact(stock)} of ${compact(need)}` : null,
       warm: short || stock <= 0,
       fill: short ? clamp01(stock / need) : 1,
+      easy: !short && stock > 0,
       title: `${label}: ${stock} in store. ${sites} ${carrierSentence(inp.line)}`,
     });
   }

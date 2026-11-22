@@ -24,7 +24,7 @@ import {
 import { endpaperStill } from './endpaper';
 import { CameraController, FOV, setFreeCamera } from '../input/camera';
 import type { Mirror } from '../state/mirror';
-import type { EntityPick, Ghost, RenderApi, TilePick } from './api';
+import type { CaptureOptions, EntityPick, Ghost, RenderApi, TilePick } from './api';
 import { bubblesFor, overlayKindFor } from './bubbles';
 import { fpToWorld, levelY } from './coords';
 import { applySeasonBlend, createWorldEnv, SEASONS, setPatternAnisotropy, type WorldEnv } from './env';
@@ -41,7 +41,14 @@ import {
   type PresenceLayer,
   type RenderLayer,
 } from './layers';
-import { StillCache } from './cache';
+import {
+  StillCache,
+  stillChange,
+  stillKeyOf,
+  type RefineContext,
+  type StillChange,
+  type StillKeyParts,
+} from './cache';
 import { GpuTimer } from './gpuTimer';
 import { layerRoot, MOVING_LAYER, STATIC_LAYER } from './layerTags';
 import { hazeFor, lightingAt } from './lighting';
@@ -50,6 +57,7 @@ import { createWorldMaterial } from './material';
 import { pickTileFromRay } from './picking';
 import { LeanFrame } from './post';
 import { buildingDetailNow, closeUpNow, pixelRatios, QUALITY_PRESETS, type Quality } from './quality';
+import { refineGoal, refineOffFromUrl, type RefineGovernorInput, type RefineJitter } from './refine';
 import { DynamicResolution } from './resolution';
 import { ShadowCache, type ShadowView } from './shadows';
 import { shadowContentDue, StaticRevisions } from './statics';
@@ -70,9 +78,10 @@ export interface RenderStats {
   gpuMs: number | null;
   /**
    * V1.0: what the last frame drew: `moving` (the whole scene), `still` (the static layers into the
-   * still-frame cache, then as idle) or `idle` (the cache plus the moving layers).
+   * still-frame cache, then as idle) or `idle` (the cache plus the moving layers). V4: `sample` (a
+   * sample of the developing picture folded into the cache, then as idle; none until V4A).
    */
-  mode: 'moving' | 'still' | 'idle';
+  mode: 'moving' | 'still' | 'idle' | 'sample';
   /** V1D: sun shadow map renders so far (cached shadows; the `?debug` overlay counts them). */
   shadowRenders: number;
   /** V1D: still frames drawn so far (the still-frame cache drawn again). */
@@ -81,6 +90,14 @@ export interface RenderStats {
   engine: Engine;
   /** V1D: frames drawn so far (perf runs count modes per drawn frame). */
   drawn: number;
+  /**
+   * V4: samples folded into the still frame on screen (0 while moving, and 0 everywhere until V4A),
+   * and the samples this rest develops to (`refineGoal`); settled once they are equal.
+   */
+  samples: number;
+  sampleGoal: number;
+  /** V4: why the last still frame was drawn (cache.ts `StillChange`), or null before the first. */
+  stillChange: StillChange | null;
 }
 
 /** V1D: the engine drawing. V1X retired the classic chain (`?engine=classic`), so only the lean one. */
@@ -122,6 +139,9 @@ export class Renderer implements RenderApi {
     stillRenders: 0,
     engine: this.engine,
     drawn: 0,
+    samples: 0,
+    sampleGoal: 0,
+    stillChange: null,
   };
   /** V1.0: GPU time per drawn frame, where the browser offers a timer (`?debug` overlay, perf). */
   readonly gpuTimer: GpuTimer;
@@ -156,6 +176,12 @@ export class Renderer implements RenderApi {
   private readonly dprCap = dprCapFromUrl();
   /** Bumped whenever the light changes (the still picture depends on it). */
   private lightRevision = 0;
+  /** V4: the key parts of the kept still frame, so the next one can say what changed. */
+  private keptParts: StillKeyParts | null = null;
+  /** V4: `?debug&refine=0`, refinement off on this build (the before for the laptop tables). */
+  private readonly refineOff = refineOffFromUrl(location.search);
+  /** V4: what the still-frame cache's `refine` draws a sample with. */
+  private readonly refineContext: RefineContext;
   /** V2A: the static-change counters (statics.ts): the still frame's and the shadow map's. */
   private readonly statics = new StaticRevisions();
   /** When shadows last rendered (ms). */
@@ -238,6 +264,11 @@ export class Renderer implements RenderApi {
     }
     this.still = new StillCache(this.scene, this.camera);
     this.lean = new LeanFrame(this.three, QUALITY_PRESETS.ultra.msaa);
+    this.refineContext = {
+      renderer: this.three,
+      frame: this.lean,
+      draw: (jitter, target) => this.drawSample(jitter, target),
+    };
     this.lean.useEndpaper(this.env.endpaper);
     this.setQuality(quality);
     this.rig = new CameraController(this.camera, mirror, this.three.domElement);
@@ -502,13 +533,8 @@ export class Renderer implements RenderApi {
     const fog = this.scene.fog as Fog;
     this.env.focus.copy(target);
     this.lean.setViewDistance(dist);
-    Object.assign(fog, hazeFor(dist));
-    // C5E: fog days pull the haze in (a weather step drops the still frame).
-    const thick = this.env.fog.value;
-    if (thick > 0) {
-      fog.near *= 1 - 0.6 * thick;
-      fog.far *= 1 - 0.45 * thick;
-    }
+    // C5E: fog days pull the haze in (a weather step drops the still frame); P3C: by world distance.
+    Object.assign(fog, hazeFor(dist, this.env.fog.value));
   }
 
   /**
@@ -605,15 +631,46 @@ export class Renderer implements RenderApi {
    * layer, the light, the shadow map and (V2A) the light map. Any change means drawing it again.
    */
   private stillKey(): string {
-    return [
-      this.lean?.revision ?? 0,
-      this.quality,
-      this.env.viewRevision,
-      this.statics.revision,
-      this.lightRevision,
-      this.shadowCache.renders,
-      this.env.lightMapRevision,
-    ].join('|');
+    return stillKeyOf(this.stillKeyParts());
+  }
+
+  /** V4: the still frame's key by part (cache.ts `StillKeyParts`), so a new one says what changed. */
+  private stillKeyParts(): StillKeyParts {
+    return {
+      targets: this.lean?.revision ?? 0,
+      quality: this.quality,
+      view: this.env.viewRevision,
+      content: this.statics.revision,
+      light: this.lightRevision,
+      shadows: this.shadowCache.renders,
+      lamps: this.env.lightMapRevision,
+    };
+  }
+
+  /** V4: what the refinement's governor reads when a rest keeps a still frame (refine.ts). */
+  private governorInput(): RefineGovernorInput {
+    return {
+      quality: this.quality,
+      presetSamples: QUALITY_PRESETS[this.quality].refineSamples,
+      movingFrameMs: this.resolution.movingMs,
+      resolutionStep: this.resolution.stepIndex,
+      gpuMs: this.gpuTimer.ms,
+      sampleGpuMs: null,
+      photo: this.photoOn,
+      off: this.refineOff,
+    };
+  }
+
+  /**
+   * V4: one sample of the static layers into `target` for the still-frame cache's `refine`. V4A
+   * jitters it (the pixel through the camera's view offset, the sun inside its disc with a shadow
+   * render, the lens about the focus, one sample in four lit from the sky); V4.0 draws it plain, and
+   * nothing calls it until V4A's `refine` does. `camera` is the main one but for V4X's developed
+   * captures (`capture`'s `samples`, drawn from the capture camera).
+   */
+  private drawSample(jitter: RefineJitter, target: WebGLRenderTarget, camera = this.camera): void {
+    void jitter;
+    this.scenePass(target, 'static', camera);
   }
 
   /** The lean engine's frame: a moving, still or idle scene pass, then the blur and final pass. */
@@ -621,7 +678,10 @@ export class Renderer implements RenderApi {
     const lean = this.lean;
     // At rest, the still frame is drawn once even if nothing else moves: it is the preset's own
     // sharpness (not the moving step's) and, on Ultra, has its ambient occlusion.
-    const stillDue = resting && !this.still.valid(this.stillKey());
+    const restKey = this.stillKey();
+    const stillDue = resting && !this.still.valid(restKey);
+    // V4: while the still frame develops, every frame draws (one sample each) until it settles.
+    const developing = resting && this.still.developing(restKey);
     // With the camera at rest, shadows catch up with static changes made while it moved (on Low,
     // with no still frame to draw, this is the only frame that would).
     const shadowsDue =
@@ -629,7 +689,7 @@ export class Renderer implements RenderApi {
     // V3X: under the full map nothing the scene does shows: at rest only a new map (a static
     // change, so the still frame is due), the view or a resize draws a frame.
     if (this.env.skipScene && resting && !stillDue) dirty = false;
-    if (!dirty && !this.needsRender && !stillDue && !shadowsDue) {
+    if (!dirty && !this.needsRender && !stillDue && !shadowsDue && !developing) {
       this.gpuTimer.poll();
       this.resolution.frame(now, false, this.basePixelRatio);
       return;
@@ -649,14 +709,22 @@ export class Renderer implements RenderApi {
       lean.finish(target);
     } else {
       target = lean.target('still');
-      const key = this.stillKey();
+      const parts = this.stillKeyParts();
+      const key = stillKeyOf(parts);
       mode = 'idle';
       if (!this.still.valid(key)) {
         target.resolveDepthBuffer = true;
         this.scenePass(target, 'static');
         target.resolveDepthBuffer = false;
-        this.still.keep(this.three, lean, target, key);
+        // V4: what changed decides whether V4A restarts the development or folds samples in; a
+        // forced redraw (a quality change, the AO's code arriving) starts over.
+        this.still.keep(this.three, lean, target, key, stillChange(this.keptParts, parts) ?? 'targets');
+        this.keptParts = parts;
+        this.still.goal = refineGoal(this.governorInput());
         mode = 'still';
+      } else if (this.still.developing(key) && this.still.refine(1, this.refineContext) > 0) {
+        // V4: a sample folded into the kept picture (V4A), then the idle frame over it.
+        mode = 'sample';
       }
       this.scenePass(target, 'idle');
       // V2X: at rest the night's bloom comes from the still frame, built once and reused; while a
@@ -673,6 +741,9 @@ export class Renderer implements RenderApi {
     this.stats.pixelRatio = lean.ratio(mode === 'moving' ? 'moving' : 'still');
     this.stats.shadowRenders = this.shadowCache.renders;
     this.stats.stillRenders = this.still.renders;
+    this.stats.samples = resting ? this.still.samples : 0;
+    this.stats.sampleGoal = resting ? this.still.goal : 0;
+    this.stats.stillChange = this.still.lastChange;
     this.stats.drawn++;
     this.frames++;
     if (this.resolution.frame(now, true, this.basePixelRatio, mode === 'moving')) this.applyLayout();
@@ -707,9 +778,12 @@ export class Renderer implements RenderApi {
    * still-frame cache), or `idle` (the cache restored, then the moving layers). Layers the pass
    * does not draw are hidden for it, so three does not even walk them.
    */
-  private scenePass(target: WebGLRenderTarget, which: 'all' | 'static' | 'idle'): void {
+  private scenePass(
+    target: WebGLRenderTarget,
+    which: 'all' | 'static' | 'idle',
+    cam: PerspectiveCamera = this.camera,
+  ): void {
     if (this.env.skipScene) return;
-    const cam = this.camera;
     if (which === 'static') cam.layers.set(STATIC_LAYER);
     else if (which === 'idle') cam.layers.set(MOVING_LAYER);
     for (const r of this.roots)
@@ -896,6 +970,7 @@ export class Renderer implements RenderApi {
   readonly photo = {
     setPhoto: (on: boolean): void => {
       setFreeCamera(on);
+      this.photoOn = on;
       if (!on) {
         this.timeOfDay = null;
         this.lean.setDepthOfField(0);
@@ -917,6 +992,8 @@ export class Renderer implements RenderApi {
 
   /** C5E: extra resolution for photo mode's PNG (1 otherwise). */
   private photoBoost = 1;
+  /** V4: photo mode is on (the governor then develops to PHOTO_SAMPLES; V4A and V4B). */
+  private photoOn = false;
 
   private async savePng(): Promise<Blob> {
     const canvas = this.three.domElement;
@@ -943,12 +1020,14 @@ export class Renderer implements RenderApi {
    * then tone mapped, graded to sRGB and halved on the CPU into a PNG; the canvas never shows it.
    * The camera looks from the player's own bearing at 50 degrees. What the main view's culling has
    * put away (far chunks) may be missing from a snapshot of somewhere else.
+   *
+   * V4 (`CaptureOptions`): `style: 'ink'` is V4B's ink and wash for the books, and `samples` the
+   * developed picture (V4A's refinement; photo mode and print take PHOTO_SAMPLES). A capture is
+   * taken at rest, never on a moving frame, and costs nothing while no book is open.
    */
-  async capture(opts: {
-    focus: [number, number];
-    radius: number;
-    size: [number, number];
-  }): Promise<Blob | null> {
+  async capture(opts: CaptureOptions): Promise<Blob | null> {
+    // V4.0: `style` and `samples` are typed for V4B and V4A; until they land every capture is the
+    // plain picture in one pass, whatever was asked (an 'ink' capture too).
     const [w, h] = opts.size;
     const sw = Math.max(2, Math.round(w * 2));
     const sh = Math.max(2, Math.round(h * 2));

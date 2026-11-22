@@ -21,8 +21,8 @@ import type { LayerContext, RenderLayer } from './types';
 /** Particles per preset (critters level): Low gets a light sprinkle, Ultra a proper shower. */
 export const WEATHER_PARTICLES = { none: 700, some: 1600, all: 3200 } as const;
 
-/** Leaves at most, as a share of the particles (autumn, mostly in its second half). */
-const LEAF_SHARE = 0.12;
+/** Leaves at most, as a share of the particles (autumn, mostly in its second half). P3C: 0.08, was 0.12. */
+const LEAF_SHARE = 0.08;
 
 const VERT = /* glsl */ `
 attribute vec4 seed;
@@ -35,6 +35,7 @@ uniform float uLeaves;
 uniform float uLeafShare;
 uniform float uStorm;
 uniform float uSize;
+uniform float uNear;
 varying vec2 vUv;
 varying float vKind;
 varying float vFade;
@@ -85,6 +86,10 @@ void main() {
     mat2 r = mat2(cos(spin), sin(spin), -sin(spin), cos(spin));
     mv.xy += r * (corner * vec2(0.09, 0.05 + 0.04 * abs(sin(spin * 0.7)))) * uSize;
   }
+  // P3C: nothing falls right in front of the lens. The box reaches past a close camera, and a leaf
+  // or a streak a tile or two from it filled the frame (the owner's "thin streaks across the
+  // frame"); they fade in from uNear to twice that in front of it.
+  vFade *= smoothstep(uNear, uNear * 2.0, -mv.z);
   float pick = fract(seed.x * 13.7 + seed.y * 7.3);
   vTint = pick < 0.4 ? vec3(0.85, 0.5, 0.12) : pick < 0.7 ? vec3(0.78, 0.3, 0.08) : pick < 0.88 ? vec3(0.6, 0.16, 0.06) : vec3(0.82, 0.68, 0.2);
   gl_Position = projectionMatrix * mv;
@@ -104,9 +109,9 @@ void main() {
   vec3 col;
   float a;
   if (vKind == 0.0) {
-    // Rain: a pale streak, brighter at its head, taking the sky's color.
+    // Rain: a pale streak, brighter at its head, taking the sky's color; fainter at night.
     col = mix(uSky, vec3(0.92, 0.95, 1.0), 0.55);
-    a = (1.0 - smoothstep(0.2, 0.5, abs(c.x))) * smoothstep(-0.5, 0.3, c.y) * 0.45;
+    a = (1.0 - smoothstep(0.2, 0.5, abs(c.x))) * smoothstep(-0.5, 0.3, c.y) * mix(0.45, 0.3, uNight);
   } else if (vKind == 1.0) {
     // Snow: a soft round flake.
     col = vec3(0.97, 0.98, 1.0);
@@ -118,7 +123,7 @@ void main() {
     col = vTint * (0.85 + 0.3 * smoothstep(0.0, 0.1, abs(c.y)));
     a = 1.0 - smoothstep(0.36, 0.5, l);
   }
-  col *= mix(1.0, 0.38, uNight);
+  col *= mix(1.0, 0.3, uNight);
   a *= vFade;
   if (a < 0.01) discard;
   gl_FragColor = vec4(col, a);
@@ -176,6 +181,7 @@ export function weatherLayer(): RenderLayer {
           uLeafShare: { value: LEAF_SHARE },
           uStorm: env.storm,
           uSize: { value: 1 },
+          uNear: { value: 3 },
           uSky: env.sky,
           uNight: env.night,
         },
@@ -213,6 +219,7 @@ export function weatherLayer(): RenderLayer {
       focus.copy(env.focus);
       u.uSpan!.value = Math.min(110, Math.max(26, d * 0.95));
       u.uSize!.value = Math.min(2.4, Math.max(1, Math.sqrt(d / 30)));
+      u.uNear!.value = Math.max(2, d * 0.4);
       return true;
     },
     dispose() {

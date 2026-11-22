@@ -108,3 +108,30 @@ export interface RenderApi {
    */
   endpaperStill?(size?: number): Promise<Blob | null>;
 }
+
+/**
+ * V4.0: how `capture` draws a picture: `plain` (C5E's, as the Chronicle has it) or `ink` (V4B's ink
+ * and wash for the books: the developed still, ink lines where depth and facing break, paper grain
+ * and a limited wash). Until V4B lands an `ink` capture returns the plain picture.
+ */
+export type CaptureStyle = 'plain' | 'ink';
+
+/**
+ * V4.0: a picture of the valley (the renderer's `capture`, read through the client's
+ * `SeasonRender`). Book slots are landscape 4:3 (`docs/build/v4-wave-notes.md`, Pictures).
+ */
+export interface CaptureOptions {
+  /** The point the picture looks at, in tiles. */
+  focus: [number, number];
+  /** About how many tiles across the picture shows. */
+  radius: number;
+  /** The picture's size in pixels. */
+  size: [number, number];
+  /** V4: `plain` when absent. */
+  style?: CaptureStyle;
+  /**
+   * V4: samples to develop the picture to (V4A's refinement; `PHOTO_SAMPLES`, 64, for photo mode
+   * and print). Absent or 0 is one plain pass, which is all V4.0 draws.
+   */
+  samples?: number;
+}

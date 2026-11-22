@@ -1,5 +1,5 @@
 import { expect as baseExpect, test, type Browser, type Page } from '@playwright/test';
-import { GUIDE_QUERY } from './helpers';
+import { GUIDE_QUERY, takeTool } from './helpers';
 
 // C5H acceptance: a new standard valley opens the County surveyor's first letter on both seats,
 // with an arrow at the tool it is about; finishing the step (a Forester's Lodge with its door on
@@ -80,7 +80,7 @@ test('the first letter, its arrow, the next step on both screens, and hiding per
   await a.screenshot({ path: `${shots()}/c5h-card-and-arrow.png` });
   // With the tool in hand the toolbar arrow has done its job.
   await a.getByTestId('lens-ledger').click();
-  await a.getByTestId('tool-lane').click();
+  await takeTool(a, 'lane');
   await expect
     .poll(() =>
       a.getByTestId('guide-arrow').evaluateAll((els) => els.map((e) => e.getAttribute('data-target'))),
