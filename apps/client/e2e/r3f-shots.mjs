@@ -20,18 +20,26 @@ const quality = process.env.QOTI_QUALITY ?? 'medium';
 const [vw, vh] = (process.env.QOTI_SIZE ?? '1250x800').split('x').map(Number);
 const wait = Number(process.env.QOTI_WAIT ?? 6000);
 
-// Along the street from the north-east (the verge of lamps and the row behind it face the camera),
-// close (16) and nearest (12); the default zoom (70) from the default yaw.
-const STREET = { at: 'street', dist: 16, yaw: 1.94 };
-const NEAR = { at: 'street', dist: 12, yaw: 1.94 };
-const WIDE = { at: 'street', dist: 70, yaw: 0.5 };
-const ROWS = { at: 'street', dist: 14, yaw: 2.6, dz: 1, man: false };
-const ROUND = [0, 3, 6, 9, 12, 15];
+// Down the street from the east, low (the verge of lamps on the left, the lamplighter walking
+// toward the camera), close (13) and nearest (12); the default zoom (70) from the default yaw.
+const STREET = { at: 'street', dist: 13, yaw: 1.94, tilt: -0.3, dx: 1.5, dz: 0.8 };
+const NEAR = { ...STREET, dist: 12 };
+const WIDE = { at: 'street', dist: 70, yaw: 0.5, tilt: 0 };
+const ROWS = { at: 'street', dist: 14, yaw: 2.6, tilt: 0, dz: 1, man: false };
+// The round as it lights through the middle of the street, a lamp a frame.
+const ROUND = [4, 5, 6, 7, 8, 9];
 
 /** Each shot: where the camera looks, the hour, and the scene's pose (lamps lit, candles, rests). */
 const SHOTS = [
   // The round as it lights: 17:30 to 18:30, a lamp every few minutes (lit counts in round order).
-  ...ROUND.map((lit, i) => ({ name: `round-${i}`, ...STREET, hour: 17.5 + i * 0.2, lit, candles: 0.5 })),
+  ...ROUND.map((lit, i) => ({
+    name: `round-${i}`,
+    ...STREET,
+    dx: -2,
+    hour: 17.5 + i * 0.08,
+    lit,
+    candles: 0.5,
+  })),
   { name: 'round-near-1740', ...NEAR, hour: 17.67, lit: 7, candles: 0 },
   { name: 'round-wide-1740', ...WIDE, hour: 17.67, lit: 7 },
   // A street half lit (the round at 17:40) and fully lit (21:00), close and wide.
@@ -39,7 +47,7 @@ const SHOTS = [
   { name: 'street-full-2100', ...STREET, hour: 21, man: false },
   { name: 'street-wide-2100', ...WIDE, hour: 21, man: false },
   // 19:00 with candles for half the street's lanterns: the kept end lit, the rest resting unlit.
-  { name: 'street-kept-1900', ...STREET, hour: 19, supplied: 8, man: false },
+  { name: 'street-kept-1900', ...STREET, dx: 3, hour: 19, supplied: 8, man: false },
   { name: 'street-kept-wide-1900', ...WIDE, hour: 19, supplied: 8, man: false },
   // A candle-lit row against the same row on the share alone, and homes with and without, mixed.
   { name: 'candles-row-2100', ...ROWS, hour: 21, candles: 'south' },
@@ -48,11 +56,11 @@ const SHOTS = [
   // Every resting piece (right) beside its supplied self (left), nearest zoom, by day and by
   // lamplight; and the whole lineup at the default zoom.
   ...[0, 1, 2, 3].flatMap((row) => [
-    { name: `rest-row${row}-day`, at: `row${row}`, dist: 12, yaw: 0, hour: 11 },
-    { name: `rest-row${row}-night`, at: `row${row}`, dist: 12, yaw: 0, hour: 21.5 },
+    { name: `rest-row${row}-day`, at: `row${row}`, dist: 12, yaw: 0, tilt: 0, hour: 11 },
+    { name: `rest-row${row}-night`, at: `row${row}`, dist: 12, yaw: 0, tilt: 0, hour: 21.5 },
   ]),
-  { name: 'rest-wide-day', at: 'lineup', dist: 70, yaw: 0, hour: 11 },
-  { name: 'rest-wide-night', at: 'lineup', dist: 70, yaw: 0, hour: 21.5 },
+  { name: 'rest-wide-day', at: 'lineup', dist: 70, yaw: 0, tilt: 0, hour: 11 },
+  { name: 'rest-wide-night', at: 'lineup', dist: 70, yaw: 0, tilt: 0, hour: 21.5 },
 ];
 
 const browser = await chromium.launch({
@@ -88,6 +96,8 @@ const info = await page.evaluate(() => {
 console.log('scene', JSON.stringify(info));
 
 const rows = [];
+/** The tilt the camera holds now (`look` tilts relative to it, and the camera keeps it). */
+let tilted = 0;
 for (const s of SHOTS) {
   if (only.length && !only.includes(s.name)) continue;
   await page.evaluate(
@@ -105,10 +115,11 @@ for (const s of SHOTS) {
       });
       const at =
         s.at === 'lineup' ? info.lineup : s.at === 'street' ? info.street : info.rows[Number(s.at.slice(3))];
-      window.__qoti.look(at[0] + (s.dx ?? 0), at[1] + (s.dz ?? 0), s.dist, s.yaw - r.rig.look.yaw, 0);
+      window.__qoti.look(at[0] + (s.dx ?? 0), at[1] + (s.dz ?? 0), s.dist, s.yaw - r.rig.look.yaw, s.tiltBy);
     },
-    [s, info],
+    [{ ...s, tiltBy: (s.tilt ?? 0) - tilted }, info],
   );
+  tilted = s.tilt ?? 0;
   await page.waitForTimeout(wait);
   // The animation clock stopped at one time, so smoke, water and flames draw alike in every run.
   await page.evaluate(() => {

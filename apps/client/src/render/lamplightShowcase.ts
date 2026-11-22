@@ -57,7 +57,7 @@ export const LINEUP: readonly (readonly [def: string, rest: RestKind])[][] = [
   ],
 ];
 /** Tiles between pairs along a row, between a piece and its resting self, and between rows. */
-const PAIR_STEP = 4.2;
+const PAIR_STEP = 3.6;
 const PAIR_GAP = 1.6;
 const ROW_STEP = 3;
 
@@ -174,6 +174,8 @@ export function lamplightShowcase(mirror: Mirror, cx = 96, cz = 90): LamplightSh
       const id = decor(def, x, z);
       if (rest === 'unlit') shown.push(id);
       resting.push({ id: decor(def, x + PAIR_GAP, z), kind: rest });
+      // A lamp post behind each pair but the lamps', so both are seen by lamplight.
+      if (row > 0) shown.push(decor('lamp-post', x + PAIR_GAP / 2, z - 1.15));
     });
     rows.push([lx + ((pieces.length - 1) * PAIR_STEP + PAIR_GAP) / 2, z]);
   });

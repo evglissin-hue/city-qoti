@@ -5,6 +5,7 @@
 // lit, the light map's revisions, still frames and shadow renders, and the light map's own redraw
 // log (`?debug`). Needs the client dev server (`npm run dev`; QOTI_CLIENT_PORT, 5230 by default):
 //   QOTI_CHROMIUM=/opt/pw-browsers/chromium node apps/client/e2e/r3f-walk.mjs
+// QOTI_WALK_SHOTS=<folder> also saves a frame each time the lamps lit change (the player's chair).
 // Prints a row a lamp and the totals: light map redraws a lamp step (one at most), shadow renders
 // during the walk that no light step explains (none), and the redraws' milliseconds.
 import { chromium } from '@playwright/test';
@@ -73,6 +74,10 @@ const start = Date.now();
 while (Date.now() - start < 12 * 60 * 1000) {
   await page.waitForTimeout(250);
   const s = await sample();
+  if (process.env.QOTI_WALK_SHOTS && s.lit !== last.lit)
+    await page.screenshot({
+      path: `${process.env.QOTI_WALK_SHOTS}/walk-${String(s.lit).padStart(2, '0')}.png`,
+    });
   if (s.lit !== last.lit || s.hour !== last.hour)
     rows.push({
       hour: s.hour,
