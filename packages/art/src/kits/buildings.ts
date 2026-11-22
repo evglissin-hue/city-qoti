@@ -1426,11 +1426,13 @@ function mill(opts: KitBuildOptions | undefined): Built {
     const sz = cz + 0.72 + Math.floor(i / 2) * 0.16;
     s.blob(sx, 0.07, sz, 0.08, 0.07, 0.065, vary(0xece4d2, rnd, 0.5), 1);
   }
-  // R3H: a lean-to flour store beside the door from level 2, a second one from level 3.
+  // R3H: a lean-to flour store beside the door from level 2, a second one from level 3. Its walls
+  // are the tower's plaster, drawn with the plaster's surface (P3C: no pale plain face).
   const lvl = Math.max(1, Math.min(3, Math.round(Number(opts?.params?.level ?? 1))));
   if (lvl >= 2) {
     const lr = streams(opts, 105).rnd;
     const roofCol = vary(capColor, lr, 0.3);
+    s.surface(SURFACE.plaster);
     leanTo(
       s,
       {
@@ -1461,6 +1463,7 @@ function mill(opts: KitBuildOptions | undefined): Built {
         );
     });
     if (lvl >= 3) {
+      s.surface(SURFACE.plaster);
       leanTo(
         s,
         {
@@ -1491,6 +1494,7 @@ function mill(opts: KitBuildOptions | undefined): Built {
           );
       });
     }
+    s.surface(SURFACE.plain);
   }
   if (c.sign) signBoard(s, face, cx, 0.95, 0.4, 0.02, anchors);
   return { s, anchors };
