@@ -110,6 +110,22 @@ describe('the carrier buys candles for places', () => {
     expect(stored(CANDLES)).toBe(0);
   });
 
+  it('lights what it brought for places though the town stands under its Wares reserve', () => {
+    const { s, lanterns, visit, settleDay, stored } = setup();
+    lanterns(4);
+    // A reserve the town is nowhere near: without the switch nothing would ever be drawn.
+    s.carrier.families[WARES]!.reserve = 30;
+    run(s, { t: 'carrier.setRule', family: 'wares', rule: 'essentials', sell: false, places: true });
+    visit(2);
+    expect(bought(s, CANDLES)).toBe(1);
+    expect(s.supplies.carried?.units[CANDLES]).toBe(1);
+    settleDay(2);
+    expect(s.supplies.lamps).toHaveLength(4);
+    expect(stored(CANDLES)).toBe(0);
+    // Spent: the next night draws nothing under the floor.
+    expect(s.supplies.carried?.units[CANDLES]).toBe(0);
+  });
+
   it('puts nothing on the tab: a treasury at zero buys nothing for places', () => {
     const { s, lanterns, visit, fillWaresFloor } = setup();
     lanterns(4);

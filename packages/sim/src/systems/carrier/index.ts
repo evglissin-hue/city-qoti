@@ -25,11 +25,14 @@
 //    plan's winter mark when that is more.
 // 4b. R3A: for each family with `places` on and a rule other than Never, the carrier buys what places
 //    want tonight (candles, firewood, cloth: `placesWant`) above the places' floor, within the day's
-//    budget and coins in hand (never the tab); what it buys lands in the stores like any purchase.
+//    budget and coins in hand (never the tab); what it buys lands in the stores like any purchase, and
+//    is noted for places (`supplies.carried`), so that night they may draw it though the family
+//    stands under its reserve.
 // 5. Selling, with a load of its own (the cart goes out as full as it came in), for families with
 //    `sell` on and a rule other than Never:
 //    what is over twice the reserve (from Summer day 4 to the thaw, never under the winter mark),
-//    the flavor the stores hold most of first (places' want tonight is kept, bought in 4b). A festival's put-by goods are out of the stores, so
+//    the flavor the stores hold most of first (places' want tonight is kept, bought in 4b). A
+//    festival's put-by goods are out of the stores, so
 //    they are never sold.
 //
 // Every unit goes by the cheaper of the cart and the boat that day (the boat only to Millhaven),
@@ -67,7 +70,7 @@ import { doorTile } from '../movement/api';
 import { renownEffect } from '../renown/api';
 import { calendar } from '../clock/calendar';
 import { isFrozen } from '../seasons/api';
-import { placesFloor } from './places';
+import { carryForPlaces, placesFloor } from './places';
 import { buyingTowardMarks, marksStand, PASS_EVENT, passClosed, winterMark } from './api';
 import {
   activeDeal,
@@ -825,7 +828,12 @@ export function carrierDay(state: WorldState, ctx: TickCtx): void {
         forPlaces[f]! += w;
         const can = Math.max(0, Math.min(surplus, day.town[g] ?? 0));
         const short = w - can;
-        if (short > 0) surplus += buy(state, day, g, short, 'budget');
+        if (short > 0) {
+          const got = buy(state, day, g, short, 'budget');
+          // Bought for places, so places may draw it tonight though the family stands under its floor.
+          carryForPlaces(state, g, got);
+          surplus += got;
+        }
         surplus -= w;
       }
     }

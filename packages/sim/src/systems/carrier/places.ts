@@ -13,6 +13,7 @@ import { familyIndex, methodOf } from '../../state/zones';
 import { isStorehouse, tileDistance } from '../logistics/stores';
 import { balanceStock, familyStock, familyUseHundredths } from '../market/balances';
 import { doorTile } from '../movement/api';
+import { dayIndex } from '../economy/time';
 import { winterMark } from './api';
 
 const MATERIALS = 2;
@@ -88,12 +89,37 @@ function sourceFree(s: Source, g: number): number {
   return Math.max(0, ((s.store ? rt.store[g] : rt.output[g]) ?? 0) - (rt.reservedOut[g] ?? 0));
 }
 
-/** The purse for one settling (or one carrier visit): read once, spent by drawForPlaces. */
+/** Units the carrier bought for places today and places have not drawn yet, by good index (or null). */
+function carriedToday(state: WorldState): number[] | null {
+  const c = state.supplies.carried;
+  return c && c.day === dayIndex(state.tick) ? c.units : null;
+}
+
+/** Notes units the carrier bought for places today (its places switch): places may draw them under the floor. */
+export function carryForPlaces(state: WorldState, good: number, qty: number): void {
+  if (qty <= 0) return;
+  const day = dayIndex(state.tick);
+  let c = state.supplies.carried;
+  if (!c || c.day !== day) {
+    c = { day, units: new Array<number>(content.goods.length).fill(0) };
+    state.supplies.carried = c;
+  }
+  c.units[good] = (c.units[good] ?? 0) + qty;
+}
+
+/**
+ * The purse for one settling (or one carrier visit): read once, spent by drawForPlaces. What the
+ * carrier bought for places today is theirs: it is left out of the stock the floor is measured
+ * against and added to the surplus whole (as far as it is still in town).
+ */
 export function placesPurse(state: WorldState): PlacesPurse {
   const stock = balanceStock(state);
+  const carried = carriedToday(state);
   const surplus: number[] = [];
   for (let f = 0; f < state.carrier.families.length; f++) {
-    surplus.push(Math.max(0, familyStock(stock, f) - placesFloor(state, f)));
+    const have = familyStock(stock, f);
+    const mine = carried ? Math.min(have, familyStock(carried, f)) : 0;
+    surplus.push(Math.max(0, have - mine - placesFloor(state, f)) + mine);
   }
   const free = new Array<number>(content.goods.length).fill(0);
   for (const s of sources(state)) for (let g = 0; g < free.length; g++) free[g]! += sourceFree(s, g);
@@ -134,6 +160,9 @@ export function drawForPlaces(
   }
   purse.free[good]! -= taken;
   purse.surplus[family]! -= taken;
+  // What the carrier brought for places is spent first.
+  const carried = carriedToday(state);
+  if (carried) carried[good] = Math.max(0, (carried[good] ?? 0) - taken);
   state.economy.today.consumed[good]! += taken;
   state.economy.season.consumed[good]! += taken;
   return taken;
