@@ -15,7 +15,7 @@
 // outlet with Treats on its shelf and a place in reach whose visitors bought none for a season of
 // evenings), tier-unreachable (an evenings gate no town can build) and garden-grown (a garden lot
 // something grew on); P3A, hands-spiral (food short and food jobs open two middays running while
-// hands work past the first elsewhere, or sites pile up with the Homes bar silent); all quiet on the stand-ins, so `EXPLAINED` stays empty;
+// hands work past the first elsewhere, or sites pile up with the Homes bar silent); all quiet on the stand-ins; `EXPLAINED` holds the one newcomer-profile limit (treats-unsold);
 // site-rule-broken, a specialized building whose woods, open ground or road went; wish-dead-end,
 // guide-dead-end and story-dead-end, a goal nothing can meet) and, per wish template, how many were
 // offered, granted and let go (and how many let go while impossible). R1.0: standing orders are
@@ -52,11 +52,34 @@ export const NEVER_GRANTED_AFTER = 3;
  * prints them as explained instead of failing the run. R1X emptied it as the wave landed: a flag
  * that outlives its stand-in is a dead end again.
  */
-export const EXPLAINED: readonly { kind: HealthIssue['kind']; match: RegExp; why: string }[] = [];
+export const EXPLAINED: readonly {
+  kind: HealthIssue['kind'];
+  match: RegExp;
+  /** The runs (`seed/label`) the entry covers; with none, every run. */
+  run?: RegExp;
+  why: string;
+}[] = [
+  {
+    kind: 'treats-unsold',
+    match:
+      /^market-stall #\d+ has had Treats on the shelf and visitors at \d+ places in reach for \d+ evenings and sold none$/,
+    run: /\/newcomer$/,
+    why:
+      'a limit of the newcomer pair, not a stuck shelf (P3A; hazel/newcomer, traced through tradePass): ' +
+      'the few households out each evening either owed under one Treat (a line accrues 30 to 40 hundredths a day, ' +
+      'so a household buys about every third evening), had bought tonight at an earlier stop, or, from Village rank ' +
+      'when Treats are paid, held 200 to 292 pennies against a cheapest Treat of 300 (187 of 187 refusals at the stall ' +
+      'were the purse); with no places or decor for five evenings (NEWCOMER_LATE) the town is thin. The tuned runs, ' +
+      'with places from the first evening, flag nothing in this audit.',
+  },
+];
 
 /** Why a flag is a known stand-in's, or null when it is a dead end. */
-export function explained(i: Pick<HealthIssue, 'kind' | 'text'>): string | null {
-  return EXPLAINED.find((e) => e.kind === i.kind && e.match.test(i.text))?.why ?? null;
+export function explained(i: Pick<HealthIssue, 'kind' | 'text'>, run = ''): string | null {
+  return (
+    EXPLAINED.find((e) => e.kind === i.kind && e.match.test(i.text) && (!e.run || e.run.test(run)))?.why ??
+    null
+  );
 }
 
 export interface WishStat {
@@ -275,9 +298,9 @@ export function audit(
       text: `wish ${s.template} was offered ${s.offered} times and never granted (${s.expired} let go, ${s.expiredUnachievable} while impossible)`,
     }));
   const all = runs.flatMap((r) => r.issues.map((i) => ({ ...i, run: `${r.seed}/${r.label}` })));
-  const flags = all.filter((i) => !explained(i));
+  const flags = all.filter((i) => !explained(i, i.run));
   const known = all.flatMap((i) => {
-    const why = explained(i);
+    const why = explained(i, i.run);
     return why ? [{ ...i, why }] : [];
   });
   const stuck = runs.flatMap((r) => r.stuck.map((s) => ({ ...s, run: `${r.seed}/${r.label}` })));

@@ -37,6 +37,7 @@ import {
   isFrozen,
   loansOwed,
   onFloodplain,
+  pathFor,
   PENNIES_PER_COIN,
   TILE_FP,
   townStock,
@@ -244,6 +245,44 @@ export class Planner {
       const dx = door % S;
       const dz = Math.floor(door / S);
       if (dx >= x && dx < x + w && dz >= z && dz < z + dd) return true;
+    }
+    return false;
+  }
+
+  /**
+   * P3A: whether builders can walk from the town hall to the door of a building set down here. The
+   * sim's own CUT_OFF check (townReachesDoor) ignores decor, so a bed set beside a flower bed the
+   * Hearth had put on its door tile passed it and then stood cut off, every material in, for days
+   * (the audit's site-stalled on oak, newcomer, and willow's garden bed). The real walk grid knows.
+   */
+  doorWalkable(def: string, x: number, z: number, rot: Rot4): boolean {
+    const d = content.buildingById.get(def);
+    const hall = this.w.buildings.find((b) => b.def === 'town-hall' && b.stage === 'built');
+    if (!d || !hall) return true;
+    const door = doorTile({ def, x, z, rot } as Building, d);
+    const [fw, fd] = rot % 2 === 0 ? d.size : [d.size[1], d.size[0]];
+    const inside = (t: number): boolean => {
+      const tx = t % S;
+      const tz = Math.floor(t / S);
+      return tx >= x && tx < x + fw && tz >= z && tz < z + fd;
+    };
+    const m = this.w.map;
+    // A tile a walker can stand on: free, dry (or bridged) and with no piece of decor that blocks walking.
+    const standable = (t: number): boolean => {
+      if (m.occupant[t] || (m.water[t] && !m.road[t])) return false;
+      return !this.w.decor.some(
+        (e) =>
+          content.decorById.get(e.def)?.blocksWalking &&
+          Math.floor(e.fz / TILE_FP) * S + Math.floor(e.fx / TILE_FP) === t,
+      );
+    };
+    const from = doorTile(hall);
+    // The step onto the door may come from any side but the building itself, which does not yet
+    // stand (its own tiles are no way in once it does); the walker may then step onto the door.
+    for (const n of [door + 1, door - 1, door + S, door - S]) {
+      if (n < 0 || n >= S * S || inside(n) || !standable(n)) continue;
+      const path = pathFor(this.w, from, n, 'walk');
+      if (path !== null && !path.some(inside)) return true;
     }
     return false;
   }
