@@ -85,18 +85,22 @@ describe('the places advisor', () => {
     planner.advisor = { id: 'places', lane: 'hearth' };
     const advisor = places.create(planner);
     // R2X: a Village with no tavern gets its tavern first, which can take a whole visit; the rows
-    // come on the next.
+    // come on the next. P3A: a shop that can be a Corner Cafe is dressed first and that takes a
+    // visit too, now that a visit keeps to its three commands (it used to dress two shops at once).
     let sent: typeof planner.decisions = [];
-    for (let v = 0; v < 2; v++) {
+    for (let v = 0; v < 3; v++) {
       if (w.economy.treasury < 50000) w.economy.treasury = 50000;
       const before = planner.decisions.length;
       advisor.visit({ afternoon: false });
       const visit = planner.decisions.slice(before);
       expect(visit.length, visit.map((r) => `${r.kind} ${r.label}`).join('\n')).toBeLessThanOrEqual(3 + 2);
       sent = visit;
-      if (visit.some((r) => r.ok && r.label.startsWith('bench'))) break;
+      if (visit.some((r) => r.ok && r.label.startsWith('bench in a row'))) break;
     }
-    const benches = sent.filter((r) => r.ok && r.cmd.t === 'decor.place' && r.label.startsWith('bench'));
+    // The row's benches (a Corner Cafe's pieces by a shop, sent in the same visit, keep their own rule).
+    const benches = sent.filter(
+      (r) => r.ok && r.cmd.t === 'decor.place' && /^bench (in a row|near a home)/.test(r.label),
+    );
     expect(benches.length, planner.actions.join('\n')).toBeGreaterThanOrEqual(2);
     const spot = content.places.spotRadius;
     const pts = benches.map((r) => [
