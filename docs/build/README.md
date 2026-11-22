@@ -82,7 +82,7 @@ One row per cycle. A cycle is one agent session working from one brief on one br
 | R3A Supplies and the lamplighter | R3 | parallel | `cycle-r3a-supplies-lamplighter.md` | R3.0 | waiting: after R3.0 (xhigh) |
 | R3B Masters | R3 | parallel | `cycle-r3b-masters.md` | R3.0 | waiting: after R3.0 (xhigh) |
 | R3C The Town Book and earned callings | R3 | parallel | `cycle-r3c-town-book.md` | R3.0 | waiting: after R3.0 (high) |
-| R3D Follow the thread, the Town Book and R3's interface | R3 | parallel | `cycle-r3d-follow-the-thread.md` | R3.0 | waiting: after R3.0 (xhigh) |
+| R3D Follow the thread, the Town Book and R3's interface | R3 | parallel | `cycle-r3d-follow-the-thread.md` | R3.0 | PR open ([evglissin-hue/city-qoti#68](https://github.com/evglissin-hue/city-qoti/pull/68)) from `cycle/r3d-follow-the-thread` into `cycle/r3x-integration`: the thread counts (8 pairs a good a door, halved at midnight) and the Thread in every inspector with its route, the Town Book on the Books shelf, the priority control and supplies on the place card, places in Balances with the carrier's switch, masters, the lamplighter, a home's candle and callings in the interface; screenshots `r3d-*` |
 | R3E The bench | R3 | parallel | `cycle-r3e-bench.md` | R3.0 | waiting: after R3.0 (high) |
 | R3F Lamplight and resting pieces | R3 | parallel | `cycle-r3f-lamplight.md` | R3.0 | waiting: after R3.0 (Opus, xhigh; R3's look, the master's ruling) |
 | R3G The storybook | R3 | parallel | `cycle-r3g-storybook.md` | R3.0 | waiting: after R3.0 (high; client only, split from R3D) |

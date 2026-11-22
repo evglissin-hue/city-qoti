@@ -162,6 +162,7 @@ In software the two nights cannot be told apart: the map was cheaper on the fina
 | The place pass [R2] | 1 ms an hour at Village scale, 3 ms at City scale |
 | Planning the round [R2] | under 0.4 ms a tick for 2,000 residents between 17:00 and 17:30 |
 | Gaps, supplies, masters, the Town Book [R2, R3] | under 1 ms an hour together |
+| Follow the thread's counts [R3] | the busiest hour's writes (the 18:00 baskets and the hour's deliveries) under 1 ms, the midnight halving under 0.5 ms, and one Thread (an inspector's worker request) under 4 ms, at City scale on a table full to the bound (R3D's `r3d threads` bench line) |
 
 **V3's headroom** [V3.0 records the before, V3X fills the laptops]. Worst moving scene per preset on the grown village (`v3-perf.mjs`, 11:00, sim running; `docs/build/screenshots/v3-before-perf.md`), against V2X's table, with the laptops' columns for V3X:
 
