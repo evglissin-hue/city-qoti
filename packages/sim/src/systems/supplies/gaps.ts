@@ -113,7 +113,11 @@ export function keepSupplyGaps(pass: GapPass, achievable: (kind: GapKind) => boo
     const gap = findGap(state, KIND, place.id);
     const s = placeShortage(state, place);
     if (!s && !gap) continue;
-    const opens = !!s?.resting;
+    // Short tonight; and only a place folk came to (the gap's threshold in visitors, R2's "draws 8+")
+    // opens one, so a dark town is told about the places that matter, not every lamp in a lane.
+    const resting = !!s?.resting;
+    const visitors = placeState(state, place.id)?.visitors;
+    const opens = resting && (visitors?.[visitors.length - 1] ?? 0) >= d.threshold;
     if (!gap) {
       if (!opens) continue;
       const blocked = !achievable(KIND) || (pass.closable && !pass.closable(KIND, place.id, place.tile));
@@ -128,11 +132,12 @@ export function keepSupplyGaps(pass: GapPass, achievable: (kind: GapKind) => boo
       pass.changed = true;
       continue;
     }
-    if (opens && gap.n !== s!.n) {
+    if (resting && gap.n !== s!.n) {
       gap.n = s!.n;
       pass.changed = true;
     }
-    if (opens) continue;
+    // Still short, busy or quiet: it closes only on evenings nothing rests.
+    if (resting) continue;
     if (bump(state, held, place.id) < d.closeAfter) continue;
     clearStreak(state, place.id);
     closeGap(state, ctx, gap, closers(state, gap, place));

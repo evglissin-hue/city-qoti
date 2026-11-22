@@ -56,9 +56,20 @@ function town(): Town {
   return { s, ctx: createTickCtx(s), place, lanterns, bench };
 }
 
-/** One fair (or other) evening: the night settled with the lanterns resting or lit, then the gaps pass. */
-function evening(t: Town, day: number, rests: boolean, weather: 'fair' | 'rain' | 'storm' = 'fair'): void {
+/**
+ * One fair (or other) evening: the night settled with the lanterns resting or lit, `visitors` at the
+ * place (the gap's threshold unless given), then the gaps pass.
+ */
+function evening(
+  t: Town,
+  day: number,
+  rests: boolean,
+  weather: 'fair' | 'rain' | 'storm' = 'fair',
+  visitors: number = def.threshold,
+): void {
   const { s } = t;
+  const row = s.places.find((p) => p.id === t.place);
+  if (row) row.visitors = [visitors];
   s.supplies.night = day;
   s.supplies.lamps = rests ? [] : t.lanterns.map((id) => ({ id, reach: 0 }));
   const tally = emptyTally(day);
@@ -67,6 +78,11 @@ function evening(t: Town, day: number, rests: boolean, weather: 'fair' | 'rain' 
   s.tick = day * TICKS_PER_DAY + GAPS_OFFSET;
   t.ctx.events.length = 0;
   gaps.tick(s, t.ctx);
+}
+
+/** The fourth gap's streaks (R2's rules keep their own beside them once a place draws 8). */
+function fourth(t: Town) {
+  return t.s.gaps.streaks.filter((x) => x.kind === KIND);
 }
 
 function open(t: Town) {
@@ -98,12 +114,12 @@ describe('the fourth gap opens and closes', () => {
     const t = town();
     evening(t, 0, true);
     expect(open(t)).toBeUndefined();
-    expect(t.s.gaps.streaks).toEqual([{ kind: KIND, subject: t.place, n: 1 }]);
+    expect(fourth(t)).toEqual([{ kind: KIND, subject: t.place, n: 1 }]);
     evening(t, 1, true);
     const gap = open(t)!;
     expect(gap.n).toBe(2);
     expect(gap.tile).toBe(placeIndex(t.s).byId.get(t.place)!.tile);
-    expect(t.s.gaps.streaks).toEqual([]);
+    expect(fourth(t)).toEqual([]);
     expect(t.ctx.events.map((e) => e.e)).toContain('gaps.updated');
     expect(shortGapWords(t.s, gap)).toEqual({ good: 'candles', when: 'a night', makes: 0 });
     const text = gapsView(t.s).open.find((g) => g.id === gap.id)!.text;
@@ -111,6 +127,16 @@ describe('the fourth gap opens and closes', () => {
     expect(text).toContain('2 candles a night');
     expect(text).toMatch(/the town makes 0/);
     expect(text).not.toMatch(/[{}]/);
+  });
+
+  it('opens only for a place folk came to, and a quiet evening does not close it', () => {
+    const t = town();
+    let day = 0;
+    for (let i = 0; i < def.openAfter + 1; i++) evening(t, day++, true, 'fair', def.threshold - 1);
+    expect(open(t)).toBeUndefined();
+    day = openIt(t) + day;
+    for (let i = 0; i < def.closeAfter + 1; i++) evening(t, day++, true, 'fair', 0);
+    expect(open(t)).toBeDefined();
   });
 
   it('every variant fills every placeholder', () => {
@@ -204,7 +230,7 @@ describe('the fourth gap opens and closes', () => {
     evening(t, 1, true, 'rain');
     evening(t, 2, true, 'storm');
     expect(open(t)).toBeUndefined();
-    expect(t.s.gaps.streaks).toEqual([{ kind: KIND, subject: t.place, n: 1 }]);
+    expect(fourth(t)).toEqual([{ kind: KIND, subject: t.place, n: 1 }]);
     evening(t, 3, true);
     expect(open(t)).toBeDefined();
     // And an open gap holds through rain as well.
@@ -228,7 +254,7 @@ describe('the fourth gap opens and closes', () => {
     placeState(t.s, t.place)!.priority = 'rest';
     for (let day = 0; day < 4; day++) evening(t, day, true);
     expect(open(t)).toBeUndefined();
-    expect(t.s.gaps.streaks).toEqual([]);
+    expect(fourth(t)).toEqual([]);
 
     const u = town();
     const day = openIt(u);

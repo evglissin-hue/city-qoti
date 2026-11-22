@@ -59,7 +59,8 @@ export const shortOfSupplies: GapDef = {
   kind: 'shortOfSupplies',
   from: 'R3',
   lane: 'ledger',
-  threshold: 2,
+  // R3A: visitors on the evening (R2's "draws 8+"): only a place folk came to opens one.
+  threshold: 8,
   openAfter: 2,
   closeAfter: 2,
   text: [
