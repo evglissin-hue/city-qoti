@@ -4,7 +4,6 @@
 // a row for. The counts are written by recordThread (api.ts) where goods move.
 import { TICKS_PER_DAY } from '../../constants';
 import type { PlaceId, PlaceState, System, WorldState } from '../../contracts';
-import { findById } from '../../state/entities';
 import { isStandard } from '../../state/hamlet';
 import { dailyOffset } from '../economy/time';
 
@@ -20,16 +19,29 @@ function hasPlaceRow(rows: readonly PlaceState[], id: PlaceId): boolean {
   return lo < rows.length && rows[lo]!.id === id;
 }
 
-/** Halves every count; drops the faded ones and those whose door or place is gone. Keeps the order. */
+/**
+ * Halves every count; drops the faded ones and those whose door or place is gone. Keeps the order.
+ * The town's buildings are read once into a set (a pair's door is checked in O(1), not by a search
+ * of the buildings), and a run of pairs from one door checks that door once.
+ */
 export function decayThreads(state: WorldState): void {
   const pairs = state.threads.pairs;
+  if (pairs.length === 0) return;
+  const standing = new Set<number>();
+  for (const b of state.buildings) standing.add(b.id);
   let kept = 0;
+  let lastFrom = -1;
+  let fromStands = false;
   for (let i = 0; i < pairs.length; i++) {
     const p = pairs[i]!;
-    p.units = Math.floor(p.units / 2);
+    p.units = p.units >> 1;
     if (p.units <= 0) continue;
-    if (!findById(state.buildings, p.from)) continue;
-    if (p.to !== 0 ? !findById(state.buildings, p.to) : !hasPlaceRow(state.places, p.place ?? '')) continue;
+    if (p.from !== lastFrom) {
+      lastFrom = p.from;
+      fromStands = standing.has(p.from);
+    }
+    if (!fromStands) continue;
+    if (p.to !== 0 ? !standing.has(p.to) : !hasPlaceRow(state.places, p.place ?? '')) continue;
     pairs[kept++] = p;
   }
   pairs.length = kept;
