@@ -51,15 +51,16 @@ const view = (p: Page) =>
   });
 
 /** Puts away every card the tea break's guard lists (the grown fixture opens a festival card). */
-async function closeCards(page: Page): Promise<void> {
-  await page.evaluate(() => {
+async function closeCards(page: Page, keep: string[] = []): Promise<void> {
+  await page.evaluate((keep) => {
     const w = window as unknown as {
       __qotiTeaBreak: { guards(): { open: string[] } };
       __qoti: { setUi(n: string, v: unknown): void };
     };
     const bool = ['settingsOpen', 'chapter', 'inviteOpen', 'helpOpen', 'asking'];
-    for (const n of w.__qotiTeaBreak.guards().open) w.__qoti.setUi(n, bool.includes(n) ? false : null);
-  });
+    for (const n of w.__qotiTeaBreak.guards().open)
+      if (!keep.includes(n)) w.__qoti.setUi(n, bool.includes(n) ? false : null);
+  }, keep);
 }
 
 async function open(page: Page, query = QUERY): Promise<void> {
@@ -146,13 +147,16 @@ test.describe('one seat', () => {
     await skip(page, 90_000);
     await page.waitForTimeout(600);
     expect(await state(page)).toBeNull();
-    await page.evaluate(() =>
-      (window.__qoti as unknown as { selectTool(id: string): void }).selectTool('inspect'),
-    );
-    // A card open (the settings card).
-    await page.evaluate(() =>
-      (window.__qoti as unknown as { setUi(n: string, v: unknown): void }).setUi('settingsOpen', true),
-    );
+    // A card open (the settings card), opened in the same step as the tool goes away: the idle time
+    // skipped is still there, so with neither guard up the host would start a tea break at its next check.
+    await page.evaluate(() => {
+      const q = window.__qoti as unknown as {
+        selectTool(id: string): void;
+        setUi(n: string, v: unknown): void;
+      };
+      q.setUi('settingsOpen', true);
+      q.selectTool('inspect');
+    });
     await skip(page, 90_000);
     await page.waitForTimeout(600);
     expect(await state(page)).toBeNull();
@@ -208,6 +212,9 @@ async function twoSeats(browser: Browser) {
   await expect(a.getByTestId('invite-link')).toHaveValue(/#v=[0-9a-f]{32}&s=1&k=[0-9a-f]{32}$/);
   await waitLive(a);
   const link = await a.getByTestId('invite-link').inputValue();
+  // The grown village's festival card comes up again once the valley is online: put it away first
+  // (but not the invite, whose Done button is next).
+  await closeCards(a, ['inviteOpen']);
   await a.getByRole('button', { name: 'Done' }).click();
   const b = await (await browser.newContext()).newPage();
   const invite = new URL(link);
