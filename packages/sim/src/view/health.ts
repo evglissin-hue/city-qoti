@@ -33,10 +33,13 @@ import { worldIndex } from '../state/worldIndex';
 import { townReachesDoor } from '../state/reach';
 import { placeState } from '../state/evenings';
 import { rankAtLeast } from '../state/village';
-import { familyIndex, methodOf } from '../state/zones';
+import { coverageAt, familyIndex, methodOf } from '../state/zones';
 import { isStandard } from '../state/hamlet';
 import { carrierCovers, passClosed } from '../systems/carrier/api';
 import { dayIndex, hourOf, isBuildTime } from '../systems/economy/time';
+import { LEVEL_DOWN_DAYS } from '../systems/levels';
+import { servedToday, specializedDay } from '../systems/levels/specialized';
+import { doorTile } from '../systems/movement/api';
 import { currentPlan, isFestivalDay } from '../systems/festivals/api';
 import { gapAchievable } from '../systems/gaps/achievable';
 import { homesHeldNow } from '../systems/growth';
@@ -129,7 +132,16 @@ export type HealthKind =
    * R2E: a garden lot (`Lot.kind` 'garden') that something grew on or tried to: a building id on it,
    * a building or site on its tiles, or a building whose `lot` is it. Flagged at once, once per lot.
    */
-  | 'garden-grown';
+  | 'garden-grown'
+  /**
+   * R3H: a built specialized building with levels that has failed its good day twice as many days
+   * running as it takes to slide (it slid and still fails), with no route the town can take: short
+   * of a raw good nothing built makes and the carrier may not buy, goods with no built store to take
+   * them, a Market Stall with no home in its food reach, a store with nothing built making what it
+   * keeps. Checked once a day at 23:00, before the day end resets the counters; resting days hold
+   * the count.
+   */
+  | 'level-stuck';
 
 export interface HealthIssue {
   kind: HealthKind;
@@ -226,6 +238,9 @@ export class HealthWatch {
   private readonly demandSince = new Map<number, number>();
   /** Demand bar → tick it was first seen promising a start (lotWaiting) with no site of its kind going up. */
   private readonly waitSince = new Map<number, number>();
+  /** R3H: building id → failing days in a row at 23:00; and the day last looked at. */
+  private readonly failRun = new Map<number, number>();
+  private levelDay = -1;
   /** `building:rule` → tick a specialized building's site rule was first seen broken. */
   private readonly ruleSince = new Map<string, number>();
   /** Guide step → tick first seen with an unachievable goal; likewise `arc:step` for stories. */
@@ -520,6 +535,37 @@ export class HealthWatch {
     for (const k of [...this.ruleSince.keys()]) if (!live.has(k)) this.ruleSince.delete(k);
   }
 
+  /**
+   * level-stuck (R3H): once a game day at 23:00, before the levels pass resets the counters, read each
+   * built specialized building's day. Failing days in a row are counted (resting days hold the count,
+   * any other day resets it); a building that failed twice the slide's days and has no route the town
+   * can take is flagged.
+   */
+  private checkLevels(state: WorldState, out: HealthIssue[]): void {
+    const day = dayIndex(state.tick);
+    if (hourOf(state.tick) !== 23 || day === this.levelDay) return;
+    this.levelDay = day;
+    const live = new Set<number>();
+    for (const b of state.buildings) {
+      if (b.stage !== 'built' || !b.rt) continue;
+      const def = content.buildingById.get(b.def);
+      if (!def?.specialized || !def.levels) continue;
+      live.add(b.id);
+      const verdict = specializedDay(state, b);
+      if (verdict === 'resting') continue;
+      if (verdict !== 'failing') {
+        this.failRun.set(b.id, 0);
+        continue;
+      }
+      const run = (this.failRun.get(b.id) ?? 0) + 1;
+      this.failRun.set(b.id, run);
+      if (run < 2 * LEVEL_DOWN_DAYS) continue;
+      const why = levelDeadEnd(state, b, def);
+      if (why) out.push({ kind: 'level-stuck', id: b.id, text: `${def.id} #${b.id} keeps failing its day: ${why}` });
+    }
+    for (const id of [...this.failRun.keys()]) if (!live.has(id)) this.failRun.delete(id);
+  }
+
   /** growth-waits-unseen: homes held back by quiet evenings a whole day, with no reason shown and no gap open (looked at hourly). */
   private checkGrowthWaits(state: WorldState, out: HealthIssue[]): void {
     const now = state.tick;
@@ -764,6 +810,7 @@ export class HealthWatch {
     this.checkDemand(state, out);
     this.checkGrowthWait(state, out);
     this.checkSiteRules(state, out);
+    this.checkLevels(state, out);
 
     // Voiced wishes the town could not meet by building anything.
     const wishes = new Set<number>();
@@ -861,6 +908,82 @@ function carrierMayBuy(state: WorldState, good: number): boolean {
   return (
     !!family && family.rule !== 'never' && content.neighbors.some((n) => n.sells.some(([x]) => x === def.id))
   );
+}
+
+/** True when some built building (not `except`) has a method that makes the good. */
+function builtMakes(state: WorldState, good: string, except: number): boolean {
+  return state.buildings.some(
+    (o) => o.stage === 'built' && o.id !== except && !!methodOf(o)?.outputs.some(([g]) => g === good),
+  );
+}
+
+/** The raw goods a method needs that nothing built makes and the carrier may not buy, as words, or null. */
+function unmakeableInput(state: WorldState, b: Building, except: number): string | null {
+  for (const [good] of methodOf(b)?.inputs ?? []) {
+    const g = content.goodIndex.get(good);
+    if (g === undefined || builtMakes(state, good, except) || carrierMayBuy(state, g)) continue;
+    return good;
+  }
+  return null;
+}
+
+/**
+ * R3H: why a specialized building that keeps failing its day has no way out, or null when the town
+ * has a route (a maker to build, a store to raise, a carrier to allow, a home to be built near).
+ */
+function levelDeadEnd(state: WorldState, b: Building, def: BuildingDef): string | null {
+  const c = b.counters;
+  switch (def.levels?.good) {
+    case 'carried': {
+      if (c?.shortToday) {
+        const good = unmakeableInput(state, b, b.id);
+        return good ? `short of ${good}, which nothing built makes and the carrier may not buy` : null;
+      }
+      const family = (def.methods?.[0]?.outputs ?? []).map(([g]) => content.goodById.get(g)?.family);
+      const taken = state.buildings.some(
+        (o) =>
+          o.stage === 'built' &&
+          o.id !== b.id &&
+          (content.buildingById.get(o.def)?.stores ?? []).some((f) => family.includes(f)),
+      );
+      return taken ? null : 'its goods have no built store in town to take them';
+    }
+    case 'customers': {
+      const r = coverageAt(b, 'food', 14);
+      const door = doorTile(b, def);
+      const dx0 = door % MAP_SIZE;
+      const dz0 = Math.floor(door / MAP_SIZE);
+      const near = state.households.some((h) => {
+        const home = state.buildings.find((o) => o.id === h.homeId);
+        if (!home) return false;
+        const d = doorTile(home);
+        const dx = (d % MAP_SIZE) - dx0;
+        const dz = Math.floor(d / MAP_SIZE) - dz0;
+        return dx * dx + dz * dz <= r * r;
+      });
+      return near ? null : `no home's door lies within its food reach of ${r} tiles`;
+    }
+    case 'served': {
+      for (const s of servedToday(state, b)) {
+        if (!s.counters?.shortToday) continue;
+        const good = unmakeableInput(state, s, s.id);
+        if (good) return `a business it serves is short of ${good}, which nothing built makes and the carrier may not buy`;
+      }
+      return null;
+    }
+    case 'full': {
+      const keeps = (def.stores ?? []) as readonly string[];
+      const made = state.buildings.some(
+        (o) =>
+          o.stage === 'built' &&
+          o.id !== b.id &&
+          !!methodOf(o)?.outputs.some(([g]) => keeps.includes(content.goodById.get(g)?.family ?? '')),
+      );
+      return made ? null : 'nothing built in town makes the goods it keeps';
+    }
+    default:
+      return null;
+  }
 }
 
 /**
