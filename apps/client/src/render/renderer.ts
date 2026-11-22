@@ -69,7 +69,7 @@ import {
   type RefineJitter,
 } from './refine';
 import { DynamicResolution } from './resolution';
-import { discDirection, SampleSun, ShadowCache, type ShadowView } from './shadows';
+import { discDirection, SampleSun, sampleShadowSize, ShadowCache, type ShadowView } from './shadows';
 import { shadowContentDue, StaticRevisions } from './statics';
 
 export type { Quality } from './quality';
@@ -733,7 +733,13 @@ export class Renderer implements RenderApi {
     const sun = this.sun;
     if (shadows.enabled && !shadows.needsUpdate) {
       const dir = discDirection(this.sunDir, jitter.sun, SUN_DISC, this.sampleDir);
-      lit = this.sampleSun.begin(sun, this.shadowCache, dir);
+      lit = this.sampleSun.begin(
+        sun,
+        this.shadowCache,
+        dir,
+        undefined,
+        sampleShadowSize(sun.shadow.mapSize.x, this.viewDistance),
+      );
       if (lit) shadows.needsUpdate = true;
     }
     this.scenePass(target, 'static', camera);
@@ -768,7 +774,13 @@ export class Renderer implements RenderApi {
     const lit =
       shadows.enabled &&
       !shadows.needsUpdate &&
-      this.sampleSun.begin(sun, this.shadowCache, dir, Math.max(1, sun.shadow.radius) * 2);
+      this.sampleSun.begin(
+        sun,
+        this.shadowCache,
+        dir,
+        Math.max(1, sun.shadow.radius) * 2,
+        sampleShadowSize(sun.shadow.mapSize.x, this.viewDistance),
+      );
     if (!lit) {
       // Nothing to cast from (or the cached map is due): an open sky, so the sum is unchanged in kind.
       three.setRenderTarget(target);

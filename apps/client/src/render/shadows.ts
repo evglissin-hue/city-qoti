@@ -200,6 +200,19 @@ export function discDirection(
     .normalize();
 }
 
+/** V4A: from this view distance (tiles) a sample's shadow map is coarser (`sampleShadowSize`). */
+export const FAR_SAMPLE_VIEW = 90;
+
+/**
+ * V4A (V3's far-camera list): a sample's shadow map size. On far views the shadow pass covers much
+ * of the valley and the sun's disc already softens every edge by more than a texel, so each
+ * sample's map is half the cached one's (never under 1024): a quarter of the texels to fill, and
+ * the cached map, which moving layers receive, keeps its size.
+ */
+export function sampleShadowSize(plain: number, viewDistance: number): number {
+  return viewDistance >= FAR_SAMPLE_VIEW ? Math.max(1024, Math.min(plain, plain / 2)) : plain;
+}
+
 /**
  * V4A: lights one sample of the development from a direction of its own with a shadow map of its
  * own, then puts the light back. `begin` swaps the light's shadow for the sample's (the same size,
@@ -213,16 +226,17 @@ export class SampleSun {
   private readonly target = new Vector3();
 
   /**
-   * Swaps in the sample's shadow and places it for `dir`, its filter `radius` texels wide (the
-   * cached one's by default); false (nothing changed) if it cannot.
+   * Swaps in the sample's shadow and places it for `dir`, its filter `radius` texels wide and its
+   * map `mapSize` across (the cached one's by default); false (nothing changed) if it cannot.
    */
-  begin(light: DirectionalLight, cache: ShadowCache, dir: Vector3, radius?: number): boolean {
+  begin(light: DirectionalLight, cache: ShadowCache, dir: Vector3, radius?: number, mapSize?: number): boolean {
     if (this.plain) return false;
     const plain = light.shadow;
-    const size = plain.mapSize.x;
-    if (!this.shadow || this.shadow.mapSize.x !== size || this.shadow.mapSize.y !== plain.mapSize.y) {
+    const size = mapSize ?? plain.mapSize.x;
+    if (!this.shadow || this.shadow.mapSize.x !== size || this.shadow.mapSize.y !== size) {
       this.shadow?.dispose();
       this.shadow = plain.clone();
+      this.shadow.mapSize.set(size, size);
     }
     const s = this.shadow;
     s.bias = plain.bias;
