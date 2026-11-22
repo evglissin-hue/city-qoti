@@ -246,7 +246,7 @@ export const buntingSeason: CustomDef = {
   supply: 'season',
   name: 'the Bunting Season',
   leaning: 'gardens',
-  text: 'Every season, before anyone says a word, the bunting goes up. {place} is dressed for a party that has not been announced yet.',
+  text: 'Every season, before anyone says a word, the bunting goes up, and {place} is dressed for a party that has not been announced yet.',
   hint: 'Keep the festival cloth in good order, season after season, and the town may start to expect it.',
 };
 
