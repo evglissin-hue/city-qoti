@@ -114,7 +114,11 @@ test('the Town Book shows its pages and three hints in both lenses', async ({ pa
     await page.evaluate((h) => window.__qoti.setHour(h), hour);
     for (const lens of LENSES) {
       await page.getByTestId(`lens-${lens}`).click();
-      await page.keyboard.press('u');
+      // P3B's one Books shelf lists the Town Book in both lenses; it opens from there or with U.
+      await page.getByTestId('books').click();
+      await expect(page.getByTestId('book-town-book')).toBeVisible();
+      if (light === 'day') await shot(page, `books-shelf-${lens}`);
+      await page.getByTestId('book-town-book').click();
       const book = page.getByTestId('town-book');
       await expect(book).toBeVisible();
       await expect(book.getByTestId('town-book-hint')).toHaveCount(3);
