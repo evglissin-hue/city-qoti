@@ -283,6 +283,8 @@ export function specializedDayEnd(state: WorldState, ctx: TickCtx, b: Building):
   const def = content.buildingById.get(b.def);
   if (!def?.levels || !b.rt) return;
   const c = (b.counters ??= emptyCounters());
+  const daysBefore = c.levelDays;
+  const levelBefore = levelOf(b);
   const needs = def.levels.good === 'carried' ? needsForPass(state) : undefined;
   const day = specializedDay(state, b, needs);
   // Resting (a frozen river): neither fails nor counts; the run waits for the thaw.
@@ -312,8 +314,10 @@ export function specializedDayEnd(state: WorldState, ctx: TickCtx, b: Building):
   c.soldToday = 0;
   c.customersToday = 0;
   c.shortToday = false;
-  // One event a day keeps the Businesses book's days fresh, as for a business.
-  ctx.events.push({ e: 'business.updated', b: businessView(state, b) });
+  // The Businesses book hears when its days or its level moved (a City's dozens of mills and stores
+  // walking their served lists every night for an unchanged line cost the levels pass its budget).
+  if (c.levelDays !== daysBefore || levelOf(b) !== levelBefore)
+    ctx.events.push({ e: 'business.updated', b: businessView(state, b) });
 }
 
 /**
