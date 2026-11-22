@@ -136,10 +136,10 @@ function rt(p: Plan): BuildingRuntimeView {
 
 /**
  * R3H (debug only): every specialized building at levels 1, 2 and 3 side by side, in two rows on the
- * open ground between the farm lane and the street (`villageShowcase(mirror, { levels: true })`;
+ * open ground south of the street, clear of the village (`villageShowcase(mirror, { levels: true })`;
  * `__qoti.levelRows` lists where). Each trio stands at `x` of its row with a tile between.
  */
-export const LEVEL_ROWS: { def: string; x: number; z: number; w: number }[] = [];
+export const LEVEL_ROWS: { def: string; x: number; z: number; w: number; d: number }[] = [];
 
 function levelPlans(plans: Plan[]): void {
   LEVEL_ROWS.length = 0;
@@ -149,11 +149,11 @@ function levelPlans(plans: Plan[]): void {
     ['brickworks', 'granary', 'trading-post'],
   ];
   rows.forEach((defs, r) => {
-    let x = 42;
-    const z = 41 + r * 4;
+    let x = 34;
+    const z = 80 + r * 8;
     for (const def of defs) {
-      const [w] = sizeOf(def, 0);
-      LEVEL_ROWS.push({ def, x, z, w });
+      const [w, d] = sizeOf(def, 0);
+      LEVEL_ROWS.push({ def, x, z, w, d });
       for (let lv = 1; lv <= 3; lv++) {
         plans.push({
           def,
@@ -314,9 +314,12 @@ export function villageShowcase(
   if (opts.levels) {
     plans.length = 0;
     levelPlans(plans);
+    // Open ground south of the street: no lanes across it.
+    for (let z = 61; z < 106; z++) for (let x = 30; x <= 99; x++) road[z * N + x] = 0;
   }
   // Homes grown along the south side of lane A, behind the street's workshops.
-  if (!opts.levels) row(plans, ['cottage', 'cottage', 'townhouse', 'cottage'], 34, 58, 50, 2, 'timber', 'homes-low');
+  if (!opts.levels)
+    row(plans, ['cottage', 'cottage', 'townhouse', 'cottage'], 34, 58, 50, 2, 'timber', 'homes-low');
   if (opts.dense) {
     const mix = ['cottage', 'cottage', 'townhouse', 'cottage', 'corner-shop', 'townhouse'];
     row(plans, mix, 34, 62, 82, 0, 'timber', 'homes-low');
@@ -416,12 +419,18 @@ export function villageShowcase(
 
   // Nature: a forest belt round the village, meadows to the north, desire paths across the greens.
   const inVillage = (x: number, z: number): boolean =>
-    x >= 30 && x <= 99 && z >= (opts.dense ? 30 : 32) && z <= (opts.dense ? 95 : 76);
+    x >= 30 && x <= 99 && z >= (opts.dense ? 30 : 32) && z <= (opts.dense ? 95 : opts.levels ? 106 : 76);
   for (let z = 0; z < N; z++) {
     for (let x = 0; x < N; x++) {
       const i = z * N + x;
       if (L.water[i] || road[i] || occupant[i] || tree[i]) continue;
-      const edge = Math.max(30 - x, x - 99, (opts.dense ? 30 : 32) - z, z - (opts.dense ? 95 : 76), 0);
+      const edge = Math.max(
+        30 - x,
+        x - 99,
+        (opts.dense ? 30 : 32) - z,
+        z - (opts.dense ? 95 : opts.levels ? 106 : 76),
+        0,
+      );
       if (inVillage(x, z)) {
         // Meadow flowers between the farms, the odd tree in a hedgerow.
         if (z < 36 && hash2(x >> 2, z >> 2, 5) > 0.5) terrain[i] = 1;

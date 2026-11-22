@@ -1,11 +1,11 @@
 // R3H screenshots (a script, not a spec): every specialized building at levels 1, 2 and 3 side by side
-// (the village showcase's `levels` scene: two rows between the farm lane and the street), by day and at
+// (the village showcase's `levels` scene: three rows of trios on open ground south of the street, nothing else around), by day and at
 // 22:00 (lamplight), 1250 px wide, from the game's default camera angle (yaw 0.5, pitch 45 degrees;
 // apps/client/src/input/camera.ts). One sheet per time of day at the default distance, then a close-up
 // of each kit's trio. Needs the client dev server (QOTI_CLIENT_PORT, default 5249):
 //   QOTI_CLIENT_PORT=5249 QOTI_RELAY_PORT=8859 npm run dev -w @qoti/client
 //   node apps/client/e2e/r3h-shots.mjs [outDir]
-// Env: QOTI_CHROMIUM (default /opt/pw-browsers/chromium), QOTI_ONLY (a kit id, to shoot one trio).
+// Env: QOTI_CHROMIUM (default /opt/pw-browsers/chromium), QOTI_ONLY (a kit id, to shoot one trio, or 'sheet' for the sheets only).
 import { chromium } from '@playwright/test';
 
 const port = Number(process.env.QOTI_CLIENT_PORT ?? 5249);
@@ -51,15 +51,19 @@ for (const [tag, hour] of [
   ['day', 11],
   ['night', 22],
 ]) {
-  if (!only) {
+  if (!only || only === 'sheet') {
     // The default distance (70): the two rows as a player sees them from the default camera.
-    await shot(`sheet-${tag}`, hour, 62, 46, 70);
+    const x0 = Math.min(...rows.map((r) => r.x));
+    const x1 = Math.max(...rows.map((r) => r.x + 3 * (r.w + 1) - 1));
+    const z0 = Math.min(...rows.map((r) => r.z));
+    const z1 = Math.max(...rows.map((r) => r.z + r.d));
+    await shot(`sheet-${tag}`, hour, (x0 + x1) / 2, (z0 + z1) / 2, 70);
   }
   for (const r of rows) {
     if (only && r.def !== only) continue;
     const span = 3 * (r.w + 1) - 1;
     const d = Math.max(14, span * 1.5);
-    await shot(`${r.def}-${tag}`, hour, r.x + span / 2, r.z + 1.2, d);
+    await shot(`${r.def}-${tag}`, hour, r.x + span / 2, r.z + r.d / 2, d);
   }
 }
 await browser.close();

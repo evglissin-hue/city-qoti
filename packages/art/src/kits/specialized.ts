@@ -230,7 +230,7 @@ function granary(opts: KitBuildOptions | undefined): Built {
   const c = customOf(opts);
   const lv = levelOf(opts);
   // R3H: a taller body from level 2.
-  const rise = lv >= 2 ? 0.32 : 0;
+  const rise = lv >= 2 ? 0.6 : 0;
   const { s, anchors } = start(opts);
   const x0 = 0.75;
   const x1 = w - 0.75;
@@ -253,7 +253,7 @@ function granary(opts: KitBuildOptions | undefined): Built {
       shape: 'gable',
       material,
       color: vary(roofColor(c, material, 0xa4552f), rnd, 0.4),
-      rise: 1.1,
+      rise: lv >= 3 ? 1.5 : lv >= 2 ? 1.35 : 1.1,
       overhang: 0.16,
       ridgeAlongX: false,
     },
@@ -296,7 +296,7 @@ function granary(opts: KitBuildOptions | undefined): Built {
       [{ dir: 'x+', plane: x1 } as Face, z0, z1],
       [{ dir: 'x-', plane: x0 } as Face, z0, z1],
     ] as const)
-      windowRow(s, f, u0, u1, 1.28, style, sr, anchors.lights!, [], 0.9, [0.14, 0.18], 0.02);
+      windowRow(s, f, u0, u1, 1.55, style, sr, anchors.lights!, [], 0.9, [0.14, 0.18], 0.02);
   }
   // The loading platform, its steps and a hand rail, all above ground level once lifted.
   // A plank deck on posts, with its boards' edge in shadow, so it reads light from above.
@@ -377,12 +377,29 @@ function granary(opts: KitBuildOptions | undefined): Built {
       s,
       {
         x0: x1 + 0.04,
-        z0: 0.4,
-        x1: w - 0.26,
-        z1: 1.7,
-        lo: 0.7,
-        hi: 1.05,
+        z0: 0.35,
+        x1: w - 0.08,
+        z1: 1.75,
+        lo: 0.95,
+        hi: 1.5,
         high: 'x-',
+        material,
+        color: vary(roofColor(c, material, 0xa4552f), lr, 0.4),
+        wall: vary(0x8f8576, lr, 0.4),
+      },
+      lr,
+    );
+    // A second wing on the other side, so the level 3 granary spreads wider than it stands.
+    leanTo(
+      s,
+      {
+        x0: 0.08,
+        z0: 0.35,
+        x1: x0 - 0.04,
+        z1: 1.75,
+        lo: 0.95,
+        hi: 1.5,
+        high: 'x+',
         material,
         color: vary(roofColor(c, material, 0xa4552f), lr, 0.4),
         wall: vary(0x8f8576, lr, 0.4),
