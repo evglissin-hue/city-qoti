@@ -43,23 +43,35 @@ function worker(f: ReturnType<typeof villageFixture>) {
 }
 
 describe('fill the belly, then please it', () => {
-  it('buys plain food for tomorrow before the favorite, then the favorite once the pantry covers it', () => {
+  /** A badger household (bread liked twice over) at a stall of bread at 150 and vegetables at 100. */
+  function badgers(savingsPerMouth: number) {
     const f = villageFixture();
     const s = f.state;
     const h = worker(f);
     for (const id of h.members) findById(s.residents, id)!.species = 'badger';
-    h.savings = 2000;
+    h.savings = savingsPerMouth * h.members.length;
     stall(s, f.b.stalls[0], [
       ['bread', 20],
       ['vegetables', 20],
     ]);
-    // Badgers like bread twice over: at 150 against 100 it wins on value, as it did before P3A.
     s.market.prices[good('bread')] = 150;
     s.market.prices[good('vegetables')] = 100;
-    const got = shopFood(s, h, f.b.stalls[0], 8)!;
-    expect(got).toEqual([good('vegetables'), h.members.length]);
+    return { s, h, stallId: f.b.stalls[0] };
+  }
+
+  it('buys the favorite for tomorrow when the purse covers every mouth at its price', () => {
+    // Bread wins on value, as it did before P3A, and the purse pays for a loaf a mouth: variety.
+    const { s, h, stallId } = badgers(400);
+    expect(shopFood(s, h, stallId, 8)).toEqual([good('bread'), h.members.length]);
+  });
+
+  it('buys plain food for tomorrow when the favorite would leave a mouth unfed, then the favorite', () => {
+    // 120 a mouth pays for vegetables all round but bread for only some: plain food first.
+    const { s, h, stallId } = badgers(120);
+    expect(shopFood(s, h, stallId, 8)).toEqual([good('vegetables'), h.members.length]);
     h.pantry[good('vegetables')] = h.members.length;
-    expect(shopFood(s, h, f.b.stalls[0], 2)![0]).toBe(good('bread'));
+    h.savings = 2000;
+    expect(shopFood(s, h, stallId, 2)![0]).toBe(good('bread'));
   });
 
   it('keeps the money invariant while it spends on plain food', () => {

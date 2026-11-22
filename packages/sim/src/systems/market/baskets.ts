@@ -198,11 +198,12 @@ export function basketScore(state: WorldState, h: Household): number {
 
 /**
  * A shopping outing at an outlet with the market open. P3A (meals): fill the belly, then please it.
- * A household whose pantry does not cover tomorrow's breakfast buys plain food first: the cheapest
- * food on this shelf, as much as the purse stretches to, up to what tomorrow's meals need (a
- * Thrifty or favorite-loving household no longer spends its coins on one dear loaf and goes
- * hungry). Once the pantry covers tomorrow, it buys the food it likes best for the price (a nudge
- * toward what the pantry is short of, for variety), as much as it can pay for up to `want`.
+ * A household whose pantry does not cover tomorrow's breakfast buys what tomorrow's meals need: the
+ * food it likes best for the price when the shelf and the purse cover every mouth with it, else the
+ * plainest, cheapest food on this shelf, as much as the purse stretches to (a Thrifty or
+ * favorite-loving household no longer spends its coins on one dear loaf and goes hungry). Once the
+ * pantry covers tomorrow, it buys the food it likes best for the price (a nudge toward what the
+ * pantry is short of, for variety), as much as it can pay for up to `want`.
  * A household whose purse cannot pay for what is still missing takes the rest on the slate: the
  * cheapest food, free, enough for breakfast, and the basket remembers it (`onTheSlate`: newcomers,
  * households with nobody in work, and, now, a household in work whose purse is short of the
@@ -238,8 +239,18 @@ export function shopFood(
   const members = Math.max(1, h.members.length);
   const short = members - pantryFood(h);
   if (short > 0) {
-    // The belly first: plain food for tomorrow's meals.
+    // The belly first: tomorrow's meals. The food the household likes best when the shelf and the
+    // purse cover every mouth at its price (variety: Craftsfolk ask for three kinds, and plain food
+    // every time left willow's households with one), else the plainest food on the shelf.
     const need = Math.min(want, short);
+    const liked = likedFood(state, h, outlet, need);
+    if (liked >= 0) {
+      const got = purchase(state, h, liked, need, outlet);
+      if (got > 0) {
+        if (gi >= 0) satisfy(h, gi, 100);
+        return [liked, got];
+      }
+    }
     let got = purchase(state, h, cheapest, need, outlet);
     if (got > 0 && gi >= 0) satisfy(h, gi, 100);
     if (got < need && h.savings < cheapestPrice && onTheSlate(state, h, cheapestPrice)) {
@@ -258,25 +269,36 @@ export function shopFood(
     return got > 0 ? [cheapest, got] : null;
   }
   // The belly is covered: what the household likes, for the price.
+  const best = likedFood(state, h, outlet, 1);
+  if (best < 0) return null;
+  const got = purchase(state, h, best, want, outlet);
+  if (got <= 0) return null;
+  if (gi >= 0) satisfy(h, gi, 100);
+  return [best, got];
+}
+
+/**
+ * The food on the outlet's shelf a household likes best for the price, with at least `need` units
+ * free and `need` of them within its purse; -1 when none. Variety: each unit already in the pantry
+ * makes another of it a little less tempting.
+ */
+function likedFood(state: WorldState, h: Household, outlet: EntityId, need: number): number {
+  const taste = tasteOf(state, h);
+  const likes = favoriteWeights(state, h);
   let best = -1;
   let bestValue = -1;
   for (const g of foodIndexes()) {
-    if (outletFree(state, outlet, g) <= 0) continue;
+    if (outletFree(state, outlet, g) < need) continue;
     const price = tillPrice(state, g);
-    if (price > h.savings) continue;
+    if (price * need > h.savings) continue;
     const liking = likeHalves(likes[g] ?? 1, taste.thrifty, taste.comfortable);
-    // Variety: each unit already in the pantry makes another of it a little less tempting.
     const value = Math.floor((valueOf(liking, price) * 4) / (4 + (h.pantry[g] ?? 0)));
     if (value > bestValue) {
       bestValue = value;
       best = g;
     }
   }
-  if (best < 0) return null;
-  const got = purchase(state, h, best, want, outlet);
-  if (got <= 0) return null;
-  if (gi >= 0) satisfy(h, gi, 100);
-  return [best, got];
+  return best;
 }
 
 /**
