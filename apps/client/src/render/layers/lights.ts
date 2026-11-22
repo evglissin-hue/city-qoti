@@ -19,7 +19,7 @@ import { buildingMatrix, decorMatrix, standLevel } from '../kitGeometry';
 import { LIGHT_LOOP, type LightDisc } from '../lightMap';
 import { lampColor, windowLit } from '../lighting';
 import { lamplightShowcase, type LamplightShowcase } from '../lamplightShowcase';
-import { candleMask } from '../material';
+import { CANDLE_GLOW, candleMask } from '../material';
 import { groundY } from '../surface';
 import type { LayerContext, RenderLayer } from './types';
 
@@ -563,7 +563,10 @@ export function lightsLayer(): LightsLayer {
       'windows',
       windows
         .filter((w) => maskHomes.has(w.building) || windowLit(w.pane.x, w.pane.y, w.pane.z, share))
-        .map((w) => w.disc),
+        // A candle's pane spills a little more (the kit material burns it at CANDLE_GLOW).
+        .map((w) =>
+          maskHomes.has(w.building) ? { ...w.disc, intensity: w.disc.intensity * CANDLE_GLOW } : w.disc,
+        ),
     );
     lastShare = share;
   }

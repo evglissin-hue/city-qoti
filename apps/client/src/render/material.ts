@@ -84,6 +84,14 @@ export function candleMask(env: object): CandleMask {
  */
 export const CANDLE_PROBE = 0.35;
 
+/**
+ * R3F: how bright a candle-lit pane burns against one lit by the share (1). Every home keeps its
+ * share in the evening (about three panes in four), so a candle home lighting them all would barely
+ * show; a candle's pane burns a little brighter as well, and its spill reaches a little farther, so
+ * a well supplied street reads brighter home by home and no home ever goes dark. *(tune)*
+ */
+export const CANDLE_GLOW = 1.4;
+
 // R3F: a pane's candle (1 when its home has one tonight), from its world point and normal.
 const CANDLE_VERTEX_HEAD = /* glsl */ `
 uniform sampler2D uCandles;
@@ -139,7 +147,7 @@ function patchNightGlow(
         '  qWN = mat3(batchingMatrix) * qWN;',
         '  #endif',
         '  qWN = mat3(modelMatrix) * qWN;',
-        '  qPane = max(qWindowLit(qWorld.xyz, uWindowShare), qCandle(qWorld.xyz, qWN));',
+        `  qPane = max(qWindowLit(qWorld.xyz, uWindowShare), qCandle(qWorld.xyz, qWN) * ${CANDLE_GLOW.toFixed(2)});`,
         '}',
         `vGlow = glow > 1.5 ? 1.0 : glow * qPane;`,
       ].join('\n')
