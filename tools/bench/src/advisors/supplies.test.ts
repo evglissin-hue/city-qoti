@@ -92,7 +92,12 @@ describe('the supplies advisor', () => {
     const base = w.buildings[0]!;
     const biz = (id: number, trade: string): Building =>
       ({ ...base, id, stage: 'built', def: 'workshop', trade, pinned: undefined }) as unknown as Building;
-    w.buildings.push(biz(9301, 'hives'), biz(9302, 'carpenter'), biz(9303, 'carpenter'));
+    w.buildings.push(
+      biz(9301, 'hives'),
+      biz(9302, 'carpenter'),
+      biz(9303, 'carpenter'),
+      biz(9304, 'carpenter'),
+    );
     w.economy.treasury = 100 * PENNIES_PER_COIN;
     const store = w.buildings.find((b) => b.rt && content.buildingById.get(b.def)?.storage)!;
     store.stage = 'built';
