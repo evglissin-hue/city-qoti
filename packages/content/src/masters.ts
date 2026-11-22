@@ -277,13 +277,13 @@ export const masterMade: ChronicleTemplate = {
   notable: true,
 };
 
-/** A story character who arrives a master already (StoryArc.mastery): no years of habit to count. */
-export const masterArrived: ChronicleTemplate = {
-  kind: 'master-arrived',
+/** A story character whose arc is done: the town calls them a master (StoryArc.mastery). */
+export const masterStory: ChronicleTemplate = {
+  kind: 'master-story',
   text: [
-    '{name} came to {town} a {title} already, and has been looking at {place} as if it owes them a good day.',
-    'It turns out {name} is a {title}, and has been one for longer than {town} has had a name. Word has been sent to {place}.',
-    'Among the luggage {name} carried in: the tools of a {title}, well worn, and opinions to match.',
+    'With the last of their plans seen through, {name} is a {title} as far as {town} is concerned. Nobody asked them; everybody agreed.',
+    '{name} has done what they came to do, and the valley has given them a title for it: {title}. Word has gone round {place}.',
+    'It is official, or as official as {town} gets: {name} is its {title}. The sign was painted by three people who all claim the credit.',
   ],
   notable: true,
 };

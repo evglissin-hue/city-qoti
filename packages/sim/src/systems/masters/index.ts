@@ -1,6 +1,6 @@
 // The masters system (R3B; docs/spec/19-evenings.md, Masters). Daily at 23:45, after the levels pass
 // (23:30), in this order: (a) working days by trade (`Resident.craft`), counted from the crews;
-// (b) story characters, masters by their arcs; (c) new masters by the rule, one a trade a season,
+// (b) story characters, masters by their arcs (once the arc is done); (c) new masters by the rule, one a trade a season,
 // chosen by days and then id (no dice); (d) `Building.masterId` kept in step with the crews.
 // Losing one is the residents' morning (systems/residents/life.ts); the levels pass keeps the grace.
 import { content, MASTERY } from '@qoti/content';
@@ -46,12 +46,16 @@ function countDays(state: WorldState, today: number): void {
   }
 }
 
-/** (b) Story characters are masters from their arrival, by their arc. */
+/**
+ * (b) Story characters are masters by their arcs: once the arc is done (its finale given,
+ * `StoryState.step` past the last step), the town calls them what they always were.
+ */
 function storyMasters(state: WorldState, ctx: TickCtx): void {
   for (const s of state.stories) {
     if (!s.residentId) continue;
-    const key = content.storyById.get(s.arc)?.mastery;
-    if (!key) continue;
+    const arc = content.storyById.get(s.arc);
+    const key = arc?.mastery;
+    if (!key || s.step < arc.steps.length) continue;
     const r = findById(state.residents, s.residentId);
     if (r && !isMaster(r)) makeMaster(state, ctx, r, key, true);
   }

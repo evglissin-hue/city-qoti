@@ -7,7 +7,7 @@ import type { BuildingDef, StoryArc } from './types';
 
 export const herbalist: StoryArc = {
   id: 'herbalist',
-  // R3B: a master from the day they arrive (a story master counts for Master of the House only).
+  // R3B: a master by their arc, once it is done (counts for Master of the House, not a trade's season).
   mastery: 'market-garden',
   character: {
     given: 'Mother',

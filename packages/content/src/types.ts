@@ -1073,8 +1073,9 @@ export interface StoryArc {
   finale: Reward & { letter: string };
   /**
    * R3 (R3B, additive): the trade (or specialized building's def id) the character is a master of by
-   * their arc, from the day they arrive (11-residents.md, Story characters). A story master counts for
-   * Master of the House but not against a trade's one new master a season. Absent: none.
+   * their arc, once the arc is done (its finale given; 11-residents.md, Story characters). A story
+   * master counts for Master of the House but not against a trade's one new master a season. Absent:
+   * none.
    */
   mastery?: string;
 }
