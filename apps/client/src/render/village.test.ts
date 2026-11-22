@@ -194,38 +194,56 @@ describe('stairs', () => {
     stairs.dispose();
   });
 
-  it('are cut into the drawn slope and reach the ground where the hillside falls away (C4P)', () => {
-    const m = new Mirror();
+  // P3C: the anchor check for the whole class (a piece drawn on the ground must stay on it): C4P's
+  // tread boxes reached down to the lowest ground under them, so beside a building's pad a flight
+  // stood as a pale plinth with a sloped kerb, which the owner read as a stand-in. Now every vertex
+  // of a flight lies within a riser's lip above the drawn ground and its setting below, across a
+  // hillside that falls away and beside a pinned building tile, and the risers are not pale.
+  it('follow the drawn ground at every vertex, on a falling hillside and beside a building (P3C)', () => {
     const at = (x: number, z: number): number => z * MAP_SIZE + x;
-    // A path climbing from (20, 10) to (20, 11) across a hillside that drops away to the west.
-    for (let z = 8; z <= 13; z++) {
-      for (let x = 17; x <= 23; x++) m.layers.height[at(x, z)] = x < 20 ? 0 : z >= 11 ? 2 : 1;
-    }
-    m.layers.road[at(20, 10)] = 1;
-    m.layers.road[at(20, 11)] = 1;
-    m.layers.flags[at(20, 10)] = Flags.stairs;
-    const scene = new Scene();
-    const layer = roadsLayer();
-    layer.init(context(m, scene));
-    const pts: [number, number, number][] = [];
-    scene.traverse((o: Object3D) => {
-      const g = (o as Mesh).geometry;
-      if (!g) return;
-      const pos = g.getAttribute('position');
-      for (let i = 0; i < pos.count; i++) pts.push([pos.getX(i), pos.getY(i), pos.getZ(i)]);
-    });
-    layer.dispose();
-    expect(pts.length).toBeGreaterThan(100);
-    // The top step is flush with the path above it.
-    const top = Math.max(...pts.filter((p) => Math.abs(p[0] - 20.5) < 0.235).map((p) => p[1]));
-    expect(Math.abs(top - groundY(m, 20.5, 11.5))).toBeLessThan(0.09);
-    // Along both sides, from the foot to the top, something reaches down to the ground.
-    for (const x of [20.5 - 0.3, 20.5 + 0.3]) {
-      for (const z of [10.6, 11, 11.4]) {
-        const near = pts.filter((p) => Math.abs(p[0] - x) < 0.06 && Math.abs(p[2] - z) < 0.2);
-        expect(near.length).toBeGreaterThan(0);
-        expect(Math.min(...near.map((p) => p[1]))).toBeLessThan(groundY(m, x, z));
+    const build = (pad: boolean): { pts: [number, number, number][]; colors: number[] } => {
+      const m = new Mirror();
+      // A path climbing from (20, 10) to (20, 11) across a hillside that drops away to the west.
+      for (let z = 8; z <= 13; z++) {
+        for (let x = 17; x <= 23; x++) m.layers.height[at(x, z)] = x < 20 ? 0 : z >= 11 ? 2 : 1;
       }
+      m.layers.road[at(20, 10)] = 1;
+      m.layers.road[at(20, 11)] = 1;
+      m.layers.flags[at(20, 10)] = Flags.stairs;
+      // Beside a building whose tiles are pinned flat at its pad (the ground eases off round it).
+      if (pad) for (const z of [9, 10, 11]) m.layers.occupant[at(21, z)] = 7;
+      const scene = new Scene();
+      const layer = roadsLayer();
+      layer.init(context(m, scene));
+      const pts: [number, number, number][] = [];
+      const colors: number[] = [];
+      scene.traverse((o: Object3D) => {
+        const g = (o as Mesh).geometry;
+        if (!g) return;
+        const pos = g.getAttribute('position');
+        const col = g.getAttribute('color');
+        for (let i = 0; i < pos.count; i++) {
+          pts.push([pos.getX(i), pos.getY(i), pos.getZ(i)]);
+          colors.push((col.getX(i) + col.getY(i) + col.getZ(i)) / 3);
+        }
+      });
+      layer.dispose();
+      for (const p of pts) {
+        const g = groundY(m, p[0], p[2]);
+        expect(p[1], `${p[0]}, ${p[2]}`).toBeLessThanOrEqual(g + 0.045);
+        expect(p[1], `${p[0]}, ${p[2]}`).toBeGreaterThanOrEqual(g - 0.075);
+      }
+      return { pts, colors };
+    };
+    for (const pad of [false, true]) {
+      const { pts, colors } = build(pad);
+      expect(pts.length).toBeGreaterThan(100);
+      // Risers all the way up the climb, from near the lower center to near the upper one.
+      const zs = pts.map((p) => p[2]);
+      expect(Math.min(...zs)).toBeLessThan(10.65);
+      expect(Math.max(...zs)).toBeGreaterThan(11.35);
+      // Not a pale stand-in: the stone or timber sits darker than the path's dirt (linear 0.4).
+      expect(Math.max(...colors)).toBeLessThan(0.4);
     }
   });
 });

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { clickTile, counts, DEBUG_QUERY, dragTiles, waitLive } from './helpers';
+import { clickTile, counts, DEBUG_QUERY, dragTiles, openBook, takeTool, waitLive } from './helpers';
 
 // C4F: the village UI against a live village (the sim's village fixture), and plans
 // round-tripping between two browsers.
@@ -28,7 +28,7 @@ test('every village panel opens and works against a live village', async ({ page
   await page.getByTestId('lens-ledger').click();
   // R1C: the Balances book replaced Market and Trade. The fixture's bakery is a workshop business
   // keeping the baker's trade, so the Food row says who makes bread.
-  await page.getByTestId('book-balances').click();
+  await openBook(page, 'balances');
   await page.getByTestId('balance-row-food').getByRole('button').first().click();
   await expect(page.getByTestId('makers-food')).toContainText('baker');
   await page.getByTestId('flavor-bread').click();
@@ -36,13 +36,13 @@ test('every village panel opens and works against a live village', async ({ page
   await page.getByTestId('balances-neighbors').click();
   await expect(page.getByTestId('neighbor-millhaven')).toContainText('Millhaven');
   await expect(page.getByTestId('trade-ledger')).toBeVisible();
-  await page.getByTestId('book-purse').click();
+  await openBook(page, 'purse');
   await page.getByTestId('purse-taxes').click();
   await page.getByTestId('wage-110').click();
   await expect(page.getByTestId('wage-110')).toHaveAttribute('aria-checked', 'true');
   await page.getByTestId('purse-loans').click();
   await expect(page.getByTestId('credit')).toBeVisible();
-  await page.getByTestId('book-notebook').click();
+  await openBook(page, 'notebook');
   await expect(page.getByTestId('idea-cobbles')).toHaveClass(/unlocked/);
   await page.keyboard.press('Escape');
 
@@ -58,7 +58,7 @@ test('every village panel opens and works against a live village', async ({ page
 
   // Hearth: the letters book, a resident, the Charter board from the pennant.
   await page.getByTestId('lens-hearth').click();
-  await page.getByTestId('book-letters').click();
+  await openBook(page, 'letters');
   await expect(page.getByTestId('letters')).toBeVisible();
   await page.keyboard.press('Escape');
   const someone = await page.evaluate(() => window.__qoti.residentIds()[0]!);
@@ -71,7 +71,7 @@ test('every village panel opens and works against a live village', async ({ page
 
   // The fixture's open plan: approve it and the bench gets built.
   const decor = (await counts(page)).decor;
-  await page.getByTestId('tool-plan').click();
+  await takeTool(page, 'plan');
   const plan = (await page.evaluate(() => (window.__qoti as unknown as VillageHook).plans()))[0]!;
   await expect(page.getByTestId(`plan-${plan.id}`)).toContainText(plan.name);
   await page.getByTestId(`plan-approve-${plan.id}`).click();
@@ -106,9 +106,9 @@ test('plans round trip between two browsers', async ({ browser }) => {
   await b.waitForFunction(() => window.__qoti?.status() === 'live', null, { timeout: 180_000 });
 
   // A sketches a bench with the ordinary decor tool and proposes it.
-  await a.getByTestId('tool-plan').click();
+  await takeTool(a, 'plan');
   await a.getByTestId('sketch-start').click();
-  await a.getByTestId('tool-decor').click();
+  await takeTool(a, 'decor');
   await a.getByTestId('variant-bench').click();
   const spot = await a.evaluate(() => window.__qoti.findDecorSpot('bench'));
   expect(spot).not.toBeNull();
@@ -123,7 +123,7 @@ test('plans round trip between two browsers', async ({ browser }) => {
   const plans = () => b.evaluate(() => (window.__qoti as unknown as VillageHook).plans());
   await expect.poll(async () => (await plans()).length).toBe(1);
   const id = (await plans())[0]!.id;
-  await b.getByTestId('tool-plan').click();
+  await takeTool(b, 'plan');
   await expect(b.getByTestId(`plan-${id}`)).toContainText('A bench for two');
   await expect(b.getByTestId(`plan-${id}`)).toContainText('a bench');
   await b.getByTestId(`plan-comment-${id}`).fill('Lovely. Facing the river?');

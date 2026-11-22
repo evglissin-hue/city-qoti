@@ -98,15 +98,25 @@ class TreeBuilder {
    * shade, round (soft normals), showing through the gaps as depth. Bare (`thin` 0, no dabs left)
    * it is today's whole crown with its sunlit top, which the foliage shader turns to winter twigs.
    */
-  core(blobs: readonly DabBlob[], k: number, seed: number, shade: number, thin: number, detail = 1): this {
+  core(
+    blobs: readonly DabBlob[],
+    k: number,
+    seed: number,
+    shade: number,
+    thin: number,
+    detail = 1,
+    restDetail = detail,
+  ): this {
     const rnd = seeded(seed);
-    for (const bl of blobs) {
+    for (const [i, bl] of blobs.entries()) {
       if (thin <= 0) {
         this.crown(bl.center, bl.radii, bl.color, 1, rnd, 0.1, sunlit(bl.color));
         continue;
       }
       const r: V3 = [bl.radii[0] * k, bl.radii[1] * k, bl.radii[2] * k];
-      this.crown(bl.center, r, mixHex(bl.color, CORE_SHADE, shade), detail, rnd, 0.06);
+      // P3C: `restDetail` for the clumps after the first: they show only through the gaps, shaded
+      // round by their soft normals whatever their facets (an orchard tree's do the same).
+      this.crown(bl.center, r, mixHex(bl.color, CORE_SHADE, shade), i === 0 ? detail : restDetail, rnd, 0.06);
     }
     return this;
   }
@@ -218,10 +228,13 @@ class TreeBuilder {
     return this;
   }
 
-  /** The trunk with a root flare: a short wide skirt into the ground, then the bole. */
-  trunk(r: number, h: number, hex: number, seg: number): this {
-    this.s.cylinder(0, 0, r * 1.75, r * 0.95, 0, h * 0.14, hex, seg);
-    this.s.cylinder(0, 0, r, r * 0.6, h * 0.12, h, hex, seg);
+  /**
+   * The trunk with a root flare. P3C: a bole that bends a little on its way up (two limbs, the
+   * second leaning on from the first), root spurs at its foot and bark a shade darker low down,
+   * where the owner's playtest of V3 found a plain six-sided post with a skirt.
+   */
+  trunk(r: number, h: number, hex: number, seg: number, seed = 1, roots = 3): this {
+    trunkInto(this.s, r, h, hex, seg, seed, roots);
     return this;
   }
 
@@ -249,9 +262,112 @@ class TreeBuilder {
     nor.needsUpdate = true;
     // V2B: dab vertices, for the foliage shader (both levels carry the attribute).
     const dab = new Float32Array(pos.count);
-    for (const [a, b] of this.dabbed) dab.fill(1, a, b);
+    // P3C: 1 plus a fraction of its own per dab (one triangle), so the foliage shader can pick
+    // whole dabs (blossom strokes) where noise across the crown cut each dab in two.
+    for (const [a, b] of this.dabbed)
+      for (let v = a; v + 2 < b; v += 3)
+        dab.fill(1 + ((Math.imul(v / 3 + 1, 2654435761) >>> 0) / 4294967296) * 0.999, v, v + 3);
     g.setAttribute('dab', new Float32BufferAttribute(dab, 1));
     return g;
+  }
+}
+
+/**
+ * P3C: a limb, a frustum from `a` (radius r0) to `b` (radius r1) along any direction, open at both
+ * ends (its ends sit inside a trunk or a crown), smooth-shaded round its axis.
+ */
+export function limb(
+  s: ShapeBuilder,
+  a: V3,
+  b: V3,
+  r0: number,
+  r1: number,
+  hex: number,
+  seg: number,
+  top = hex,
+): void {
+  const ax = b[0] - a[0];
+  const ay = b[1] - a[1];
+  const az = b[2] - a[2];
+  const len = Math.hypot(ax, ay, az) || 1;
+  const d: V3 = [ax / len, ay / len, az / len];
+  // Two axes across the limb.
+  const ref: V3 = Math.abs(d[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0];
+  let ux = d[1] * ref[2] - d[2] * ref[1];
+  let uy = d[2] * ref[0] - d[0] * ref[2];
+  let uz = d[0] * ref[1] - d[1] * ref[0];
+  const ul = Math.hypot(ux, uy, uz) || 1;
+  ux /= ul;
+  uy /= ul;
+  uz /= ul;
+  const vx = d[1] * uz - d[2] * uy;
+  const vy = d[2] * ux - d[0] * uz;
+  const vz = d[0] * uy - d[1] * ux;
+  const ring = (c: V3, r: number, t: number): V3 => {
+    const ca = Math.cos(t);
+    const sa = Math.sin(t);
+    return [c[0] + (ux * ca + vx * sa) * r, c[1] + (uy * ca + vy * sa) * r, c[2] + (uz * ca + vz * sa) * r];
+  };
+  for (let i = 0; i < seg; i++) {
+    const t0 = (i / seg) * Math.PI * 2;
+    const t1 = ((i + 1) / seg) * Math.PI * 2;
+    const n0: V3 = [
+      ux * Math.cos(t0) + vx * Math.sin(t0),
+      uy * Math.cos(t0) + vy * Math.sin(t0),
+      uz * Math.cos(t0) + vz * Math.sin(t0),
+    ];
+    const n1: V3 = [
+      ux * Math.cos(t1) + vx * Math.sin(t1),
+      uy * Math.cos(t1) + vy * Math.sin(t1),
+      uz * Math.cos(t1) + vz * Math.sin(t1),
+    ];
+    const p0 = ring(a, r0, t0);
+    const p1 = ring(a, r0, t1);
+    const q0 = ring(b, r1, t0);
+    const q1 = ring(b, r1, t1);
+    const mid: V3 = [(n0[0] + n1[0]) / 2, (n0[1] + n1[1]) / 2, (n0[2] + n1[2]) / 2];
+    s.triN(p0, p1, q1, mid, hex, hex, top, mid);
+    s.triN(p0, q1, q0, mid, hex, top, top, mid);
+  }
+}
+
+/**
+ * P3C: a tree's trunk into `s`: root spurs and a darker flare at the foot, then a bole of two
+ * limbs bending a little (the bend's way from `seed`), tapering from `r` to 0.6 of it at `h`.
+ */
+export function trunkInto(
+  s: ShapeBuilder,
+  r: number,
+  h: number,
+  hex: number,
+  seg: number,
+  seed: number,
+  roots = 3,
+): void {
+  const rnd = seeded(seed * 31 + 7);
+  const foot = mixHex(hex, 0x2e2118, 0.28);
+  const a = rnd() * Math.PI * 2;
+  const bend = 0.06 * h;
+  const mid: V3 = [Math.cos(a) * bend * 0.4, h * 0.48, Math.sin(a) * bend * 0.4];
+  const top: V3 = [Math.cos(a + 0.9) * bend, h, Math.sin(a + 0.9) * bend];
+  // The flare: wide at the ground, into the bole (open limbs: their ends are inside the next one).
+  limb(s, [0, 0, 0], [0, h * 0.14, 0], r * 1.55, r * 1.0, foot, seg);
+  limb(s, [0, h * 0.1, 0], mid, r * 1.0, r * 0.8, foot, seg, hex);
+  limb(s, mid, top, r * 0.8, r * 0.6, hex, seg);
+  // Root spurs: three low wedges running out from the foot.
+  for (let i = 0; i < roots; i++) {
+    const t = a + (i / roots) * Math.PI * 2 + (rnd() - 0.5) * 0.7;
+    const out = r * (1.9 + rnd() * 0.5);
+    const y0 = Math.max(h * 0.08, r * 0.5);
+    limb(
+      s,
+      [Math.cos(t) * r * 0.6, y0, Math.sin(t) * r * 0.6],
+      [Math.cos(t) * out, r * 0.14, Math.sin(t) * out],
+      r * 0.42,
+      r * 0.12,
+      foot,
+      3,
+    );
   }
 }
 
@@ -384,16 +500,19 @@ export const oak: Kit = {
     t.s.surface(SURFACE.timber);
     if (stage === 0) t.s.cylinder(0, 0, 0.05, 0.03, 0, 0.7, palette.bark, 4);
     else {
-      t.trunk(0.12, 0.66, palette.bark, 6);
+      t.trunk(0.12, 0.66, palette.bark, 7, opts?.seed ?? 7);
       // A low bough reaching out under the crown.
       t.s.cylinder(0.05, 0, 0.035, 0.025, 0.42, 0.52, palette.bark, 3);
     }
     t.s.surface(SURFACE.leaf);
     const heart: V3 = [lx, stage === 0 ? 0.85 : O.y, lz];
-    t.core(blobs, 0.82, (opts?.seed ?? 7) + 1, 0.55, thinOf(opts));
+    // P3C: the main clump's core round, the others cheap, which pays for the finer dabs.
+    t.core(blobs, 0.82, (opts?.seed ?? 7) + 1, 0.55, thinOf(opts), 1, 0);
     t.dabs(toward(blobs, heart, 0.45), {
-      count: [42, 84, 132, 180][stage]!,
-      size: 0.255 / Math.sqrt(STAGE_SCALE[stage]!),
+      // P3C: more, smaller dabs (240 of 0.2, were 180 of 0.255): close up a crown is brushwork,
+      // not a lump of big flat facets; the core shows a little more between them, as depth.
+      count: [50, 100, 170, 240][stage]!,
+      size: 0.2 / Math.sqrt(STAGE_SCALE[stage]!),
       tintSpread: 0.22,
       skyLighten: sky,
       gaps: 0.12,
@@ -523,14 +642,15 @@ export const birch: Kit = {
       return t.build(STAGE_SCALE[stage]!);
     }
     t.s.surface(SURFACE.timber);
-    t.trunk(0.055, 1.0, palette.birchBark, 5);
+    t.trunk(0.055, 1.0, palette.birchBark, 6, opts?.seed ?? 5);
     // Dark bark marks.
     for (const y of [0.2, 0.47]) t.s.box(-0.058, y, -0.022, 0.058, y + 0.035, 0.022, palette.birchMark);
     t.s.surface(SURFACE.leaf);
-    t.core(blobs, 0.8, (opts?.seed ?? 11) + 1, 0.42, thinOf(opts));
+    t.core(blobs, 0.8, (opts?.seed ?? 11) + 1, 0.42, thinOf(opts), 1, 0);
     t.dabs(toward(blobs, [lx, stage === 3 ? B.y : 1.1, lz], 0.55), {
-      count: [36, 66, 102, 138][stage]!,
-      size: 0.21 / Math.sqrt(STAGE_SCALE[stage]!),
+      // P3C: as the oak's, more and smaller (180 of 0.17, were 138 of 0.21).
+      count: [44, 84, 132, 180][stage]!,
+      size: 0.17 / Math.sqrt(STAGE_SCALE[stage]!),
       tintSpread: 0.35,
       skyLighten: sky,
       gaps: 0.2,
@@ -569,7 +689,8 @@ export const pine: Kit = {
       return t.build(STAGE_SCALE[stage]!);
     }
     t.s.surface(SURFACE.timber);
-    t.trunk(0.07, 0.36, palette.bark, 5);
+    // P3C: no root spurs under a pine: its lowest tier hides the foot.
+    t.trunk(0.07, 0.36, palette.bark, 5, opts?.seed ?? 3, 0);
     t.s.surface(SURFACE.leaf);
     // Tiers from the bottom up: wide and dark below, narrower and lighter above, each tilted a
     // little and turned so the edges do not line up.
@@ -653,10 +774,11 @@ export const hedgerow: Kit = {
     // V2B: near, a darker core under dabs, each lump shading from below its own middle (so the
     // run's top catches the sky and joined segments shade alike); far, the domes painted with the
     // dabs' mean tint. Thins with the season like the trees (`params.thin`).
+    // P3C: down on the ground (centers at 0.6 of the height, were 0.7: a gap showed under it).
     const blobs: DabBlob[] = parts.map(({ x, h, c }) => ({
-      center: [x, h * 0.7, 0],
+      center: [x, h * 0.6, 0],
       radii: [0.24, h * 0.6, 0.17],
-      normalFrom: [x, h * 0.7 - 0.22, 0],
+      normalFrom: [x, h * 0.6 - 0.22, 0],
       color: c,
     }));
     if (low) {

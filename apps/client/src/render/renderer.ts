@@ -538,13 +538,8 @@ export class Renderer implements RenderApi {
     const fog = this.scene.fog as Fog;
     this.env.focus.copy(target);
     this.lean.setViewDistance(dist);
-    Object.assign(fog, hazeFor(dist));
-    // C5E: fog days pull the haze in (a weather step drops the still frame).
-    const thick = this.env.fog.value;
-    if (thick > 0) {
-      fog.near *= 1 - 0.6 * thick;
-      fog.far *= 1 - 0.45 * thick;
-    }
+    // C5E: fog days pull the haze in (a weather step drops the still frame); P3C: by world distance.
+    Object.assign(fog, hazeFor(dist, this.env.fog.value));
   }
 
   /**

@@ -42,6 +42,7 @@ async function captiveCard(page: Page): Promise<void> {
 
 async function openBook(page: Page, lens: 'hearth' | 'ledger', id: string): Promise<void> {
   await page.getByTestId(`lens-${lens}`).click();
+  await page.getByTestId('books').click();
   await page.getByTestId(`book-${id}`).click();
 }
 
@@ -60,7 +61,7 @@ test('the season pages open on the live winter fixture', async ({ page }) => {
   await expect(page.getByTestId('guide-entries')).toBeVisible();
   await openBook(page, 'ledger', 'watch');
   await expect(page.getByTestId('watch-roster')).toBeVisible();
-  await page.getByTestId('book-balances').click();
+  await openBook(page, 'ledger', 'balances');
   await page.getByTestId('balances-neighbors').click();
   await expect(page.getByTestId('dock-frozen')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Commissions' })).toBeVisible();
