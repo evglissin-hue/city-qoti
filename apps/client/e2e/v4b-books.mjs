@@ -180,10 +180,14 @@ const print = await page.evaluate(async (c) => {
 writeFileSync(file('print'), Buffer.from(print.b64, 'base64'));
 console.log('saved', file('print'), `(capture ${print.ms.toFixed(0)} ms)`);
 
-// 7. A photo saved from photo mode.
-await page.evaluate(() => (window.__qoti.ui().photo.value = true));
+// 7. A photo saved from photo mode, entered by the camera button (P3B's corner cluster).
+await page.screenshot({ path: file('screen') });
+console.log('saved', file('screen'));
+await page.locator('.photo-button').click();
 await page.waitForSelector('[data-testid="photo-strip"]');
 await frames(4);
+await page.screenshot({ path: file('photo-mode') });
+console.log('saved', file('photo-mode'));
 const [download] = await Promise.all([
   page.waitForEvent('download', { timeout: 240000 }),
   page.getByTestId('photo-save').click(),
