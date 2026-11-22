@@ -89,12 +89,12 @@ export function lanternCover(w: WorldState): number {
 }
 
 /**
- * Whether candles light nothing here: no candle in town, and yet every lantern standing is lit
- * tonight (read from the supplies view, as the stand-ins, R3A not merged, leave it). Gating on
- * candles would only starve the town of lanterns for nothing then.
+ * Whether candles light nothing here: more lanterns are lit tonight, by the supplies view, than the
+ * candles in town could light (as the stand-ins, R3A not merged, leave it). Gating on candles would
+ * only starve the town of lanterns for nothing then; once R3A lands the view never lists more.
  */
-function suppliesDead(w: WorldState, standing: number): boolean {
-  return candleStock(w) === 0 && suppliesView(w).lamps.length >= standing;
+function suppliesDead(w: WorldState): boolean {
+  return suppliesView(w).lamps.length > lanternCover(w);
 }
 
 /**
@@ -108,7 +108,7 @@ export function candlesAllow(w: WorldState, more = 1): boolean {
   // A first few lanterns the town can always light (a handful of candles a night): the wishes for
   // lanterns and the streets' charm do not wait on a chandler.
   if (standing + more <= LANTERN_FLOOR) return true;
-  if (suppliesDead(w, standing)) return true;
+  if (suppliesDead(w)) return true;
   return nightlyDraw(standing + more) <= candleStock(w) + candlesMadeDaily(w);
 }
 

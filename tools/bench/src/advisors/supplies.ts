@@ -107,8 +107,8 @@ class Supplies implements Advisor {
     );
     const counts = new Map<string, number>();
     for (const b of of) counts.set(b.trade!, (counts.get(b.trade!) ?? 0) + 1);
-    // A farm trade must have three before one is spared: food comes first (a pin must not thin a larder).
-    const least = zone === 'farms' ? 3 : 2;
+    // A trade must have three before one is spared (a pin must not thin a larder or a street's trade).
+    const least = 3;
     return of.filter((b) => b.trade !== keep && counts.get(b.trade!)! >= least).sort((a, b) => a.id - b.id);
   }
 

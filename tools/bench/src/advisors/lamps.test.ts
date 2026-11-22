@@ -106,9 +106,9 @@ describe('the lamps advisor', () => {
     // The first few lanterns need no cover.
     expect(candlesAllow(town(0, 0))).toBe(true);
     expect(candlesAllow(town(LANTERN_FLOOR - 1, 0))).toBe(true);
-    // With no candle anywhere and every lantern lit regardless (the stand-ins), candles gate nothing.
+    // With every lantern lit regardless of the candles (the stand-ins), candles gate nothing.
     expect(candlesAllow(town(LANTERN_FLOOR, 0))).toBe(true);
-    expect(candlesAllow(town(LANTERN_FLOOR, 1))).toBe(false);
+    expect(candlesAllow(town(LANTERN_FLOOR, 1))).toBe(true);
     // Twenty lanterns need five candles a night; a twenty-first needs a sixth.
     expect(candlesAllow(town(20, 5))).toBe(false);
     expect(candlesAllow(town(20, 6))).toBe(true);
@@ -118,7 +118,7 @@ describe('the lamps advisor', () => {
   });
 
   it('counts a built chandler toward the candle cover', () => {
-    const w = town(20, 1);
+    const w = town(20, 5);
     expect(candlesAllow(w)).toBe(false);
     const base = w.buildings[0]!;
     w.buildings.push({ ...base, id: 9100, stage: 'built', trade: 'chandler' } as Building);
