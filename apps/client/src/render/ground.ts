@@ -534,22 +534,28 @@ vec3 qApronPaint(vec2 wp, vec3 col, float rot, float fade) {
   return mix(col, mix(ap, col, tuft * 0.6), on * 0.85);
 }
 // Puddles in the hollows while it rains and the day after (uWet is the rain itself, uPuddle what
-// it leaves): darker, a faint sky in them, soft edges, none bigger than a tile.
+// it leaves), none bigger than a tile. P3C: water, not paint. They stand where feet and wheels wore
+// the ground down (roads, paths, worn earth) and seldom in the grass; the ground under them is
+// darker and a soft wet margin rings them; their light is the sky's and the lamps' (added as
+// emissive with the sheen, qPudSheen), so at night a puddle is dark unless a lamp is in it. Before,
+// a hard-edged, glossy sheet lit by the moon read as the brightest thing in a night scene.
 vec3 qPuddles(vec3 col, vec2 wp, float ao, float road, float worn, float fade) {
   float wetK = max(uPuddle, smoothstep(0.05, 0.6, uWet)) * (1.0 - uSnow);
   if (wetK < 0.01) return col;
   float basin = qNoise(wp * 1.5 + 41.0) * 0.65 + qNoise(wp * 3.7 + 13.0) * 0.35;
   float low = clamp((1.0 - ao) * 2.2, 0.0, 0.5);
   float tread = max(max(road, gQWalk * 0.8), worn * 0.6);
-  float depth = basin + low * 0.4 + tread * 0.3 + (qNoise(wp * 7.0) - 0.5) * 0.04;
-  float thr = mix(1.0, 0.76, wetK);
-  float m = smoothstep(thr, thr + 0.05, depth) * (0.45 + 0.55 * fade);
-  float ring = smoothstep(thr - 0.09, thr, depth) * (1.0 - m);
-  col *= 1.0 - 0.14 * ring;
-  vec3 sky = gQSky;
-  vec3 pc = mix(col * mix(0.74, 0.56, clamp(tread * 2.0, 0.0, 1.0)), sky * 0.8, 0.22);
+  float trod = smoothstep(0.1, 0.6, tread);
+  // Off the trodden ground only the deepest hollows hold water (a lawn by a wall is not a pond).
+  float depth = basin * mix(0.7, 1.0, trod) + low * mix(0.12, 0.3, trod) + trod * 0.2 + (qNoise(wp * 7.0) - 0.5) * 0.05;
+  float thr = mix(1.04, 0.85, wetK);
+  float m = smoothstep(thr, thr + 0.09, depth) * (0.45 + 0.55 * fade);
+  // The wet margin: darker earth round the water, a little wider than it.
+  float margin = smoothstep(thr - 0.1, thr + 0.03, depth) * (1.0 - m);
+  col *= 1.0 - 0.2 * margin * (0.4 + 0.6 * trod);
   gQPud = m;
-  return mix(col, pc, m * mix(0.6, 0.9, clamp(tread * 2.0, 0.0, 1.0)));
+  // Through the water: the ground, darker and a touch cooler.
+  return mix(col, col * vec3(0.52, 0.54, 0.58), m);
 }
 
 vec3 qGround(vec3 base) {
@@ -716,13 +722,19 @@ vec3 qGroundSeason(vec3 col, vec2 wp, float road, float above, float ao, float g
     col = mix(col, col * vec3(1.12, 1.0, 0.68), uDry * 0.55 * patchy);
   }
   float damp = max(uWet, uPuddle * 0.45);
-  if (damp > 0.001) col *= 1.0 - damp * (0.08 + 0.1 * road);
+  // P3C: wet earth: darker, roads and paths most, and a little richer in color.
+  if (damp > 0.001) {
+    col *= 1.0 - damp * (0.1 + 0.16 * road);
+    float wl = dot(col, vec3(0.2126, 0.7152, 0.0722));
+    col = max(mix(vec3(wl), col, 1.0 + 0.18 * damp * road), 0.0);
+  }
   // Where the snow would drift (walls, hedges, crowns: the ground AO), autumn gathers fallen
   // leaves and spring its petals, as small dabs.
   float shelter = clamp((1.0 - ao) * 4.0, 0.0, 1.0);
   float leafK = uAutumn * (0.35 + 0.65 * clamp(uBare * 1.8, 0.0, 1.0));
   if ((leafK > 0.01 || uBlossom > 0.01) && above > 0.06 && uSnow < 0.9) {
-    float drift = smoothstep(0.1, 0.9, shelter * 0.8 + qNoise(wp * 0.8 + 5.0) * 0.45);
+    // P3C: drifts are where the shelter is (walls, hedges, crowns); the noise only breaks them up.
+    float drift = smoothstep(0.15, 0.9, shelter * 0.85 + qNoise(wp * 0.8 + 5.0) * 0.28);
     float land = 1.0 - road * 0.8;
     if (leafK > 0.01) {
       vec2 g = wp * 11.0;
@@ -730,7 +742,9 @@ vec3 qGroundSeason(vec3 col, vec2 wp, float road, float above, float ao, float g
       vec2 d = fract(g) - (vec2(qHash(cell + 3.3), qHash(cell + 7.7)) * 0.6 + 0.2);
       vec2 r = normalize(vec2(qHash(cell + 1.9) - 0.5, qHash(cell + 5.5) - 0.5) + 0.001);
       float e = length(vec2(dot(d, r), dot(d, vec2(-r.y, r.x))) / vec2(0.22, 0.1));
-      float dab = (1.0 - smoothstep(0.8, 1.0, e)) * step(qHash(cell + 11.0), leafK * (0.06 + 1.0 * drift) * land) * fade;
+      // P3C: leaves lie in the drifts; out on open ground only a stray few (an even scatter of
+      // dabs over every lawn read as specks of noise from the nearest camera).
+      float dab = (1.0 - smoothstep(0.8, 1.0, e)) * step(qHash(cell + 11.0), leafK * (0.012 + 0.75 * drift * drift) * land) * fade;
       float p = qHash(cell + 13.0);
       vec3 lc = p < 0.35 ? qSrgb(vec3(0.80, 0.58, 0.22)) : p < 0.65 ? qSrgb(vec3(0.66, 0.32, 0.15)) : p < 0.85 ? qSrgb(vec3(0.86, 0.70, 0.28)) : qSrgb(vec3(0.45, 0.30, 0.16));
       col = mix(col, col * vec3(1.08, 0.92, 0.72), drift * leafK * 0.22 * (1.0 - fade) * land);
@@ -741,9 +755,11 @@ vec3 qGroundSeason(vec3 col, vec2 wp, float road, float above, float ao, float g
       vec2 cell = floor(g);
       vec2 d = fract(g) - (vec2(qHash(cell + 3.9), qHash(cell + 6.3)) * 0.6 + 0.2);
       float e = length(d / vec2(0.15, 0.1));
-      float dab = (1.0 - smoothstep(0.7, 1.0, e)) * step(qHash(cell + 9.0), uBlossom * (0.015 + 0.4 * drift) * land) * fade;
-      vec3 pc = qHash(cell + 17.0) < 0.6 ? qSrgb(vec3(0.97, 0.80, 0.85)) : qSrgb(vec3(0.98, 0.95, 0.93));
-      col = mix(col, pc, dab * 0.9);
+      // P3C: petals gather under the crowns and against walls (the drift), barely any out on the
+      // open grass, and lie a little sunk in it, not as bright specks.
+      float dab = (1.0 - smoothstep(0.7, 1.0, e)) * step(qHash(cell + 9.0), uBlossom * (0.002 + 0.32 * drift * drift) * land) * fade;
+      vec3 pc = qHash(cell + 17.0) < 0.6 ? qSrgb(vec3(0.93, 0.79, 0.83)) : qSrgb(vec3(0.94, 0.92, 0.9));
+      col = mix(col, pc, dab * 0.75);
     }
   }
   if (uSnow < 0.001) return col;
@@ -793,6 +809,15 @@ float qCloudShade(vec2 wp) {
   vec2 p = wp * 0.028 + vec2(uTime * 0.006, uTime * 0.0035);
   float c = smoothstep(0.5, 0.72, qFbm(p));
   return 1.0 - c * 0.2 * uClouds;
+}
+
+// P3C: a puddle's light: the sky over it (the hour's horizon, more at a glancing look) and a lamp's
+// pool, mirrored warm. Emissive, so the moon never lights it; dark at night but for the lamps.
+vec3 qPudSheen(vec3 n, vec3 glow) {
+  if (gQPud <= 0.0) return vec3(0.0);
+  float ndv = clamp(dot(normalize(n), normalize(vViewPosition)), 0.0, 1.0);
+  float sheen = 0.07 + 0.16 * pow(1.0 - ndv, 2.0);
+  return (gQSky * sheen + glow * 0.25) * gQPud;
 }
 
 // V3C: the valley's rim (the sim's ring of mountain tiles and the cliff below it) painted as the foot
@@ -904,15 +929,17 @@ export function createGroundMaterial(tex: GroundTextures, env: WorldEnv): MeshSt
       )
       .replace(
         '#include <roughnessmap_fragment>',
-        '#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, 0.3, gQPud);',
+        // P3C: a soft sheen, never a moonlit mirror (the moon's specular is muted, lighting.ts).
+        '#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, 0.6, gQPud);',
       )
       .replace(
         '#include <emissivemap_fragment>',
         map
           ? // V2A, V2X: on a warm grey albedo (qLampAlbedo: a painter's amber pool on green grass,
             // not an olive one), and a breath of warm air over the pool.
-            '#include <emissivemap_fragment>\n{ vec3 qG = qGlow(); totalEmissiveRadiance += qLampAlbedo(diffuseColor.rgb) * qG * 1.3 + qG * 0.035; }'
-          : '#include <emissivemap_fragment>\ntotalEmissiveRadiance += diffuseColor.rgb * qGlow() * 1.3;',
+            // P3C: a puddle holds the sky and the lamps (qPudSheen).
+            '#include <emissivemap_fragment>\n{ vec3 qG = qGlow(); totalEmissiveRadiance += qLampAlbedo(diffuseColor.rgb) * qG * 1.3 + qG * 0.035 + qPudSheen(normal, qG); }'
+          : '#include <emissivemap_fragment>\ntotalEmissiveRadiance += diffuseColor.rgb * qGlow() * 1.3 + qPudSheen(normal, qGlow());',
       );
   };
   m.customProgramCacheKey = () => (map ? 'qoti-ground-lightmap' : 'qoti-ground');

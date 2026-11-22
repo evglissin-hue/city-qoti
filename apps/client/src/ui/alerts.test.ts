@@ -8,13 +8,14 @@ import {
   type DemandBarView,
   type DemandKind,
   type DemandReason,
+  TICKS_PER_DAY,
 } from '@qoti/sim';
 import { h } from 'preact';
 import { afterEach, describe, expect, it } from 'vitest';
 import { alertsForLens, computeAlerts, FEED_FIT } from './alerts';
 import { mockSession, type MockSession } from './mocks/session';
 import { AlertsPanel } from './panels/Alerts';
-import { mount, type Mounted } from './test/dom';
+import { mount, settle, type Mounted } from './test/dom';
 
 let view: Mounted | null = null;
 afterEach(() => {
@@ -550,7 +551,7 @@ describe('the panel', () => {
     expect(picked).toEqual([['zone', 'farms']]);
   });
 
-  it('shows five lines and counts the rest', async () => {
+  it('shows three lines at rest, counts the rest and unfolds them (P3B)', async () => {
     const mock = world({
       buildings: [
         site(1, [['timber', 12]], BuildingStatus.waitingMaterials),
@@ -564,7 +565,37 @@ describe('the panel', () => {
     });
     mock.session.ui.lens.value = 'ledger';
     view = await mount(h(AlertsPanel, { session: mock.session }));
-    expect(view.root.querySelectorAll('li.alert')).toHaveLength(5);
+    expect(view.root.querySelectorAll('li.alert')).toHaveLength(3);
     expect(view.text()).toMatch(/and \d+ more/);
+    const total = 3 + Number(/and (\d+) more/.exec(view.text())![1]);
+    await view.click(view.get('feed-more'));
+    expect(view.root.querySelectorAll('li.alert')).toHaveLength(total);
+    expect(view.text()).toContain('Fold the rest away');
+  });
+});
+
+describe('the feed rests when nothing in it is new (P3B)', () => {
+  it('folds to its title and count half a day after its lines first showed, and peeks on a click', async () => {
+    const mock = world({
+      buildings: [
+        site(1, [['timber', 12]], BuildingStatus.waitingMaterials),
+        built(3, 'granary', BuildingStatus.noWorkers),
+      ],
+      stock: { timber: 4 },
+    });
+    const m = mock.session.mirror;
+    mock.session.ui.lens.value = 'ledger';
+    m.tick.value = TICKS_PER_DAY * 1458;
+    view = await mount(h(AlertsPanel, { session: mock.session }));
+    expect(view.root.querySelectorAll('li.alert').length).toBeGreaterThan(0);
+    // Within the same day: a line keyed by the day (the winter food line) is new each morning.
+    m.tick.value += TICKS_PER_DAY / 2 + 1;
+    await settle();
+    expect(view.root.querySelectorAll('li.alert')).toHaveLength(0);
+    expect(view.get('alerts').querySelector('.alert-count')!.textContent).not.toBe('');
+    await view.click('feed-fold');
+    expect(view.root.querySelectorAll('li.alert').length).toBeGreaterThan(0);
+    await view.click('feed-fold');
+    expect(view.root.querySelectorAll('li.alert')).toHaveLength(0);
   });
 });

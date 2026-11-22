@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { clickTile, DEBUG_QUERY, waitLive } from './helpers';
+import { clickTile, DEBUG_QUERY, takeTool, waitLive } from './helpers';
 
 const SHOTS = '/tmp/claude-0/-home-user-city-qoti/b1f93f80-85dc-5dd0-b969-6d447cec667f/scratchpad/shots';
 
@@ -8,9 +8,9 @@ test('a plan can be edited in place', async ({ page }) => {
   await page.goto(`/${DEBUG_QUERY}`);
   await page.getByTestId('new-solo').click();
   await waitLive(page);
-  await page.getByTestId('tool-plan').click();
+  await takeTool(page, 'plan');
   await page.getByTestId('sketch-start').click();
-  await page.getByTestId('tool-decor').click();
+  await takeTool(page, 'decor');
   await page.getByTestId('variant-bench').click();
   const spot = await page.evaluate(() => window.__qoti.findDecorSpot('bench'));
   expect(spot).not.toBeNull();
@@ -27,7 +27,7 @@ test('a plan can be edited in place', async ({ page }) => {
   await clickTile(page, [spot!.tile[0] + 2, spot!.tile[1]]);
   await expect(page.getByTestId('edit-card').locator('li')).toHaveCount(2);
   await page.screenshot({ path: `${SHOTS}/plan-edit-added.png` });
-  await page.getByTestId('tool-plan').click();
+  await takeTool(page, 'plan');
   await page.getByTestId('edit-save').click();
   await expect(plan).toContainText('2 benches');
   await page.screenshot({ path: `${SHOTS}/plan-edit-saved.png` });
