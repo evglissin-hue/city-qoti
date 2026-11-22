@@ -32,7 +32,7 @@ function goodDay(climb: SpecializedClimbView, def: BuildingDef): string {
       return `${climb.today.need} or more customers`;
     case 'served': {
       const trade = content.tradeById.get(def.enables?.[0] ?? '');
-      const raw = trade?.method.inputs[0]?.[0];
+      const raw = trade?.method?.inputs[0]?.[0];
       return `${servedTrade(def)} kept in ${raw ? goodName(raw).toLowerCase() : 'supplies'}`;
     }
     case 'full':

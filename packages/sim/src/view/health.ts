@@ -561,7 +561,8 @@ export class HealthWatch {
       this.failRun.set(b.id, run);
       if (run < 2 * LEVEL_DOWN_DAYS) continue;
       const why = levelDeadEnd(state, b, def);
-      if (why) out.push({ kind: 'level-stuck', id: b.id, text: `${def.id} #${b.id} keeps failing its day: ${why}` });
+      if (why)
+        out.push({ kind: 'level-stuck', id: b.id, text: `${def.id} #${b.id} keeps failing its day: ${why}` });
     }
     for (const id of [...this.failRun.keys()]) if (!live.has(id)) this.failRun.delete(id);
   }
@@ -940,12 +941,12 @@ function levelDeadEnd(state: WorldState, b: Building, def: BuildingDef): string 
         return good ? `short of ${good}, which nothing built makes and the carrier may not buy` : null;
       }
       const family = (def.methods?.[0]?.outputs ?? []).map(([g]) => content.goodById.get(g)?.family);
-      const taken = state.buildings.some(
-        (o) =>
-          o.stage === 'built' &&
-          o.id !== b.id &&
-          (content.buildingById.get(o.def)?.stores ?? []).some((f) => family.includes(f)),
-      );
+      // A store that names no families takes every one (the Market Square, the Trading Post).
+      const taken = state.buildings.some((o) => {
+        if (o.stage !== 'built' || o.id === b.id) return false;
+        const d = content.buildingById.get(o.def);
+        return !!d?.storage && (!d.stores || d.stores.some((f) => family.includes(f)));
+      });
       return taken ? null : 'its goods have no built store in town to take them';
     }
     case 'customers': {
@@ -967,17 +968,21 @@ function levelDeadEnd(state: WorldState, b: Building, def: BuildingDef): string 
       for (const s of servedToday(state, b)) {
         if (!s.counters?.shortToday) continue;
         const good = unmakeableInput(state, s, s.id);
-        if (good) return `a business it serves is short of ${good}, which nothing built makes and the carrier may not buy`;
+        if (good)
+          return `a business it serves is short of ${good}, which nothing built makes and the carrier may not buy`;
       }
       return null;
     }
     case 'full': {
-      const keeps = (def.stores ?? []) as readonly string[];
+      // A store that names no families keeps every one (the Trading Post).
+      const keeps = def.stores as readonly string[] | undefined;
       const made = state.buildings.some(
         (o) =>
           o.stage === 'built' &&
           o.id !== b.id &&
-          !!methodOf(o)?.outputs.some(([g]) => keeps.includes(content.goodById.get(g)?.family ?? '')),
+          !!methodOf(o)?.outputs.some(
+            ([g]) => !keeps || keeps.includes(content.goodById.get(g)?.family ?? ''),
+          ),
       );
       return made ? null : 'nothing built in town makes the goods it keeps';
     }

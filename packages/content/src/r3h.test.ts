@@ -70,7 +70,8 @@ describe('R3H: the levels data', () => {
         const lists = arrays(l);
         const n = lists[0]![1].length;
         for (const [f, a] of lists)
-          for (let i = 1; i < a.length; i++) expect(a[i]!, `${f} level ${i + 1}`).toBeGreaterThanOrEqual(a[i - 1]!);
+          for (let i = 1; i < a.length; i++)
+            expect(a[i]!, `${f} level ${i + 1}`).toBeGreaterThanOrEqual(a[i - 1]!);
         for (let i = 1; i < n; i++)
           expect(
             lists.some(([, a]) => a[i]! > a[i - 1]!),
@@ -97,7 +98,8 @@ describe('R3H: the levels data', () => {
               const trade = content.tradeById.get(id);
               expect(trade, `trade ${id} exists`).toBeDefined();
               expect(trade!.method, `${id} has a method`).toBeDefined();
-              for (const [g] of trade!.method!.inputs) expect(madeBySomeone(g), `something makes ${g}`).toBe(true);
+              for (const [g] of trade!.method!.inputs)
+                expect(madeBySomeone(g), `something makes ${g}`).toBe(true);
             }
             expect(l.capacity, 'room for more of them').toBeDefined();
             break;

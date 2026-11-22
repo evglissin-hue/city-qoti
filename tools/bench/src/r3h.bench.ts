@@ -10,6 +10,7 @@ import { content } from '@qoti/content';
 import { insertBuilding, MAP_SIZE, pipeline, TICKS_PER_DAY, type WorldState } from '@qoti/sim';
 import { dailyOffset } from '../../../packages/sim/src/systems/economy/time';
 import { specializedDayEnd } from '../../../packages/sim/src/systems/levels/specialized';
+import { emptyCounters } from '../../../packages/sim/src/state/zones';
 import { flatTown } from './residents';
 
 export const R3H_BUDGET = {
@@ -59,19 +60,17 @@ function setDay(world: WorldState, round: number): number {
   for (const b of world.buildings) {
     const levels = content.buildingById.get(b.def)?.levels;
     if (!levels || !b.rt) continue;
-    const max = Math.max(levels.crew?.length ?? 0, levels.reach?.length ?? 0, levels.storage?.length ?? 0, levels.capacity?.length ?? 0);
+    const max = Math.max(
+      levels.crew?.length ?? 0,
+      levels.reach?.length ?? 0,
+      levels.storage?.length ?? 0,
+      levels.capacity?.length ?? 0,
+    );
     // Levels settle where they are the first rounds; every fifth building has a failing day.
     if (round === 0) b.level = 1 + (n % Math.max(1, max));
     const failing = (n + round) % 5 === 0;
     b.counters = {
-      ...(b.counters ?? {
-        levelDays: 0,
-        keeperDays: 0,
-        madeToday: 0,
-        soldToday: 0,
-        customersToday: 0,
-        shortToday: false,
-      }),
+      ...(b.counters ?? emptyCounters()),
       madeToday: 10,
       soldToday: failing ? 0 : 9,
       customersToday: failing ? 3 : 12,
