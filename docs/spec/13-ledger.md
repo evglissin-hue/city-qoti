@@ -123,6 +123,15 @@ The best positive score grows; none positive, nothing grows and the bar stays lo
 
 It slides back one level after four failing days, keeping its walls, as homes do. A business resting because its raw good is out of season (a cider maker in winter) neither fails nor counts those days: its level and its hands' working days wait for spring. Levels are drawn (`17-presentation.md`): a bigger yard, a painted sign, goods out front.
 
+**Specialized buildings grow** [R3H] (the owner's playtest of 2026-11-17, the master's ruling): the buildings a player sites climb levels 1 to 3 with success, as businesses do, on the businesses' own count of good days running and four failing days to slide back (failing days count at level 2 and up; a building resting for the season neither fails nor counts). Each level is a bigger building with a bigger crew, reach, store or room, never a multiplier, read wherever today's number is read (`BuildingDef.levels`). What a good day is depends on the building:
+
+- **Goods carried off** (the Forester's Lodge, the Quarry, the Fishery, the Brickworks): four fifths of what it made today was carried off, and it never ran short of its raw good; a Lodge only while its woods stand above its site rule. A Fishery on a frozen river rests.
+- **Customers** (the Market Stall): 8 households served for level 2, 12 for level 3 *(tune)*.
+- **Everyone served** (the Windmill, the Sawmill): every business it serves had its raw good all day, and it serves at least one. The Sawmill rests while its wheel is frozen.
+- **A full store** (the Granary, the Storehouse, the Trading Post): at least half full at its level's storage, with every porter it wants.
+
+A failing day falls short of the level it stands on (goods left in the yard, too few customers, a business it serves gone short, a store under half of the level below's room). The table *(tune)*: the Lodge 3, 4 and 5 hands, its woods 8, 10 and 12 tiles; the Quarry, Fishery and Brickworks 3, 4 and 5 hands; the Stall 1, 2 and 2 vendors and food reach 14, 18 and 22 tiles; the Granary 2, 3 and 4 porters and 1,200, 1,680 and 2,160 units; the Storehouse 4, 5 and 6 porters and 800, 1,120 and 1,440; the Trading Post 2, 3 and 4 porters and 200, 280 and 360; the Windmill room for 2, 3 and 4 bakers (one more a level on top of a raised mill's 4); the Sawmill 3, 4 and 5 carpenters. A climb or a slide is drawn (`17-presentation.md`), written in the Chronicle and said in the Ledger's feed; the inspector says what the next level needs and how far along it is.
+
 **Homes improve on their own** *kept* (P1's dressing ladder, archive): window boxes, a porch, ivy.
 
 **Labor** needs no lever: residents take the job that matters most (`11-residents.md`, Jobs, kept). A business with nothing to do rests by itself and its hands go where work is (a farmstead's to the forester and the builders in winter). Pausing a building stays as a command for emergencies and is never needed to balance labor.
