@@ -6,7 +6,7 @@
 import type { BuildingDef, ProductionMethod } from '@qoti/content';
 import { content } from '@qoti/content';
 import { MAP_SIZE } from '../../constants';
-import type { Building, BuildingRuntime, TickCtx, WorldState } from '../../contracts';
+import type { Building, BuildingRuntime, EntityId, TickCtx, WorldState } from '../../contracts';
 import { footprintSize } from '../../rules/footprint';
 import { findById } from '../../state/entities';
 import { chronicle } from '../chronicle/api';
@@ -43,13 +43,20 @@ export function heightPercent(
 
 /**
  * Sum of the mood productivity of workers inside the building, counting at most `cap` workers.
- * Zero when nobody is in.
+ * Zero when nobody is in. `skip` leaves one worker out (a master whose own lane is running).
  */
-export function crewPower(state: WorldState, b: Building, rt: BuildingRuntime, cap: number): number {
+export function crewPower(
+  state: WorldState,
+  b: Building,
+  rt: BuildingRuntime,
+  cap: number,
+  skip: EntityId = 0,
+): number {
   let power = 0;
   let n = 0;
   for (const id of rt.workers) {
     if (n >= cap) break;
+    if (id === skip) continue;
     const r = findById(state.residents, id);
     if (!r || r.inside !== b.id) continue;
     power += productivity(r);
