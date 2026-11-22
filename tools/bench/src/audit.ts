@@ -38,7 +38,7 @@ import {
 } from '@qoti/sim';
 import { writeFileSync } from 'node:fs';
 import { autoplay, type AutoplayOptions } from './autoplay';
-import { stuckCommands, STUCK_DAYS, type StuckCommand } from './decisions';
+import { heldActions, stuckCommands, STUCK_DAYS, type StuckCommand } from './decisions';
 
 export const DEFAULT_SEEDS = ['willow', 'hazel', 'oak', 'birch'];
 export const YEAR_DAYS = 24;
@@ -218,7 +218,7 @@ function playOne(seed: string, days: number, label: string, opts: AutoplayOption
     rank: last.rank,
     wishes: ledger.result(),
     issues: run.health,
-    stuck: stuckCommands(run.decisions),
+    stuck: [...stuckCommands(run.decisions), ...heldActions(run.actions)],
     hearthStalled: hearthSites.stalled,
   };
 }
