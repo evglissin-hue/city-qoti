@@ -217,6 +217,8 @@ export function quietSeasons(good: string, seen: ReadonlySet<string> = new Set()
 export class HealthWatch {
   /** Site id → [workDone seen, tick it was first seen at that value]. */
   private readonly progress = new Map<number, [number, number]>();
+  /** R3H: the last look at which some builder was at work on a site (the queue was moving). */
+  private builtAt = -1;
   /** R2X: building id → tick it was first seen built with no walk to its door; and the hour of the last look. */
   private readonly cutOffSince = new Map<number, number>();
   private cutOffHour = -1;
@@ -277,6 +279,12 @@ export class HealthWatch {
       if (this.visitTreasury.length > 8) this.visitTreasury.shift();
     }
     const sites = state.buildings.filter((b) => b.stage === 'construction' && b.rt?.construction);
+    // R3H: a site with every material that waits while the builders build elsewhere is in a queue,
+    // not stalled (a Hamlet with one builder and seven sites, hazel's workshop at the 48th hour). It
+    // flags once no site has had a builder for STALL_TICKS, or after twice that however busy the
+    // queue, so a site the builders pass over for ever still shows.
+    if (state.residents.some((r) => r.activity.kind === 'task' && r.activity.taskId < 0)) this.builtAt = now;
+    const queueMoving = this.builtAt >= 0 && now - this.builtAt < STALL_TICKS;
     const seen = new Set<number>();
     for (const b of sites) {
       const c = b.rt!.construction!;
@@ -286,7 +294,14 @@ export class HealthWatch {
       // The clock runs from the last progress or the last look still waiting on materials: a site
       // that waited days for its last stone was not stalled with everything in (C5A).
       if (!last || last[0] !== c.workDone || !allIn) this.progress.set(b.id, [c.workDone, now]);
-      if (allIn && last && last[0] === c.workDone && now - last[1] >= STALL_TICKS && !b.rt!.paused) {
+      const waited = last ? now - last[1] : 0;
+      if (
+        allIn &&
+        last &&
+        last[0] === c.workDone &&
+        waited >= (queueMoving ? 2 * STALL_TICKS : STALL_TICKS) &&
+        !b.rt!.paused
+      ) {
         out.push({
           kind: 'site-stalled',
           id: b.id,
