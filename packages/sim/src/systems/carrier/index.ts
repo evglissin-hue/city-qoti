@@ -23,10 +23,13 @@
 //    each reserve, the cheapest unit by unit, up to days of the family's use (Materials: what open
 //    sites need plus the reserve in units). From Autumn day 4 to the thaw it buys toward the season
 //    plan's winter mark when that is more.
+// 4b. R3A: for each family with `places` on and a rule other than Never, the carrier buys what places
+//    want tonight (candles, firewood, cloth: `placesWant`) above the places' floor, within the day's
+//    budget and coins in hand (never the tab); what it buys lands in the stores like any purchase.
 // 5. Selling, with a load of its own (the cart goes out as full as it came in), for families with
 //    `sell` on and a rule other than Never:
 //    what is over twice the reserve (from Summer day 4 to the thaw, never under the winter mark),
-//    the flavor the stores hold most of first. A festival's put-by goods are out of the stores, so
+//    the flavor the stores hold most of first (places' want tonight is kept, bought in 4b). A festival's put-by goods are out of the stores, so
 //    they are never sold.
 //
 // Every unit goes by the cheaper of the cart and the boat that day (the boat only to Millhaven),
@@ -52,6 +55,7 @@ import { familyIndex, GOODS_BY_FAMILY } from '../../state/zones';
 import { balancesView } from '../../view/balances';
 import { dockView } from '../../view/seasons';
 import { tradeView } from '../../view/village';
+import { placesWant } from '../supplies/want';
 import { book } from '../economy/api';
 import { coinsText, listText } from '../economy';
 import { emitMoney } from '../economy/emit';
@@ -63,6 +67,7 @@ import { doorTile } from '../movement/api';
 import { renownEffect } from '../renown/api';
 import { calendar } from '../clock/calendar';
 import { isFrozen } from '../seasons/api';
+import { placesFloor } from './places';
 import { buyingTowardMarks, marksStand, PASS_EVENT, passClosed, winterMark } from './api';
 import {
   activeDeal,
@@ -807,6 +812,25 @@ export function carrierDay(state: WorldState, ctx: TickCtx): void {
     if (want > 0) buyCheapest(state, day, SHELF_GOODS[f]!, want, 'budget');
   }
 
+  // 4b. Places: buys what places want tonight above their floor, within the budget and coins in hand.
+  const forPlaces = new Array<number>(families.length).fill(0);
+  if (families.some((t) => t.places === true && t.rule !== 'never')) {
+    const want = placesWant(state);
+    for (const f of ORDER) {
+      if (f === MATERIALS || families[f]!.places !== true || families[f]!.rule === 'never') continue;
+      let surplus = have(day, f) - placesFloor(state, f);
+      for (const g of SHELF_GOODS[f]!) {
+        const w = want[g] ?? 0;
+        if (w <= 0) continue;
+        forPlaces[f]! += w;
+        const can = Math.max(0, Math.min(surplus, day.town[g] ?? 0));
+        const short = w - can;
+        if (short > 0) surplus += buy(state, day, g, short, 'budget');
+        surplus -= w;
+      }
+    }
+  }
+
   // 5. Selling: what is over twice the reserve, never under a mark. R1X: the cart (and the boat)
   // carries its load each way, coming in full and going out full, so a day's buying never leaves the
   // town nothing to sell (a Village that bought its load every morning sold nothing for weeks).
@@ -818,6 +842,8 @@ export function carrierDay(state: WorldState, ctx: TickCtx): void {
     if (!t.sell || t.rule === 'never') continue;
     let keep = 2 * reserveUnits(state, day, f, siteTotal, false);
     if (stands) keep = Math.max(keep, reserveUnits(state, day, f, siteTotal, true));
+    // What places want tonight is not for sale (4b bought it a moment ago).
+    keep += forPlaces[f]!;
     let over = have(day, f) - keep;
     while (over > 0 && (day.cart.room > 0 || (day.boat?.room ?? 0) > 0)) {
       // The flavor the stores hold most of that someone takes (ties to the first in goods order).
