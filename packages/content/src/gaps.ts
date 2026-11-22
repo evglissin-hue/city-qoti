@@ -62,6 +62,13 @@ export const shortOfSupplies: GapDef = {
   threshold: 2,
   openAfter: 2,
   closeAfter: 2,
-  text: ['{place} wants {n} a night; the town makes fewer.'],
-  closes: 'Enough of what its pieces burn, two nights running.',
+  text: [
+    '{place} wants {n} {good} {when}; the town makes {makes}.',
+    '{place} could use {n} {good} {when}, and the town makes {makes}. The shelves are being polite about it.',
+    'Something at {place} needs {n} {good} {when}. The town makes {makes}, which is a start.',
+  ],
+  closes:
+    'Enough of what its pieces burn, two nights running: stock the storehouse, switch on the places, or let the place rest.',
+  closed: '{place} is supplied again: {closers} saw to it.',
+  closedQuiet: '{place} has its supplies again.',
 };

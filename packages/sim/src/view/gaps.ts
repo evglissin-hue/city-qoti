@@ -5,6 +5,7 @@ import type { Building, Gap, GapsView, GapView, SeatId, WorldState } from '../co
 import { findById } from '../state/entities';
 import { placeState, shownName } from '../state/evenings';
 import { listJoin, seatName } from '../systems/chronicle/text';
+import { shortGapWords } from '../systems/supplies/gapChecks';
 import { fillText } from './hamlet';
 
 /**
@@ -53,7 +54,12 @@ export function capitalized(text: string): string {
 
 function fillGap(state: WorldState, raw: string, gap: Gap): string {
   const name = subjectName(state, gap.subject);
+  // The fourth gap's own words (R3A): the good, how often, and what the town makes of it.
+  const words = gap.kind === 'shortOfSupplies' ? shortGapWords(state, gap) : { good: '', when: '', makes: 0 };
   const text = fillText(raw, [
+    ['good', words.good],
+    ['when', words.when],
+    ['makes', String(words.makes)],
     ['place', name],
     ['shop', name],
     ['street', name],
