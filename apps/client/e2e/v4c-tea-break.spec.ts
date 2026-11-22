@@ -9,7 +9,9 @@ import { waitLive } from './helpers';
 const expect = baseExpect.configure({ timeout: 120_000 });
 
 const QUERY = '?debug&quality=low&noguide&teabreak&fixture=grown';
-const ONLINE_QUERY = '?debug&quality=low&noguide&teabreak&fixture=hamlet';
+// The grown village for two seats too: a fresh hamlet paused at 06:00 has nobody out and nothing
+// walked, so (rightly) nothing to watch and no tea break.
+const ONLINE_QUERY = QUERY;
 
 interface View {
   x: number;
@@ -229,15 +231,15 @@ test('two seats: one seat on a tea break sends nothing and moves nobody else', a
   }) => {
     if (ws.url().includes('/api/')) ws.on('framesent', (f) => sent.push(String(f.payload)));
   };
-  // The page's socket was opened before this hook: reload nothing, instead hook sockets via CDP-free
-  // route: Playwright reports sockets only when they open, so attach to A's page now and reopen below.
+  // Playwright reports a socket only when it opens, so watch A's page and reload it to reopen its socket.
   a.on('websocket', watch);
   await a.reload();
   await waitLive(a);
-  await a.waitForTimeout(1500);
   await expect
     .poll(() => a.evaluate(() => !!(window as unknown as { __qotiTeaBreak?: unknown }).__qotiTeaBreak))
     .toBe(true);
+  await closeCards(a);
+  await a.waitForTimeout(1500);
 
   const bView = await view(b);
   const aSubmit = await a.evaluate(() => window.__qoti.lastSubmitAt());
