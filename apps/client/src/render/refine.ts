@@ -7,6 +7,7 @@
 // (`refineGoal`), the meter of sample frames it reads (`SampleMeter`) and the pure math of a
 // sample's camera (`sampleProjection`). The accumulation is cache.ts's, the drawing the renderer's
 // `drawSample`. V4A owns this file.
+import { TILT_TO } from './post';
 import { QUALITY_PRESETS, type Quality } from './quality';
 
 /** Photo mode saves the developed picture at this many samples (V4B; `capture`'s `samples`). */
@@ -184,12 +185,20 @@ export class SampleMeter {
  * shadows soften with distance from what casts them (a real sun is about a quarter of a degree;
  * the miniature's is wider) *(tune)*.
  */
-export const SUN_DISC = 1.6 * (Math.PI / 180);
+export const SUN_DISC = 2.5 * (Math.PI / 180);
+
+/**
+ * V4A: how far a sample moves the pixel, as a share of `RefineJitter.pixel`'s half-pixel range. The
+ * pattern array is already filtered for one look a pixel (mipmapped and anisotropic), so the full
+ * range would blur brick courses and roof tiles by its box; half keeps them as crisp as the plain
+ * still frame while every edge gets four times the MSAA's sample positions *(tune)*.
+ */
+export const PIXEL_SPREAD = 0.5;
 
 /**
  * V4A: how a sample moves the camera: `eye` is the lens offset in the camera's own x and y
  * (world units), `shift` what is added to the projection matrix's elements 8 and 9 (its off-axis
- * terms), which moves the picture by `jitter.pixel` pixels and keeps the focus plane (`focus` world
+ * terms), which moves the picture by `jitter.pixel` times PIXEL_SPREAD pixels and keeps the focus plane (`focus` world
  * units along the view axis) where it was, so everything there stays sharp while nearer and farther
  * things blur by their depth.
  * `p00` and `p11` are the projection matrix's scales, `width` and `height` the target in pixels,
@@ -210,8 +219,8 @@ export function sampleProjection(
   return {
     eye: [ex, ey],
     shift: [
-      (2 * jitter.pixel[0]) / Math.max(1, width) - (p00 * ex) / f,
-      (2 * jitter.pixel[1]) / Math.max(1, height) - (p11 * ey) / f,
+      (2 * PIXEL_SPREAD * jitter.pixel[0]) / Math.max(1, width) - (p00 * ex) / f,
+      (2 * PIXEL_SPREAD * jitter.pixel[1]) / Math.max(1, height) - (p11 * ey) / f,
     ],
   };
 }
@@ -220,4 +229,44 @@ export function sampleProjection(
 export function refineOffFromUrl(search: string): boolean {
   const q = new URLSearchParams(search);
   return q.has('debug') && q.get('refine') === '0';
+}
+
+/**
+ * V4A: the lens's widest blur at rest, a radius in pixels of the still target, for a rest of
+ * `samples`: about as wide as that many samples keep smooth (a disc of copies further apart than a
+ * pixel or so would show as copies), and wider by photo mode's depth of field (`dof`, 0 to 1).
+ */
+export function lensReach(samples: number, dof: number): number {
+  return 0.75 * Math.sqrt(Math.max(0, samples)) * (1 + 2 * Math.min(1, Math.max(0, dof)));
+}
+
+/** V4A: what the lens's aperture depends on (`lensAperture`). */
+export interface LensView {
+  /** The samples a rest develops to on this preset (or PHOTO_SAMPLES), and photo mode's depth of field. */
+  samples: number;
+  dof: number;
+  /** The tilt-shift's strength as the final pass takes it (post.ts `LeanFrame.tiltStrength`). */
+  tilt: number;
+  /** The distance to the focus along the view axis (world units), the still target's width in pixels. */
+  focus: number;
+  width: number;
+  /** The projection matrix's x scale, the view's tilt below level (tan), half the vertical field (tan). */
+  p00: number;
+  tanPitch: number;
+  tanHalfFov: number;
+}
+
+/**
+ * V4A: the lens's radius in world units for a rest (`sampleProjection`'s `aperture`): true depth of
+ * field under the tilt-shift, so the ground where the tilt-shift is at full strength (post.ts
+ * TILT_TO) blurs by `lensReach` pixels times the tilt's strength, nearer things by more and the
+ * focus not at all. None close up, where the tilt-shift is off.
+ */
+export function lensAperture(v: LensView): number {
+  const k = Math.min(1, Math.max(0, v.tilt));
+  if (k <= 0.02 || v.tanPitch <= 0.05 || v.samples <= 0 || v.width <= 0 || v.p00 <= 0) return 0;
+  // The ground's relative defocus (|1 - focus / depth|) at the mask's full strength.
+  const edge = (TILT_TO * 2 * v.tanHalfFov) / v.tanPitch;
+  const reach = lensReach(v.samples, v.dof) * k;
+  return Math.min(v.focus * 0.05, (reach * v.focus) / ((v.width / 2) * v.p00 * edge));
 }

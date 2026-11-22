@@ -212,8 +212,11 @@ export class SampleSun {
   private readonly position = new Vector3();
   private readonly target = new Vector3();
 
-  /** Swaps in the sample's shadow and places it for `dir`; false (nothing changed) if it cannot. */
-  begin(light: DirectionalLight, cache: ShadowCache, dir: Vector3): boolean {
+  /**
+   * Swaps in the sample's shadow and places it for `dir`, its filter `radius` texels wide (the
+   * cached one's by default); false (nothing changed) if it cannot.
+   */
+  begin(light: DirectionalLight, cache: ShadowCache, dir: Vector3, radius?: number): boolean {
     if (this.plain) return false;
     const plain = light.shadow;
     const size = plain.mapSize.x;
@@ -224,7 +227,7 @@ export class SampleSun {
     const s = this.shadow;
     s.bias = plain.bias;
     s.normalBias = plain.normalBias;
-    s.radius = plain.radius;
+    s.radius = radius ?? plain.radius;
     this.position.copy(light.position);
     this.target.copy(light.target.position);
     light.shadow = s;

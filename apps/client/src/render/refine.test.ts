@@ -13,6 +13,7 @@ import {
   halton,
   METER_STALE_MS,
   PHOTO_SAMPLES,
+  PIXEL_SPREAD,
   refineGoal,
   refineJitter,
   refineOffFromUrl,
@@ -268,11 +269,11 @@ describe("V4A: a sample's camera", () => {
     const jitter = { ...refineJitter(5), pixel: [0.25, -0.5] as [number, number] };
     const w = 800;
     const h = 500;
-    // The pixel alone moves everything by a quarter and half a pixel.
+    // The pixel alone moves everything by a quarter and half a pixel (times the spread).
     const pix = sampleProjection({ ...jitter, lens: [0, 0] }, w, h, 2, focus, pm[0]!, pm[5]!);
     expect(pix.eye).toEqual([0, 0]);
-    expect(pix.shift[0]).toBeCloseTo((2 * 0.25) / w, 12);
-    expect(pix.shift[1]).toBeCloseTo((2 * -0.5) / h, 12);
+    expect(pix.shift[0]).toBeCloseTo((2 * 0.25 * PIXEL_SPREAD) / w, 12);
+    expect(pix.shift[1]).toBeCloseTo((2 * -0.5 * PIXEL_SPREAD) / h, 12);
     // The lens alone: the eye moves, the focus plane stays put, nearer things move.
     const lens = sampleProjection({ ...jitter, pixel: [0, 0], lens: [0.6, -0.8] }, w, h, 2, focus, pm[0]!, pm[5]!);
     expect(lens.eye[0]).toBeCloseTo(1.2, 12);

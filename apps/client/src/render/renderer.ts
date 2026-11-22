@@ -18,8 +18,9 @@ import {
   Vector3,
   WebGLRenderer,
   WebGLRenderTarget,
+  DoubleSide,
+  MeshLambertMaterial,
   type Material,
-  type MeshLambertMaterial,
 } from 'three';
 import { CameraController, FOV, setFreeCamera } from '../input/camera';
 import type { Mirror } from '../state/mirror';
@@ -54,9 +55,11 @@ import { hazeFor, lightingAt } from './lighting';
 import { LOOK_TONE_MAPPING } from './look';
 import { createWorldMaterial } from './material';
 import { pickTileFromRay } from './picking';
-import { LeanFrame } from './post';
+import { LeanFrame, type RestLens } from './post';
 import { buildingDetailNow, closeUpNow, pixelRatios, QUALITY_PRESETS, type Quality } from './quality';
 import {
+  lensAperture,
+  PHOTO_SAMPLES,
   refineGoal,
   refineOffFromUrl,
   SampleMeter,
@@ -282,6 +285,7 @@ export class Renderer implements RenderApi {
       renderer: this.three,
       frame: this.lean,
       draw: (jitter, target) => this.drawSample(jitter, target),
+      drawSky: (jitter, target) => this.drawSky(jitter, target),
     };
     this.lean.useEndpaper(this.env.endpaper);
     this.setQuality(quality);
@@ -696,8 +700,22 @@ export class Renderer implements RenderApi {
     const pm = camera.projectionMatrix.elements;
     const e8 = pm[8]!;
     const e9 = pm[9]!;
-    const focus = camera === this.camera ? this.viewDistance : camera.position.distanceTo(this.env.focus);
-    const { eye, shift } = sampleProjection(jitter, target.width, target.height, 0, focus, pm[0]!, pm[5]!);
+    const main = camera === this.camera;
+    const focus = main ? this.viewDistance : camera.position.distanceTo(this.env.focus);
+    // The lens: true depth of field under the tilt-shift (none for V4X's captures until it asks).
+    const aperture = main
+      ? lensAperture({
+          samples: this.photoOn ? PHOTO_SAMPLES : QUALITY_PRESETS[this.quality].refineSamples,
+          dof: this.lean.depthOfField,
+          tilt: this.lean.tiltStrength,
+          focus,
+          width: target.width,
+          p00: pm[0]!,
+          tanPitch: this.tanPitch(camera),
+          tanHalfFov: Math.tan(MathUtils.degToRad(camera.fov / 2)),
+        })
+      : 0;
+    const { eye, shift } = sampleProjection(jitter, target.width, target.height, aperture, focus, pm[0]!, pm[5]!);
     pm[8] = e8 + shift[0];
     pm[9] = e9 + shift[1];
     camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert();
@@ -708,35 +726,18 @@ export class Renderer implements RenderApi {
       camera.translateY(eye[1]);
       camera.updateMatrixWorld();
     }
-    // The sun inside its disc, or the sky: never on a frame whose cached map is due (that render
-    // must be the plain one, and the sample then keeps the plain sun).
+    // The sun inside its disc: never on a frame whose cached map is due (that render must be the
+    // plain one, and the sample then keeps the plain sun).
     const shadows = this.three.shadowMap;
     let lit = false;
     const sun = this.sun;
-    const color = this.sampleColor.copy(sun.color);
-    const intensity = sun.intensity;
     if (shadows.enabled && !shadows.needsUpdate) {
-      const sky = new URLSearchParams(location.search).get('sky') === '0' ? null : jitter.sky; // EXPERIMENT
-      const dir = sky
-        ? this.sampleDir.set(sky[0], sky[1], sky[2])
-        : discDirection(this.sunDir, jitter.sun, Number(new URLSearchParams(location.search).get('disc') ?? NaN) * (Math.PI / 180) || SUN_DISC, this.sampleDir); // EXPERIMENT
+      const dir = discDirection(this.sunDir, jitter.sun, SUN_DISC, this.sampleDir);
       lit = this.sampleSun.begin(sun, this.shadowCache, dir);
-      if (lit) {
-        shadows.needsUpdate = true;
-        if (sky) {
-          // Light from that part of the sky, in the sky's color, as bright on open ground as the
-          // sun was; the hemisphere light stays.
-          sun.color.copy(this.hemi.color);
-          sun.intensity = (intensity * Math.max(0.05, this.sunDir.y)) / Math.max(0.2, sky[1]);
-        }
-      }
+      if (lit) shadows.needsUpdate = true;
     }
     this.scenePass(target, 'static', camera);
-    if (lit) {
-      this.sampleSun.end(sun);
-      sun.color.copy(color);
-      sun.intensity = intensity;
-    }
+    if (lit) this.sampleSun.end(sun);
     pm[8] = e8;
     pm[9] = e9;
     camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert();
@@ -744,6 +745,91 @@ export class Renderer implements RenderApi {
       camera.position.copy(this.sampleEye);
       camera.updateMatrixWorld();
     }
+  }
+
+  /**
+   * V4A: one sky sample for the still-frame cache (cache.ts `RefineContext.drawSky`): the static
+   * layers in plain white (`skyMaterial`), lit only from the sample's part of the sky, in red
+   * through a shadow map from there (`SampleSun`, its filter twice as soft) and in green without
+   * one. The cache adds them up; red over green is how much of the sky a pixel sees. Every light,
+   * the clear color and the override are put back after.
+   */
+  private drawSky(jitter: RefineJitter, target: WebGLRenderTarget): void {
+    const sky = jitter.sky ?? [0, 1, 0];
+    const dir = this.sampleDir.set(sky[0], sky[1], sky[2]).normalize();
+    const three = this.three;
+    const shadows = three.shadowMap;
+    const sun = this.sun;
+    const fill = this.fill;
+    const clear = this.sampleColor;
+    three.getClearColor(clear);
+    const clearAlpha = three.getClearAlpha();
+    three.setClearColor(0xffffff, 1);
+    const lit =
+      shadows.enabled &&
+      !shadows.needsUpdate &&
+      this.sampleSun.begin(sun, this.shadowCache, dir, Math.max(1, sun.shadow.radius) * 2);
+    if (!lit) {
+      // Nothing to cast from (or the cached map is due): an open sky, so the sum is unchanged in kind.
+      three.setRenderTarget(target);
+      three.clear();
+      three.setClearColor(clear, clearAlpha);
+      return;
+    }
+    shadows.needsUpdate = true;
+    const saved = {
+      sunIntensity: sun.intensity,
+      fillColor: fill.color.clone(),
+      fillIntensity: fill.intensity,
+      fillPosition: fill.position.clone(),
+      hemi: this.hemi.intensity,
+    };
+    const sunColor = sun.color.clone();
+    sun.color.setRGB(1, 0, 0);
+    sun.intensity = 1;
+    fill.color.setRGB(0, 1, 0);
+    fill.intensity = 1;
+    fill.position.copy(dir).add(fill.target.position);
+    this.hemi.intensity = 0;
+    this.scene.overrideMaterial = this.skyMaterial;
+    this.scenePass(target, 'static');
+    this.scene.overrideMaterial = null;
+    this.sampleSun.end(sun);
+    sun.color.copy(sunColor);
+    sun.intensity = saved.sunIntensity;
+    fill.color.copy(saved.fillColor);
+    fill.intensity = saved.fillIntensity;
+    fill.position.copy(saved.fillPosition);
+    this.hemi.intensity = saved.hemi;
+    three.setClearColor(clear, clearAlpha);
+  }
+
+  /** V4A: what a sky sample draws everything in: plain white, both sides, no fog. */
+  private readonly skyMaterial = new MeshLambertMaterial({ color: 0xffffff, fog: false, side: DoubleSide });
+
+  /** V4A: the view's tilt below level, as a tangent. */
+  private tanPitch(camera: PerspectiveCamera): number {
+    const d = camera.getWorldDirection(this.pitchDir);
+    return -d.y / Math.max(1e-6, Math.hypot(d.x, d.z));
+  }
+
+  private readonly pitchDir = new Vector3();
+
+  /** V4A: the lens at rest for the final pass (post.ts `RestLens`), once the picture develops. */
+  private restLens(): RestLens | undefined {
+    const depth = this.still.depth;
+    const ramp = this.still.lensRamp;
+    if (!depth || ramp <= 0) return undefined;
+    const c = this.camera;
+    return {
+      depth,
+      ramp,
+      near: c.near,
+      far: c.far,
+      focus: this.viewDistance,
+      tanPitch: this.tanPitch(c),
+      tanHalfFov: Math.tan(MathUtils.degToRad(c.fov / 2)),
+    };
   }
 
   /** The lean engine's frame: a moving, still or idle scene pass, then the blur and final pass. */
@@ -809,7 +895,12 @@ export class Renderer implements RenderApi {
       // moving layer glows (fireflies, fireworks) it is built from the whole frame every few frames.
       // V4A: from the picture on show, once per still frame and once more when it settles.
       const glowing = this.layers.some((l) => l.glowing?.() === true);
-      lean.finish(target, { picture: this.still.picture, key: this.still.pictureKey(key), glowing });
+      lean.finish(target, {
+        picture: this.still.picture,
+        key: this.still.pictureKey(key),
+        glowing,
+        lens: this.restLens(),
+      });
     }
     this.gpuTimer.end();
     this.needsRender = false;
