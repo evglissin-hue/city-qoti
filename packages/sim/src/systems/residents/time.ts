@@ -63,7 +63,9 @@ export function scheduleClock(r: Resident, tick: number): number {
 export const Block = { night: 0, morning: 1, commute: 2, day: 3, evening: 4, windDown: 5 } as const;
 export type BlockId = (typeof Block)[keyof typeof Block];
 
-const MORNING = at(6);
+/** The morning block starts here, on the schedule clock (06:00). */
+export const MORNING_START = at(6);
+const MORNING = MORNING_START;
 const COMMUTE = at(7.5);
 const WORK = at(8);
 const EVENING = at(17);
