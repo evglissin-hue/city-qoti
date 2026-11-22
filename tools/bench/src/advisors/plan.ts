@@ -24,7 +24,7 @@ import {
   type WorldState,
 } from '@qoti/sim';
 import { content } from '@qoti/content';
-import type { Planner } from '../planner';
+import { importPrice, type Planner } from '../planner';
 import { count, FOODS } from '../town';
 import { BAR_ZONES } from '../village';
 import type { Advisor, AdvisorDef, Visit } from './types';
@@ -123,6 +123,13 @@ class Plan implements Advisor {
     }
     const pop = w.residents.length;
     const mark = w.seasonPlan.food ?? w.seasonPlan.reserve;
+    // The coins the carrier will need for the winter's food: what the mark asks beyond the larder, at
+    // the carrier's price, from the summer's fourth day until the thaw.
+    const eaten = FOODS.reduce((n, g) => n + (w.economy.yesterday.consumed[g] ?? 0), 0);
+    const short =
+      (season === 1 && day >= 4) || season >= 2 ? Math.max(0, mark * Math.max(eaten, pop) - larder(w)) : 0;
+    const price = FOODS.reduce((n, g) => n + importPrice(w, g), 0) / Math.max(1, FOODS.length);
+    p.winterFood = Math.ceil(short * price);
     p.larderShort = (season === 1 || season === 2) && pop > 0 && pop * mark > larder(w);
   }
 }

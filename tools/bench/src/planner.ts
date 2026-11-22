@@ -191,6 +191,13 @@ export class Planner {
    * Wants that can wait leave it in the treasury too.
    */
   laneReserve = 0;
+  /**
+   * P3A: coins the plan advisor keeps back, from the summer's fourth day to the thaw, for what the
+   * carrier must still bring to fill the winter's food mark (wants that can wait leave them alone;
+   * willow spent its autumn on building, stood at its credit line and ran out of food on the last
+   * day of winter).
+   */
+  winterFood = 0;
   private readonly noSpot = new Map<string, number>();
 
   constructor(readonly h: Hamlet) {}
@@ -335,7 +342,9 @@ export class Planner {
     // C5A: an urgent want that keeps the town going may spend the reserve, which is there for it (a
     // Hamlet down to 37 coins could never replace its last woodcutter, and with no logs, nothing else).
     const reserve =
-      want.essential && want.priority === URGENT ? 0 : MONEY_RESERVE + (want.pressing ? 0 : this.laneReserve);
+      want.essential && want.priority === URGENT
+        ? 0
+        : MONEY_RESERVE + (want.pressing ? 0 : this.laneReserve + this.winterFood);
     if (this.coins() < want.cost.coins + reserve) return false;
     // C5A: late in a season the Charter's surplus wants, nothing that can wait may tip it into deficit.
     // C5X: counting the upkeep still to pay this season and a path, and only food or materials

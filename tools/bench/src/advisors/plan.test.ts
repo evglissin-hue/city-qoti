@@ -3,6 +3,7 @@
 import { describe, expect, it } from 'vitest';
 import { content } from '@qoti/content';
 import { Flags, MAP_SIZE, onFloodplain, TICKS_PER_DAY } from '@qoti/sim';
+import { autoplay } from '../autoplay';
 import { startingTown } from '../hamlet';
 import { Planner } from '../planner';
 import { plan } from './plan';
@@ -36,4 +37,28 @@ describe('the plan advisor', () => {
     expect(where(false)).toBe(true);
     expect(where(true)).toBe(false);
   });
+
+  it(
+    'keeps coins back for the winter food the larder falls short of, from summer day 4 to the thaw',
+    { timeout: 60_000 },
+    () => {
+      const reserve = (day: number) => {
+        const h = autoplay('hazel', 8).hamlet;
+        const w = h.world;
+        w.tick = day * TICKS_PER_DAY;
+        for (const b of w.buildings) {
+          b.rt?.store.fill(0);
+          b.rt?.output.fill(0);
+        }
+        for (const hh of w.households) hh.pantry.fill(0);
+        expect(w.residents.length).toBeGreaterThan(0);
+        const p = new Planner(h);
+        plan.create(p).visit({ afternoon: false });
+        return p.winterFood;
+      };
+      // Day 12 is autumn day 1 (six days a season, spring first); day 2 is spring.
+      expect(reserve(12)).toBeGreaterThan(0);
+      expect(reserve(2)).toBe(0);
+    },
+  );
 });
