@@ -3,7 +3,7 @@
 // that fits it (a garden bed is no "Service"). The facts come from the Mirror and the inspect detail.
 import { content, type BuildingDef, type DecorDef } from '@qoti/content';
 import type { BuildingDetail, BuildingView, HouseholdView } from '@qoti/sim';
-import { GARDEN_BED_REACH } from '@qoti/sim';
+import { GARDEN_BED_REACH, gardenBedReaches } from '@qoti/sim';
 import { CATEGORY_WORD } from '../hamlet';
 import { purposeCore } from '../purpose';
 
@@ -52,31 +52,16 @@ export function familiesText(names: readonly string[]): string {
   return `the ${list} ${n === 1 ? 'family' : 'families'}`;
 }
 
-/** Whole-tile gap squared between two inclusive rects, as the sim measures a garden bed's reach. */
-function gap2(a: readonly number[], b: readonly number[]): number {
-  const gx = Math.max(0, a[0]! - b[2]!, b[0]! - a[2]!);
-  const gz = Math.max(0, a[1]! - b[3]!, b[1]! - a[3]!);
-  return gx * gx + gz * gz;
-}
-
-function rectOf(b: BuildingView): [number, number, number, number] {
-  const def = content.buildingById.get(b.def);
-  const [w, d] = def?.size ?? [1, 1];
-  const [fw, fd] = b.rot % 2 === 0 ? [w, d] : [d, w];
-  return [b.x, b.z, b.x + fw - 1, b.z + fd - 1];
-}
-
 /**
- * The homes a garden bed gives to: built homes within its reach (the same disk the sim reads in
- * `gardenFlavors`), by the family living there, and the count of homes with no family yet.
+ * The homes a garden bed gives to: built homes within its reach (the sim's own rule,
+ * `gardenBedReaches`, which `gardenFlavors` reads), by the family living there, and the count of
+ * homes with no family yet.
  */
 export function homesBeside(
   bed: BuildingView,
   buildings: Iterable<BuildingView>,
   households: Iterable<HouseholdView>,
 ): { families: string[]; empty: number } {
-  const mine = rectOf(bed);
-  const reach = GARDEN_BED_REACH * GARDEN_BED_REACH + GARDEN_BED_REACH;
   const family = new Map<number, string>();
   for (const h of households) family.set(h.homeId, h.family);
   const families: string[] = [];
@@ -84,7 +69,7 @@ export function homesBeside(
   for (const b of buildings) {
     if (b.stage !== 'built' || b.id === bed.id) continue;
     if (!content.buildingById.get(b.def)?.housing) continue;
-    if (gap2(mine, rectOf(b)) > reach) continue;
+    if (!gardenBedReaches(bed, b)) continue;
     const f = family.get(b.id);
     if (f === undefined) empty++;
     else if (!families.includes(f)) families.push(f);
