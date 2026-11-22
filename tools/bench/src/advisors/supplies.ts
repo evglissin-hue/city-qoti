@@ -26,12 +26,13 @@ import {
   masterOf,
   rankAtLeast,
   roadKindLocked,
+  townStock,
   Road,
   type Building,
   type WorldState,
 } from '@qoti/sim';
 import { costOf, REPAY_RESERVE, VILLAGE_MARGIN, type Budget, type Planner } from '../planner';
-import { count, S } from '../town';
+import { G, S } from '../town';
 import {
   candleStock,
   candlesMadeDaily,
@@ -46,6 +47,10 @@ import type { Advisor, AdvisorDef } from './types';
 export const PLACES_ON_COINS = REPAY_RESERVE + 150;
 /** Coins under which the carrier stops buying for places. */
 export const PLACES_OFF_COINS = REPAY_RESERVE;
+/** Residents before a farm is pinned to hives: a young town's farms feed it (oak stalled when one was retooled on day 19). */
+const HIVE_POP = 60;
+/** Honey in town before a chandler is pinned. */
+const HONEY_MIN = 4;
 /** Chandlers the town is asked for at most. */
 const CHANDLERS_MAX = 3;
 /** A spare farmstead is tried for hives this many times at most (the sim retools a pin whose ground fails). */
@@ -102,7 +107,9 @@ class Supplies implements Advisor {
     );
     const counts = new Map<string, number>();
     for (const b of of) counts.set(b.trade!, (counts.get(b.trade!) ?? 0) + 1);
-    return of.filter((b) => b.trade !== keep && counts.get(b.trade!)! >= 2).sort((a, b) => a.id - b.id);
+    // A farm trade must have three before one is spared: food comes first (a pin must not thin a larder).
+    const least = zone === 'farms' ? 3 : 2;
+    return of.filter((b) => b.trade !== keep && counts.get(b.trade!)! >= least).sort((a, b) => a.id - b.id);
   }
 
   /** Hives where the flowers allow, then a chandler beside the honey, while lanterns outrun the candles. */
@@ -118,7 +125,11 @@ class Supplies implements Advisor {
         .length;
     const chandlers = Math.min(CHANDLERS_MAX, Math.ceil(draw / CHANDLER_DAILY));
     const hivesWanted = Math.ceil(chandlers / 2);
-    if (built('hives') < hivesWanted && this.hiveTries.length < HIVE_TRIES) {
+    if (
+      w.residents.length >= HIVE_POP &&
+      built('hives') < hivesWanted &&
+      this.hiveTries.length < HIVE_TRIES
+    ) {
       const flowers = content.tradeById.get('hives')?.wants.pollinators ?? 0;
       // A farmstead whose chunk's pollinators already meet the want: the sim would retool a pin that fails it.
       const at = this.spare('farms', 'hives').find((b) => habitatAt(w, b.x, b.z, 'pollinator') >= flowers);
@@ -129,8 +140,9 @@ class Supplies implements Advisor {
         ]);
       }
     }
-    // The chandler waits for honey in reach: a hives business, or an apiary, standing.
-    const honey = built('hives') > 0 || count(w, 'apiary') > 0;
+    // The chandler waits until honey is actually in hand (a pinned workshop with no honey makes
+    // nothing and costs the town what it made before: oak stalled for ten days on it).
+    const honey = (townStock(w)[G('honey')] ?? 0) >= HONEY_MIN;
     if (honey && built('chandler') < chandlers) {
       const at = this.spare('crafts', 'chandler')[0];
       if (at)

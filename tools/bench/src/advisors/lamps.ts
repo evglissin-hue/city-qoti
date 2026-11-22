@@ -32,6 +32,8 @@ import type { Advisor, AdvisorDef } from './types';
 
 /** Commands one visit may send (as the places advisor's VISIT_COMMANDS). */
 const VISIT_COMMANDS = 3;
+/** Days a place keeps a priority before the advisor changes it again (no flip-flopping as places merge and grow). */
+const PRIORITY_DAYS = 4;
 /** Candles a built chandler is counted to make a day (honey-limited: a hive pair feeds about two cycles). */
 export const CHANDLER_DAILY = 6;
 /** Days of Fuel use a brazier may draw on top of the reserve and the winter mark. */
@@ -220,11 +222,18 @@ export function priorityChanges(
 }
 
 class Lamps implements Advisor {
+  /** The run day each place's priority last changed (a place is left alone for `PRIORITY_DAYS`). */
+  private readonly sent = new Map<string, number>();
+
   constructor(readonly p: Planner) {}
 
   visit(): void {
-    for (const { place, priority } of priorityChanges(this.p.w))
-      this.p.do(`${place.name} to ${priority}`, [{ t: 'place.setPriority', id: place.id, priority }]);
+    const day = this.p.runDay;
+    for (const { place, priority } of priorityChanges(this.p.w)) {
+      if (day - (this.sent.get(place.id) ?? -PRIORITY_DAYS) < PRIORITY_DAYS) continue;
+      if (this.p.do(`${place.name} to ${priority}`, [{ t: 'place.setPriority', id: place.id, priority }]))
+        this.sent.set(place.id, day);
+    }
   }
 }
 

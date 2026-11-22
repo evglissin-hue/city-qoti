@@ -2,11 +2,13 @@
 // on with money and off with debt, at most once a day a family, with the family's rule and sell left
 // as they stand; and the two lanes stay apart (the Ledger sends no decor or priority, the Hearth no
 // zone, carrier rule or business). State is built by hand where the stand-ins cannot reach it.
+import { content } from '@qoti/content';
 import { PENNIES_PER_COIN, TILE_FP, type Building, type WorldState } from '@qoti/sim';
 import { describe, expect, it } from 'vitest';
 import { autoplay } from '../autoplay';
 import { startingTown } from '../hamlet';
 import { Planner } from '../planner';
+import { G } from '../town';
 import { advisors } from '.';
 import { PLACES_OFF_COINS, PLACES_ON_COINS, supplies } from './supplies';
 
@@ -92,6 +94,9 @@ describe('the supplies advisor', () => {
       ({ ...base, id, stage: 'built', def: 'workshop', trade, pinned: undefined }) as unknown as Building;
     w.buildings.push(biz(9301, 'hives'), biz(9302, 'carpenter'), biz(9303, 'carpenter'));
     w.economy.treasury = 100 * PENNIES_PER_COIN;
+    const store = w.buildings.find((b) => b.rt && content.buildingById.get(b.def)?.storage)!;
+    store.stage = 'built';
+    store.rt!.store[G('honey')] = 10;
     supplies.create(p).visit({ afternoon: false });
     const pins = p.decisions.filter((d) => d.cmd.t === 'build.pinRecipe');
     expect(pins.map((d) => (d.cmd as { trade: string }).trade)).toContain('chandler');
