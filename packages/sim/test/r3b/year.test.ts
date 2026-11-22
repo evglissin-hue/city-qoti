@@ -114,7 +114,8 @@ describe('the masters day budget', () => {
     log.log(
       `[r3b] masters day on ${state.residents.length} residents: ${ms.toFixed(3)} ms (an hour's share ${(ms / 24).toFixed(4)} ms)`,
     );
-    // Once a day; the shared row is 1 ms an hour for gaps, supplies, masters and the Town Book.
-    expect(ms).toBeLessThan(2);
+    // Once a day; the shared row is 1 ms an hour for gaps, supplies, masters and the Town Book. About
+    // 0.17 ms on a quiet machine; the ceiling leaves room for a loaded one (5 ms is 0.2 ms an hour).
+    expect(ms).toBeLessThan(5);
   });
 });
