@@ -156,10 +156,15 @@ export class ShadowCache {
    * `size` across in `dir`'s own plane. Not a render of the cached map (`renders` stays). False
    * before the first render, when there is no frustum to follow.
    */
-  placeSample(light: DirectionalLight, dir: Vector3, size: number): boolean {
-    if (Number.isNaN(this.center.x) || this.half <= 0) return false;
-    const half = this.half;
-    const c = snapToTexels(this.center, dir, half, size, this.sampleCenter);
+  placeSample(
+    light: DirectionalLight,
+    dir: Vector3,
+    size: number,
+    fit?: { center: Vector3; half: number },
+  ): boolean {
+    if (!fit && (Number.isNaN(this.center.x) || this.half <= 0)) return false;
+    const half = fit ? fit.half : this.half;
+    const c = snapToTexels(fit ? fit.center : this.center, dir, half, size, this.sampleCenter);
     const cam = light.shadow.camera;
     cam.left = -half;
     cam.right = half;
@@ -228,6 +233,8 @@ export class SampleSun {
   /**
    * Swaps in the sample's shadow and places it for `dir`, its filter `radius` texels wide and its
    * map `mapSize` across (the cached one's by default); false (nothing changed) if it cannot.
+   * V4X: `fit` puts the frustum about a capture's own aim (`center`, `half` in tiles) instead of
+   * following the main view, so a capture of somewhere else gets its own soft shadows.
    */
   begin(
     light: DirectionalLight,
@@ -235,6 +242,7 @@ export class SampleSun {
     dir: Vector3,
     radius?: number,
     mapSize?: number,
+    fit?: { center: Vector3; half: number },
   ): boolean {
     if (this.plain) return false;
     const plain = light.shadow;
@@ -251,7 +259,7 @@ export class SampleSun {
     this.position.copy(light.position);
     this.target.copy(light.target.position);
     light.shadow = s;
-    if (!cache.placeSample(light, dir, size)) {
+    if (!cache.placeSample(light, dir, size, fit)) {
       light.shadow = plain;
       return false;
     }

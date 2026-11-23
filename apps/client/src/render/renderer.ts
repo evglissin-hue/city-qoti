@@ -25,6 +25,7 @@ import {
   WebGLRenderer,
   WebGLRenderTarget,
   type Material,
+  type Object3D,
 } from 'three';
 import { CameraController, FOV, setFreeCamera } from '../input/camera';
 import type { Mirror } from '../state/mirror';
@@ -68,6 +69,7 @@ import {
   PHOTO_SAMPLES,
   refineAllFromUrl,
   refineGoal,
+  refineJitter,
   refineOffFromUrl,
   SampleMeter,
   sampleProjection,
@@ -76,10 +78,26 @@ import {
   type RefineJitter,
 } from './refine';
 import { DynamicResolution } from './resolution';
-import { discDirection, SampleSun, sampleShadowSize, ShadowCache, type ShadowView } from './shadows';
+import {
+  discDirection,
+  halfFor,
+  MAX_HALF,
+  SampleSun,
+  sampleShadowSize,
+  ShadowCache,
+  type ShadowView,
+} from './shadows';
+import { CaptureAccum, captureJitterIndices, captureSampleCount } from './captureAccum';
 import { shadowContentDue, StaticRevisions } from './statics';
 
 export type { Quality } from './quality';
+
+/** V4X: where a developed capture's sample sun fits its shadow frustum (`drawSample`'s `fit`). */
+interface CaptureFit {
+  center: Vector3;
+  half: number;
+  distance: number;
+}
 
 export interface RenderStats {
   fps: number;
@@ -695,18 +713,27 @@ export class Renderer implements RenderApi {
    * refine.ts `sampleProjection`), and the sun moves inside its disc with a shadow map of its own
    * (shadows.ts `SampleSun`), so the cached map moving layers receive stays as it was. Everything is
    * put back after. Sky samples are `drawSky`'s. `camera` is the main one but for V4X's developed
-   * captures (`capture`'s `samples`; no lens there until V4X asks for one).
+   * captures (`capture`'s `samples`; no lens there). V4X: `which` is 'all' for a capture (residents,
+   * carts and smoke too), and `fit` puts the sun's shadow frustum about the capture's aim, with
+   * sample 0 drawn the same way (the undisturbed sun and pixel) so the mean's samples agree.
+   * Sky-only indices (every fourth) are plain sun-disc samples here: the sky is the cache's.
    */
-  private drawSample(jitter: RefineJitter, target: WebGLRenderTarget, camera = this.camera): void {
-    if (jitter.index <= 0) {
-      this.scenePass(target, 'static', camera);
+  private drawSample(
+    jitter: RefineJitter,
+    target: WebGLRenderTarget,
+    camera = this.camera,
+    which: 'all' | 'static' = 'static',
+    fit?: CaptureFit,
+  ): void {
+    if (jitter.index <= 0 && !fit) {
+      this.scenePass(target, which, camera);
       return;
     }
     const pm = camera.projectionMatrix.elements;
     const e8 = pm[8]!;
     const e9 = pm[9]!;
     const main = camera === this.camera;
-    const focus = main ? this.viewDistance : camera.position.distanceTo(this.env.focus);
+    const focus = fit ? fit.distance : main ? this.viewDistance : camera.position.distanceTo(this.env.focus);
     // The lens: true depth of field under the tilt-shift (none for V4X's captures until it asks).
     const aperture = main
       ? lensAperture({
@@ -751,11 +778,12 @@ export class Renderer implements RenderApi {
         this.shadowCache,
         dir,
         undefined,
-        sampleShadowSize(sun.shadow.mapSize.x, this.viewDistance),
+        sampleShadowSize(sun.shadow.mapSize.x, fit ? fit.distance : this.viewDistance),
+        fit,
       );
       if (lit) shadows.needsUpdate = true;
     }
-    this.scenePass(target, 'static', camera);
+    this.scenePass(target, which, camera);
     if (lit) this.sampleSun.end(sun);
     pm[8] = e8;
     pm[9] = e9;
@@ -973,6 +1001,9 @@ export class Renderer implements RenderApi {
    * still-frame cache), or `idle` (the cache restored, then the moving layers). Layers the pass
    * does not draw are hidden for it, so three does not even walk them.
    */
+  /** V4X: roots a developed ink capture leaves out of every sample (the page's marks and tufts). */
+  private passHidden: Object3D[] | null = null;
+
   private scenePass(
     target: WebGLRenderTarget,
     which: 'all' | 'static' | 'idle',
@@ -982,7 +1013,9 @@ export class Renderer implements RenderApi {
     if (which === 'static') cam.layers.set(STATIC_LAYER);
     else if (which === 'idle') cam.layers.set(MOVING_LAYER);
     for (const r of this.roots)
-      r.root.visible = which === 'all' || (which === 'static' ? !r.moving : r.moving);
+      r.root.visible =
+        (which === 'all' || (which === 'static' ? !r.moving : r.moving)) &&
+        !(this.passHidden !== null && this.passHidden.includes(r.root));
     this.still.restore.visible = which === 'idle';
     this.three.setRenderTarget(target);
     this.three.render(this.scene, cam);
@@ -1280,6 +1313,55 @@ export class Renderer implements RenderApi {
     });
   }
 
+  private readonly captureAccum = new CaptureAccum();
+  private inkScratch: WebGLRenderTarget | null = null;
+  private readonly captureAim = new Vector3();
+
+  /** V4X: a print's accumulation and scratch targets are large: let them go with the print's. */
+  private releaseCaptureScratch(): void {
+    this.captureAccum.dispose();
+    this.inkScratch?.dispose();
+    this.inkScratch = null;
+  }
+
+  /**
+   * V4X: a developed capture. Sample 0 (the plain pixel and sun) goes into `first`, then the
+   * jittered samples `refineJitter(1..n)` into `scratch` (or `first` again when nothing else of
+   * sample 0 is wanted, as the plain picture), each drawn from the capture camera through
+   * `drawSample` (every layer, no lens, the sun's shadow frustum fitted to the capture's aim) and
+   * folded into a running mean on the GPU. Returns the mean's target; `first` keeps sample 0's depth.
+   * The main view's shadow map, light, camera and render target are as they were after, and the
+   * still frame is not touched (it is not even invalidated: no cache key reads any of this).
+   */
+  private developCapture(
+    cam: PerspectiveCamera,
+    dist: number,
+    n: number,
+    first: WebGLRenderTarget,
+    scratch: WebGLRenderTarget | null,
+    float: boolean,
+    sky: Color | null,
+  ): WebGLRenderTarget {
+    const three = this.three;
+    const shadows = three.shadowMap;
+    const pending = shadows.needsUpdate;
+    shadows.needsUpdate = false;
+    const fit: CaptureFit = {
+      center: this.captureAim,
+      half: Math.min(MAX_HALF * 1.2, halfFor(dist) * 1.2),
+      distance: dist,
+    };
+    const acc = this.captureAccum;
+    acc.begin(first.width, first.height, float);
+    for (const i of captureJitterIndices(n)) {
+      const target = i === 0 || !scratch ? first : scratch;
+      this.drawSample(refineJitter(i), target, cam, 'all', fit);
+      acc.add(three, target.texture, sky);
+    }
+    shadows.needsUpdate = pending;
+    return acc.target;
+  }
+
   /** The capture camera about `opts.focus`, from the player's bearing at 50 degrees: its distance. */
   private aimCapture(opts: CaptureOptions): number {
     const [w, h] = opts.size;
@@ -1300,6 +1382,7 @@ export class Renderer implements RenderApi {
       fz - Math.cos(yaw) * Math.cos(pitch) * dist,
     );
     cam.lookAt(fx, y, fz);
+    this.captureAim.set(fx, y, fz);
     cam.near = Math.max(0.5, dist * 0.05);
     cam.far = dist * 6;
     cam.updateProjectionMatrix();
@@ -1323,13 +1406,20 @@ export class Renderer implements RenderApi {
     const fog = this.scene.fog as Fog;
     const fogSave = { near: fog.near, far: fog.far };
     Object.assign(fog, hazeFor(dist));
-    three.setRenderTarget(this.captureTarget);
-    three.clear();
-    three.render(this.scene, cam);
+    const n = captureSampleCount(opts.samples, w, h);
+    let source = this.captureTarget;
+    if (n > 0) {
+      source = this.developCapture(cam, dist, n, this.captureTarget, null, true, this.env.sky.value);
+    } else {
+      three.setRenderTarget(this.captureTarget);
+      three.clear();
+      three.render(this.scene, cam);
+    }
     three.setRenderTarget(prev);
     Object.assign(fog, fogSave);
     const px = new Float32Array(sw * sh * 4);
-    three.readRenderTargetPixels(this.captureTarget, 0, 0, sw, sh, px);
+    three.readRenderTargetPixels(source, 0, 0, sw, sh, px);
+    if (n > 0 && w * h > 1_000_000) this.releaseCaptureScratch();
     const canvas = document.createElement('canvas');
     canvas.width = w;
     canvas.height = h;
@@ -1401,9 +1491,25 @@ export class Renderer implements RenderApi {
       INK_LEAVES_OUT.includes(l.id) && this.roots[i]!.root.visible ? [this.roots[i]!.root] : [],
     );
     for (const root of hidden) root.visible = false;
-    three.setRenderTarget(this.inkSource);
-    three.clear();
-    three.render(this.scene, cam);
+    const n = captureSampleCount(opts.samples, w, h);
+    let color: WebGLRenderTarget = this.inkSource;
+    if (n > 0) {
+      if (!this.inkScratch || this.inkScratch.width !== sw || this.inkScratch.height !== sh) {
+        this.inkScratch?.dispose();
+        this.inkScratch = new WebGLRenderTarget(sw, sh, {
+          type: HalfFloatType,
+          depthBuffer: true,
+          samples: k === 1 ? Math.min(4, three.capabilities.maxSamples) : 0,
+        });
+      }
+      this.passHidden = hidden;
+      color = this.developCapture(cam, dist, n, this.inkSource, this.inkScratch, false, null);
+      this.passHidden = null;
+    } else {
+      three.setRenderTarget(this.inkSource);
+      three.clear();
+      three.render(this.scene, cam);
+    }
     three.setRenderTarget(prev);
     for (const root of hidden) root.visible = true;
     Object.assign(fog, fogSave);
@@ -1413,7 +1519,7 @@ export class Renderer implements RenderApi {
     this.inkPass.render(
       three,
       {
-        color: this.inkSource.texture,
+        color: color.texture,
         depth: this.inkSource.depthTexture!,
         src: [sw, sh],
         near: cam.near,
@@ -1435,6 +1541,7 @@ export class Renderer implements RenderApi {
       this.inkSource = null;
       this.inkOut.dispose();
       this.inkOut = null;
+      this.releaseCaptureScratch();
     }
     const canvas = document.createElement('canvas');
     canvas.width = w;
@@ -1505,6 +1612,8 @@ export class Renderer implements RenderApi {
     this.inkPass?.dispose();
     this.inkSource?.dispose();
     this.inkOut?.dispose();
+    this.inkScratch?.dispose();
+    this.captureAccum.destroy();
     this.three.dispose();
     this.three.domElement.remove();
     this.scene.background = new Color(0);
