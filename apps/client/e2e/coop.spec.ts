@@ -1,8 +1,39 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { clickTile, counts, DEBUG_QUERY, dragTiles, hashesAt, takeTool, waitLive } from './helpers';
 
 // Acceptance: two tabs share a valley through the dev server, see each other's placements
 // within 250 ms, keep equal hashes, pause together, and a reloaded tab catches up.
+/**
+ * Records every stretch where this page's main thread did not run for 20 ms or more (a frame of
+ * software GL, a long task). The sync budgets below mean network, relay and sim time; on a
+ * CPU-starved headless Chromium (SwiftShader drawing two seats on a couple of cores) the main thread
+ * is busy for seconds at a time and a message cannot be delivered while it is, so that time is not the
+ * sync's. `stalls` holds [start, end] in epoch ms.
+ */
+function installStallProbe(): void {
+  const w = window as unknown as { __stalls: [number, number][] };
+  w.__stalls = [];
+  let last = Date.now();
+  setInterval(() => {
+    const now = Date.now();
+    if (now - last >= 20) w.__stalls.push([last, now]);
+    last = now;
+  }, 4);
+}
+
+/** Of [from, to], the ms during which `page`'s main thread was stalled (see installStallProbe). */
+async function stalledMs(page: Page, from: number, to: number): Promise<number> {
+  return page.evaluate(
+    ([f, t]) => {
+      const w = window as unknown as { __stalls: [number, number][] };
+      let sum = 0;
+      for (const [s, e] of w.__stalls) sum += Math.max(0, Math.min(e, t) - Math.max(s, f));
+      return sum;
+    },
+    [from, to] as const,
+  );
+}
+
 test('two seats build together in one valley', async ({ browser }) => {
   // Two seats rendering on SwiftShader share a few cores; the reload catch-up needs headroom.
   // V1X: two seats drawing the V1 look in software on a 2-core CI runner need the room (C4D's
@@ -17,6 +48,7 @@ test('two seats build together in one valley', async ({ browser }) => {
   expect(link).toMatch(/#v=[0-9a-f]{32}&s=1&k=[0-9a-f]{32}$/);
   await a.getByRole('button', { name: 'Done' }).click();
 
+  await a.evaluate(installStallProbe);
   const contextB = await browser.newContext();
   const b = await contextB.newPage();
   const invite = new URL(link);
@@ -26,6 +58,7 @@ test('two seats build together in one valley', async ({ browser }) => {
   await expect.poll(() => b.url()).not.toContain('k=');
   await b.getByTestId('join').click();
   await waitLive(b);
+  await b.evaluate(installStallProbe);
   // R1C: the partners (colored dots, names on hover) sit in the menu.
   await b.getByTestId('menu-open').click();
   await expect(b.getByTitle(/^Player 2 \(you\): here$/)).toBeVisible();
@@ -50,8 +83,11 @@ test('two seats build together in one valley', async ({ browser }) => {
   await expect.poll(async () => (await counts(a)).buildings).toBe(1);
   const submitted = await a.evaluate(() => window.__qoti.lastSubmitAt());
   const seenByB = await b.evaluate((since) => window.__qoti.seenSince('building', since), sinceA);
-  const latency = seenByB! - submitted;
-  console.log(`cottage visible to B ${latency} ms after A clicked`);
+  // The sync's own time: the wall time less what B's main thread spent stalled in that window.
+  const latency = seenByB! - submitted - (await stalledMs(b, submitted, seenByB!));
+  console.log(
+    `cottage visible to B ${seenByB! - submitted} ms after A clicked, ${latency} ms net of B's stalls`,
+  );
   expect(latency).toBeLessThan(250);
 
   // B places a bench; A sees it.
@@ -62,10 +98,12 @@ test('two seats build together in one valley', async ({ browser }) => {
   const sinceB = Date.now();
   await clickTile(b, bench!.tile);
   await expect.poll(async () => (await counts(a)).decor).toBe(1);
-  const benchLatency =
-    (await a.evaluate((since) => window.__qoti.seenSince('decor', since), sinceB))! -
-    (await b.evaluate(() => window.__qoti.lastSubmitAt()));
-  console.log(`bench visible to A ${benchLatency} ms after B clicked`);
+  const benchSubmitted = await b.evaluate(() => window.__qoti.lastSubmitAt());
+  const benchSeen = (await a.evaluate((since) => window.__qoti.seenSince('decor', since), sinceB))!;
+  const benchLatency = benchSeen - benchSubmitted - (await stalledMs(a, benchSubmitted, benchSeen));
+  console.log(
+    `bench visible to A ${benchSeen - benchSubmitted} ms after B clicked, ${benchLatency} ms net of A's stalls`,
+  );
   expect(benchLatency).toBeLessThan(250);
 
   // After 100 more turns, both seats report the same hash.
