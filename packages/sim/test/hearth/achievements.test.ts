@@ -124,6 +124,13 @@ const SETUPS = new Map<string, (s: WorldState) => void>([
       }
     },
   ],
+  // R3 (R3B): the first master made.
+  [
+    'master-of-the-house',
+    (s) => {
+      s.masters.made = 1;
+    },
+  ],
   // R2 (R2C): the evening feats read the runs and the gaps the gaps pass keeps (test/r2c).
   [
     'out-of-an-evening',
@@ -163,9 +170,10 @@ const SETUPS = new Map<string, (s: WorldState) => void>([
   ],
 ]);
 
-// R3 (R3.0): two R3 feats read counters whose stand-ins (R3.0) always give 0, so they cannot be
-// earned yet. R3A (lampSeasons, The Lamplighter's Round) and R3B (mastersMade, Master of the House) replace the stand-ins and move each feat into SETUPS.
-const PENDING = new Set(['lamplighters-round', 'master-of-the-house']);
+// R3 (R3.0): an R3 feat reads a counter whose stand-in (R3.0) always gives 0, so it cannot be earned
+// yet. R3A (lampSeasons, The Lamplighter's Round) replaces the stand-in and moves the feat into
+// SETUPS (R3B's Master of the House and R3C's Made Together have theirs).
+const PENDING = new Set(['lamplighters-round']);
 
 describe('every achievement', () => {
   it('has a setup, or is pending on its R3 stand-in', () => {

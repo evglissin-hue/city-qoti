@@ -74,10 +74,11 @@ export const pieContest: FestivalTwistDef = {
   id: 'pie-contest',
   name: 'Pie Contest',
   blurb: 'Judged on crust, filling and how long the judges stay quiet afterward.',
-  // R1: pies are gone until a master baker makes them (R3), and a twist that names a good the town
-  // cannot make is not offered (docs/spec/12-hearth.md, Festivals), so no season offers it yet.
-  seasons: [],
-  goal: { code: 'festivalMenu', ref: 'bread', params: [['atLeast', 10]] },
+  // R3B: pies come from a master baker, and a twist that names a good the town cannot make is not
+  // offered (docs/spec/12-hearth.md, Festivals): the contest is offered once a master baker makes
+  // pies (`masterMakes`), in any of the three warm seasons.
+  seasons: [0, 1, 2],
+  goal: { code: 'festivalMenu', ref: 'pies', params: [['atLeast', 6]] },
 };
 
 export const snowSculptures: FestivalTwistDef = {
