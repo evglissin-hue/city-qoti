@@ -101,7 +101,7 @@ for (const [w, h] of sizes) {
             sessionStorage.setItem('seeded', '1');
           }
         }, recent);
-        await page.goto(`http://localhost:${port}/?quality=low&titleLight=${light}`);
+        await page.goto(`http://localhost:${port}/?backdrop=live&quality=low&titleLight=${light}`);
         await page.getByTestId('new-solo').waitFor();
         // The live valley (QOTI_LIVE=0 shoots over the painted one): from a production build
         // (vite preview) it is up in seconds; under vite dev on SwiftShader it can take minutes.

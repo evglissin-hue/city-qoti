@@ -34,7 +34,7 @@ async function open(light, [w, h], painted = false) {
       };
     });
   }
-  await page.goto(`http://localhost:${port}/?titleLight=${light}`);
+  await page.goto(`http://localhost:${port}/?backdrop=live&titleLight=${light}`);
   await page.addStyleTag({ content: HIDE });
   if (!painted) {
     await page.waitForSelector('[data-backdrop=live]', { timeout: 240_000 });

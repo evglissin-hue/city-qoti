@@ -24,7 +24,7 @@ const recentCount = (page: Page) =>
 
 test('the menu is usable at once, before any backdrop is ready', async ({ page }) => {
   await page.route('**/api/**', (route) => route.abort());
-  await page.goto('/?quality=low');
+  await page.goto('/?backdrop=live&quality=low');
   await expect(page.getByTestId('new-online')).toBeEnabled({ timeout: 1000 });
   await expect(page.getByTestId('new-solo')).toBeEnabled({ timeout: 1000 });
   await expect(page.getByTestId('title-settings-open')).toBeVisible();

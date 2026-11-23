@@ -36,6 +36,17 @@ function calmMotion(): boolean {
   }
 }
 
+/**
+ * Whether to start the live valley at all: not without WebGL, and not under automation unless the
+ * page asks for it with `?backdrop=live` (as audio waits for `?audio`): the end-to-end specs that only
+ * walk the menu keep the painted valley, so a software renderer drawing a town behind them never
+ * slows their clicks. The P3D backdrop specs, shot scripts and boot numbers opt in.
+ */
+export function wantsLive(): boolean {
+  if (navigator.webdriver && new URLSearchParams(location.search).get('backdrop') !== 'live') return false;
+  return webglAvailable();
+}
+
 /** The longest the live backdrop waits for an idle moment after the first paint. */
 const IDLE_MS = 500;
 
@@ -98,7 +109,7 @@ export function TitleBackdrop(props: { light: TitleLight; framing: Framing }) {
       );
     };
 
-    if (webglAvailable()) {
+    if (wantsLive()) {
       // After the first paint, then when the browser is idle (or half a second on), whichever first.
       hold('raf');
       raf = requestAnimationFrame(() => {

@@ -41,7 +41,7 @@ async function expectQuiet(page: Page): Promise<void> {
 }
 
 test('the live backdrop fades in over the painted one', async ({ page }) => {
-  await page.goto('/?titleLight=day');
+  await page.goto('/?backdrop=live&titleLight=day');
   // The painted one is there at once, and the menu works before the live one is ready.
   await expect(page.locator('.title-backdrop svg.painted')).toBeVisible();
   await expect(page.locator(MENU_READY)).toBeEnabled();
@@ -66,7 +66,7 @@ test('without WebGL the painted backdrop stays and the menu works', async ({ pag
       return (get as (...args: unknown[]) => unknown).call(this, kind, ...a);
     } as typeof HTMLCanvasElement.prototype.getContext;
   });
-  await page.goto('/?titleLight=dusk');
+  await page.goto('/?backdrop=live&titleLight=dusk');
   await expect(page.locator('.title-backdrop svg.painted')).toBeVisible();
   await expect(page.locator('.title-backdrop svg.painted')).toHaveAttribute('data-light', 'dusk');
   await page.waitForTimeout(3000);
@@ -77,7 +77,7 @@ test('without WebGL the painted backdrop stays and the menu works', async ({ pag
 });
 
 test('leaving the title for a valley disposes the backdrop', async ({ page }) => {
-  await page.goto(`/${DEBUG_QUERY}&titleLight=day`);
+  await page.goto(`/${DEBUG_QUERY}&backdrop=live&titleLight=day`);
   await expect(page.locator('.title-backdrop')).toHaveAttribute('data-backdrop', 'live', { timeout: 90_000 });
   const during = await stats(page);
   expect([during.liveRenderers, during.liveWorkers]).toEqual([1, 1]);
@@ -88,7 +88,7 @@ test('leaving the title for a valley disposes the backdrop', async ({ page }) =>
 });
 
 test('leaving while the backdrop is still loading leaves nothing behind', async ({ page }) => {
-  await page.goto(`/${DEBUG_QUERY}&titleLight=day`);
+  await page.goto(`/${DEBUG_QUERY}&backdrop=live&titleLight=day`);
   await expect(page.locator(MENU_READY)).toBeEnabled();
   await startSolo(page);
   await waitLive(page);

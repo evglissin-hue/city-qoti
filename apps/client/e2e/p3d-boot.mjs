@@ -11,7 +11,9 @@ import { chromium } from '@playwright/test';
 /** The first view's primary button: change it here when the menu changes. */
 const MENU_SELECTOR = process.env.QOTI_MENU_SELECTOR ?? '[data-testid=new-online]';
 const MARK_BACKDROP = 'qoti:backdrop-first-frame';
-const url = process.env.QOTI_URL ?? 'http://localhost:4399';
+// Automation keeps the painted valley unless the page asks for the live one.
+const url = new URL(process.env.QOTI_URL ?? 'http://localhost:4399');
+url.searchParams.set('backdrop', 'live');
 const runs = Number(process.env.QOTI_RUNS ?? 5);
 
 const browser = await chromium.launch({
@@ -48,7 +50,7 @@ for (let i = 0; i < runs; i++) {
     };
     requestAnimationFrame(tick);
   }, MENU_SELECTOR);
-  await page.goto(url, { waitUntil: 'commit' });
+  await page.goto(url.href, { waitUntil: 'commit' });
   await page.waitForFunction(() => window.__menuAt !== null, null, { timeout: 60_000 });
   menu.push(await page.evaluate(() => window.__menuAt));
   const at = await page
