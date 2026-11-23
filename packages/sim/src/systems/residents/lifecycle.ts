@@ -3,7 +3,14 @@
 // at 09:00 after three low-mood days, and rehousing when a home disappears. Ages and bonds tick
 // over in the 06:00 pass.
 import { content } from '@qoti/content';
-import { DAYS_PER_SEASON, DAYS_PER_YEAR, MAP_SIZE, NEED_IDS, ResidentFlags } from '../../constants';
+import {
+  DAYS_PER_SEASON,
+  DAYS_PER_YEAR,
+  MAP_SIZE,
+  NEED_IDS,
+  PENNIES_PER_COIN,
+  ResidentFlags,
+} from '../../constants';
 import type { Building, Household, LifeStage, Resident, Rng, TickCtx, WorldState } from '../../contracts';
 import { evaluate } from '../../conditions';
 import { findById, removeById } from '../../state/entities';
@@ -187,6 +194,7 @@ export function arrivals(state: WorldState, ctx: TickCtx, rng: Rng): number {
     if (members[0]) moveResident(state, members[0], door, 'arrive');
     for (const r of members) announceResident(state, ctx, r);
     announceHousehold(state, ctx, household.id, true);
+    if (!founding) bringPurse(state, household, members);
     chronicle(state, ctx, 'household-arrived', {
       text: [
         ['family', household.family],
@@ -199,6 +207,17 @@ export function arrivals(state: WorldState, ctx: TickCtx, rng: Rng): number {
   }
   announceTown(state, ctx);
   return came;
+}
+
+/**
+ * R3X (experiment): a household arriving from outside brings `arrivalPurse` coins for each grown-up,
+ * paid from outside (the mirror of the last one out taking the purse away). Off at 0 (the default).
+ */
+function bringPurse(state: WorldState, h: Household, members: readonly Resident[]): void {
+  const coins = content.basketByTier.get('settler')?.arrivalPurse ?? 0;
+  if (coins <= 0) return;
+  const grown = members.filter((r) => r.stage === 'adult' || r.stage === 'elder').length;
+  if (grown > 0) pay(state, 'outside', { household: h.id }, grown * coins * PENNIES_PER_COIN, null);
 }
 
 /** 06:00: attractiveness, birthdays, bonds and the low-mood count behind departures. */

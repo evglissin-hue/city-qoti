@@ -20,6 +20,8 @@ import {
 } from '@qoti/sim';
 import { autoplay, type DayLine } from './autoplay';
 
+// R3X_PURSE=<coins> sets the experiment's arrivalPurse on the Settler basket for this run.
+if (process.env.R3X_PURSE) content.basketByTier.get('settler')!.arrivalPurse = Number(process.env.R3X_PURSE);
 const seed = process.argv[2] ?? 'hazel';
 const days = Number(process.argv[3] ?? 70);
 const cats = LEDGER_CATEGORIES.map((c) => c.id as string);
