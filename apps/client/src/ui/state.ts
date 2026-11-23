@@ -144,6 +144,8 @@ export function createUiState() {
     postureDraft: signal<[number, number][] | null>(null),
     /** Chronicle snapshots this device has fetched or taken: entry id to an object URL. */
     snapshots: signal<ReadonlyMap<number, string>>(new Map()),
+    /** V4C: a tea break is under way (the camera wanders); the interface may step back while it is. */
+    teaBreak: signal(false),
   };
 }
 

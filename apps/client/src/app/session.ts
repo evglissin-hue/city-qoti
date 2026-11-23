@@ -15,6 +15,7 @@ import {
 } from '@qoti/sim';
 import type { Selection, ToolContext, UiApi } from '../input/context';
 import { ToolManager } from '../input/manager';
+import { startTeaBreak } from './teaBreakHost';
 import type { PointerInfo } from '../input/tool';
 import type { RoomConnection } from '../net/connection';
 import { LocalRoom } from '../net/local';
@@ -280,6 +281,7 @@ export class Session {
     });
     // C5F: photo mode tells the renderer (C5E) when it starts and ends.
     this.ui.photo.subscribe((on) => photoApi(this)?.setPhoto?.(on));
+    startTeaBreak(this); // V4C: tea-break mode; it stops itself when the renderer goes.
   }
 
   /** Send an emote over the existing emote message and show it here too. */
