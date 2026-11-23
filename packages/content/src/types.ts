@@ -920,11 +920,6 @@ export interface NeedsBasket {
    * of `charm` and the tavern in `services`; absent asks nothing.
    */
   evenings?: number;
-  /**
-   * R3X (additive, experiment; read on the Settler basket only): coins each grown-up of a household
-   * arriving from outside the valley brings in a purse (paid from outside). Absent or 0 brings none.
-   */
-  arrivalPurse?: number;
 }
 
 /** A zone the Ledger paints (docs/spec/13-ledger.md, Zoning and growth). */
