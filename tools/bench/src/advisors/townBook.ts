@@ -22,12 +22,12 @@ import {
   worldIndex,
   Zone,
   calendar,
-  SUPPLY_KINDS,
   type PlaceView,
   type WorldState,
 } from '@qoti/sim';
 import { REPAY_RESERVE, type Planner } from '../planner';
 import { idx, S } from '../town';
+import { supplyPlaceFor } from './lamps';
 import { PLACES_OFF_COINS } from './supplies';
 import { shopsNear } from './shops';
 import type { Advisor, AdvisorDef } from './types';
@@ -75,6 +75,8 @@ class TownBook implements Advisor {
   private readonly pinned = new Set<number>();
   /** The run day of the last Town Book action (one a day). */
   private acted = -1;
+  /** Whether the purse allows a spend today. */
+  private spare = false;
 
   constructor(readonly p: Planner) {}
 
@@ -88,6 +90,7 @@ class TownBook implements Advisor {
 
   /** Runs one action, counted for the day, remembered under `key`. */
   private act(key: string, label: string, cmds: Parameters<Planner['do']>[1], seat: 0 | 1): boolean {
+    if (!this.spare && cmds.some((c) => c.t !== 'place.setPriority')) return false;
     this.tried.set(key, this.p.runDay);
     const ok = this.p.do(`book: ${label}`, cmds, seat);
     if (ok) this.acted = this.p.runDay;
@@ -99,7 +102,8 @@ class TownBook implements Advisor {
     const p = this.p;
     // The morning's look is the pair's reading; one action a day.
     if (v.afternoon || this.acted === p.runDay || !rankAtLeast(w, 'village')) return;
-    if (p.coins() < MIN_COINS || (loansOwed(w) > 0 && p.coins() < REPAY_RESERVE)) return;
+    // Priorities cost nothing; what costs coins waits for a purse (and a town that owes the bank, for its reserve).
+    this.spare = p.coins() >= MIN_COINS && (loansOwed(w) === 0 || p.coins() >= REPAY_RESERVE);
     const places = placesView(w).places;
     const hints = w.townBook.hints;
     const rank = (id: string): number => {
@@ -132,26 +136,10 @@ class TownBook implements Advisor {
     return ok;
   }
 
-  /** The place best kept of a supply kind this season: pieces of that kind, the longest kept record. */
-  private supplyPlace(kind: string, places: PlaceView[]): PlaceView | null {
-    const w = this.w;
-    const k = SUPPLY_KINDS.indexOf(kind as (typeof SUPPLY_KINDS)[number]);
-    let best: PlaceView | null = null;
-    let bestScore = -1;
-    for (const pl of places) {
-      if (!pl.supplies?.some((s) => s.kind === kind && s.pieces > 0)) continue;
-      const row = w.places.find((r) => r.id === pl.id);
-      const kept = row?.supplied?.kept[k] ?? 0;
-      const score = kept * 100 + pl.visitors.reduce((a, x) => a + x, 0);
-      if (score > bestScore) [best, bestScore] = [pl, score];
-    }
-    return best;
-  }
-
   private supplyCustom(kind: string, places: PlaceView[]): boolean {
     const w = this.w;
     const p = this.p;
-    const pl = this.supplyPlace(kind, places);
+    const pl = supplyPlaceFor(w, places, kind);
     if (pl && this.setPriority(pl, `kept ${kind}`)) return true;
     // The goods those pieces burn must come: the carrier buys for places when the town can afford it.
     const family = FAMILY_OF[kind];
@@ -187,7 +175,6 @@ class TownBook implements Advisor {
       .sort((a, b) => (b.visitors[b.visitors.length - 1] ?? 0) - (a.visitors[a.visitors.length - 1] ?? 0));
     const pl = fit[0];
     if (!pl) return false;
-    if (this.setPriority(pl, def.id)) return true;
     return this.raiseDraw(pl);
   }
 
@@ -291,7 +278,6 @@ class TownBook implements Advisor {
         );
       this.tried.set(`shops:${site.id}`, this.p.runDay);
     }
-    if (this.setPriority(site, def.id)) return true;
     return this.raiseDraw(site);
   }
 }

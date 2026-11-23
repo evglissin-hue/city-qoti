@@ -10,6 +10,10 @@
 // Prints one table per seed and a `ROW` json line.
 import { content, TOWN_BOOK } from '@qoti/content';
 import {
+  sellsTreats,
+  treatsOnShelf,
+  placesView,
+  townStock,
   DAYS_PER_SEASON,
   START_HOUR,
   SUPPLY_KINDS,
@@ -50,6 +54,7 @@ const dayRun = new Map<string, number[]>(); // `${id}|${row}|${d}` -> current ru
 const dayRunBest = new Map<string, number[]>();
 const supplyBest = new Map<string, number>();
 const treats: number[] = [];
+const diag: string[] = [];
 
 const onHour = (w: WorldState): void => {
   for (const row of w.places) {
@@ -109,10 +114,22 @@ const onDay = (w: WorldState, line: DayLine): void => {
     }
   }
   treats.push(sold);
+  if (line.day % 10 === 0 && line.day >= 40) {
+    const tg = ['honey', 'cider', 'pies', 'jam', 'cordial', 'mead'].map((id) => content.goodIndex.get(id)!);
+    const outlets = w.buildings.filter((b) => sellsTreats(w, b));
+    const live = placesView(w).places;
+    diag.push(
+      `day ${line.day}: res ${w.residents.length} hh ${w.households.length}; Treat stock ${tg.map((g) => `${content.goods[g]!.id}:${townStock(w)[g] ?? 0}/${w.economy.everProduced[g] ?? 0}`).join(' ')}; outlets ${outlets.length} (shelf ${outlets.filter((b) => treatsOnShelf(w, b)).length}); places ${live.length} (served ${live.filter((x) => x.serves.length > 0).length}); sold tonight ${sold}`,
+    );
+  }
   evening.clear();
   void line;
 };
 
+for (const kv of (process.env.TB ?? '').split(',').filter(Boolean)) {
+  const [k, v] = kv.split('=');
+  (TOWN_BOOK as unknown as Record<string, number>)[k!] = Number(v);
+}
 const res = autoplay(seed, days, { village: true, onDay, onHour });
 const w = res.hamlet.world;
 const lines: string[] = [];
@@ -147,11 +164,13 @@ lines.push(
 lines.push(
   `Treats sold on the round per evening, day 41+: mean ${mean.toFixed(1)}, max ${Math.max(0, ...treats)}`,
 );
+lines.push(...diag);
 const ledger70 = res.decisions.filter((r) => r.day <= 70 && r.lane === 'ledger' && r.ok).length;
 const bookActs = res.decisions.filter((r) => r.advisor === 'townBook');
 lines.push(
   `residents ${w.residents.length}, households ${w.households.length}; decisions ${res.decisions.length}; Ledger accepted by day 70: ${ledger70} (limit 150); townBook commands ${bookActs.length} (${bookActs.filter((r) => r.ok).length} ok)`,
 );
+lines.push(...res.actions.filter((a) => a.includes('book:')).map((a) => 'ACT ' + a));
 console.log(lines.join('\n'));
 console.log(
   'ROW ' +
