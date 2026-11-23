@@ -69,7 +69,7 @@ export function writeSeasonSummary(state: WorldState, ctx: TickCtx, t: number): 
       ['season', SEASON_NAMES[ended.season]],
       ['year', String(ended.year)],
       ['people', counted(state.residents.length, 'resident', 'residents')],
-      ['coins', String(Math.floor(state.economy.treasury / PENNIES_PER_COIN))],
+      ['coins', counted(Math.floor(state.economy.treasury / PENNIES_PER_COIN), 'coin', 'coins')],
       ['pages', counted(state.hearth.discovered.length, 'page', 'pages')],
       ['wishes', counted(state.stats.wishesGranted, 'wish', 'wishes')],
       ['books', books],

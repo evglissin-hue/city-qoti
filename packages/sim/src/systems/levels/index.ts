@@ -154,7 +154,7 @@ function announceGrowth(state: WorldState, ctx: TickCtx, b: Building, trade: Tra
     text: [
       ['business', keeper ? `the ${keeper.family} ${name}` : `the ${name}`],
       ['level', String(level)],
-      ['hands', String(trade.crew[level - 1] ?? 0)],
+      ['hands', handsWord(trade.crew[level - 1] ?? 0)],
     ],
     refs: keeper ? [b.id, keeper.id] : [b.id],
   });
@@ -239,3 +239,8 @@ export const levels: System = {
     for (const b of state.buildings) if (b.trade && b.stage === 'built' && b.rt) dayEnd(state, ctx, b);
   },
 };
+
+/** "1 hand", "3 hands": the count and its noun travel together so the sentence reads at any count. */
+function handsWord(n: number): string {
+  return `${n} ${n === 1 ? 'hand' : 'hands'}`;
+}
