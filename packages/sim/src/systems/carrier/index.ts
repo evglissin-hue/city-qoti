@@ -875,17 +875,24 @@ export function carrierDay(state: WorldState, ctx: TickCtx): void {
   // 5b. R3X: a master's good is the town's own, so it sells on its own surplus, not behind its
   // family's twice-the-reserve gate: what is over the larger of `exportKeep` and twice what households
   // bought of it yesterday, while the cart or the boat has room, and never what places want tonight.
+  // It never sells into its family's reserve: butter and smoked fish are Food, and a larder under its
+  // reserve keeps every flavor it has (the hazel festival run sold the town's fish while it held 35
+  // Food for 119 residents).
   const exportKeep = content.mastery.exportKeep ?? 8;
   for (let g = 0; g < content.goods.length; g++) {
     if (!isMasterGood(g)) continue;
     const f = familyIndex(content.goods[g]!.family);
     const t = families[f]!;
     if (!t.sell || t.rule === 'never') continue;
+    let reserve = reserveUnits(state, day, f, siteTotal, false);
+    if (stands) reserve = Math.max(reserve, reserveUnits(state, day, f, siteTotal, true));
+    const familySpare = have(day, f) - reserve - forPlaces[f]!;
+    if (familySpare <= 0) continue;
     const keep = Math.max(exportKeep, 2 * (state.market.bought?.[g] ?? 0)) + forPlaces[f]!;
     let free = 0;
     for (const s of day.stores) free += Math.max(0, s.b.rt!.store[g]! - s.b.rt!.reservedOut[g]!);
     for (const b of day.makers) free += Math.max(0, b.rt!.output[g]! - b.rt!.reservedOut[g]!);
-    let over = free - keep;
+    let over = Math.min(free - keep, familySpare);
     while (over > 0 && (day.cart.room > 0 || (day.boat?.room ?? 0) > 0) && sellOne(day, g)) over--;
   }
 

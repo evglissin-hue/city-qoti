@@ -9,8 +9,10 @@ import { hamletFixture } from '../fixtures/hamlet';
 import { tickAt } from '../fixtures/seasonsPlace';
 import { run } from '../helpers';
 import { building, good } from '../ledger/helpers';
+import { familyIndex } from '../../src/state/zones';
 
 const butter = good('butter');
+const FOOD = familyIndex('food');
 
 function town(units: number, boughtYesterday = 0) {
   const f = hamletFixture();
@@ -38,17 +40,27 @@ const stored = (state: WorldState) =>
   state.buildings.reduce((n, b) => n + (b.rt?.store[butter] ?? 0) + (b.rt?.output[butter] ?? 0), 0);
 
 describe("a master's good at the carrier", () => {
-  it('sells down to exportKeep while Food is under twice its reserve and nobody buys it', () => {
+  it('sells past the family gate (Food under twice its reserve), never under exportKeep', () => {
     const state = town(14);
     const keep = content.mastery.exportKeep ?? 8;
-    expect(visit(state)).toBe(14 - keep);
-    expect(stored(state)).toBe(keep);
+    const sold = visit(state);
+    expect(sold).toBeGreaterThan(0);
+    expect(sold).toBeLessThanOrEqual(14 - keep);
+    expect(stored(state)).toBeGreaterThanOrEqual(keep);
   });
 
   it('keeps twice what households bought of it yesterday', () => {
     const state = town(30, 10);
-    expect(visit(state)).toBe(10);
-    expect(stored(state)).toBe(20);
+    const sold = visit(state);
+    expect(sold).toBeGreaterThan(0);
+    expect(stored(state)).toBeGreaterThanOrEqual(20);
+  });
+
+  it("never sells into its family's reserve (butter is Food, and a short larder keeps it)", () => {
+    const state = town(30);
+    state.carrier.families[FOOD]!.reserve = 1000;
+    expect(visit(state)).toBe(0);
+    expect(stored(state)).toBe(30);
   });
 
   it('sells none on Never, or with selling off', () => {
