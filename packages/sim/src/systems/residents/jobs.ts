@@ -7,6 +7,7 @@ import { content, type BuildingDef, type ProductionMethod } from '@qoti/content'
 import { BuildingStatus, WARMTH_PER_HOUSEHOLD } from '../../constants';
 import type { Building, Resident, TickCtx, WorldState } from '../../contracts';
 import { findById } from '../../state/entities';
+import { TOWN_HALL } from '../../state/hamlet';
 import { isFood, jobsOf, methodOf } from '../../state/zones';
 import { businessView } from '../../view/businesses';
 import { townStock } from '../../view/hamlet';
@@ -17,6 +18,7 @@ import { isResting } from '../levels/resting';
 import { larderWelcomes, seasonNow, woodpileShort } from '../seasons/api';
 import { woodpile } from '../seasons/stores';
 import { jobFits, tierShortages } from '../tiers/api';
+import { lamplighterJobs } from '../supplies/lamplighter';
 import { pushHistory } from './records';
 import { dayIndex } from './time';
 import { masterKeeps } from '../masters/api';
@@ -271,6 +273,8 @@ export function hire(state: WorldState, r: Resident, b: Building, ctx?: TickCtx)
 /** Ends the resident's job. `lost` logs it (the workplace went away). */
 export function release(state: WorldState, r: Resident, lost = false, ctx?: TickCtx): void {
   if (!r.jobId) return;
+  // R3A: the lamplighter holds the Town Hall's job off its books of builders.
+  dropLamplighter(state, r.id);
   const b = findById(state.buildings, r.jobId);
   const inside = r.inside;
   if (inside) setInside(state, r, 0);
@@ -343,12 +347,65 @@ function openPriority(b: Building, short: Shortages): number {
   return def ? jobPriority(b, def, b.rt!.workers.length, short) : Infinity;
 }
 
+/** R3A: takes `id` off the lamplighters' list (sorted by id), if it is there. */
+function dropLamplighter(state: WorldState, id: number): void {
+  const list = state.supplies.lamplighters;
+  if (list.length === 0) return;
+  const i = list.indexOf(id);
+  if (i >= 0) list.splice(i, 1);
+}
+
+/**
+ * R3A: the lamplighters' places. Their `jobId` is the Town Hall's and they are never among its
+ * builders (`rt.workers`). Ids gone or no longer on the Town Hall's job come off the list; while the
+ * town has fewer than `lamplighterJobs`, the job seeker whose home door is nearest the Town Hall's
+ * takes one (ties by id); while it has more, the highest id lets go.
+ */
+function keepLamplighters(state: WorldState, ctx: TickCtx): number {
+  const list = state.supplies.lamplighters;
+  const hall = state.buildings.find((b) => b.def === TOWN_HALL && b.stage === 'built');
+  for (let i = list.length - 1; i >= 0; i--) {
+    const r = findById(state.residents, list[i]!);
+    if (!r || !hall || r.jobId !== hall.id) list.splice(i, 1);
+  }
+  const jobs = hall ? lamplighterJobs(state) : 0;
+  if (list.length === 0 && jobs === 0) return 0;
+  while (list.length > jobs) {
+    const r = findById(state.residents, list[list.length - 1]!);
+    if (r) release(state, r, false, ctx);
+    else list.pop();
+  }
+  if (!hall || list.length >= jobs) return 0;
+  const hallDef = content.buildingById.get(hall.def);
+  const hallDoor = doorOf(state, hall.id);
+  const seekers: { r: Resident; d: number }[] = [];
+  for (const r of state.residents) {
+    if (!jobSeeker(state, r) || !jobFits(r.tier, hallDef)) continue;
+    seekers.push({ r, d: manhattan(doorOf(state, householdOf(state, r)!.homeId), hallDoor) });
+  }
+  seekers.sort((a, b) => a.d - b.d || a.r.id - b.r.id);
+  let hired = 0;
+  for (const { r } of seekers) {
+    if (list.length >= jobs) break;
+    r.jobId = hall.id;
+    pushHistory(state, r, 'job', hall.id);
+    insertSorted(list, r.id);
+    hired++;
+  }
+  return hired;
+}
+
 /**
  * Fills open jobs: each job seeker (by id) takes the most important open job (slotPriority), the
  * nearest by walking distance from home among equals (Manhattan between doors; ties by building
  * id). Returns the number hired.
  */
 export function assignJobs(state: WorldState, ctx: TickCtx, only?: Resident): number {
+  const hired = fillOpenJobs(state, ctx, only);
+  return only ? hired : hired + keepLamplighters(state, ctx);
+}
+
+function fillOpenJobs(state: WorldState, ctx: TickCtx, only?: Resident): number {
   if (!only) for (const b of state.buildings) if (b.keeperId) seatKeeper(state, ctx, b);
   const open: Building[] = [];
   for (const b of state.buildings) if (openJobs(b) > 0) open.push(b);

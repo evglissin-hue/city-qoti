@@ -7,6 +7,7 @@ import { MAP_SIZE } from '../../constants';
 import type { BuildingRuntime, EntityId, WorldState } from '../../contracts';
 import { findById } from '../../state/entities';
 import { countCustomer, countSold } from '../levels/counters';
+import { shelfOf } from '../market/round';
 import { doorTile } from '../movement/api';
 
 /** Takes up to qty units of a good from an outlet's store; returns the units taken. */
@@ -19,10 +20,12 @@ export function takeFromOutlet(
   const b = findById(state.buildings, buildingId);
   const rt = b?.rt;
   if (!rt || b.stage !== 'built') return 0;
-  const free = (rt.store[goodIndex] ?? 0) - (rt.reservedOut[goodIndex] ?? 0);
+  // R3A: a tavern sells what it pours (its input); everyone else sells from the store.
+  const shelf = shelfOf(b)!;
+  const free = (shelf.stock[goodIndex] ?? 0) - (shelf.reserved?.[goodIndex] ?? 0);
   const n = Math.max(0, Math.min(qty, free));
   if (n > 0) {
-    rt.store[goodIndex]! -= n;
+    shelf.stock[goodIndex]! -= n;
     // R1B: a shop counts what it sold and who came (levels).
     countSold(b, n);
     countCustomer(b);

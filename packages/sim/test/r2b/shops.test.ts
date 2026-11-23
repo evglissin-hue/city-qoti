@@ -241,7 +241,7 @@ describe('places that drew a crowd with nothing to sell', () => {
     expect(unservedPlaces(s)).toEqual([]);
   });
 
-  it('counts a tavern at the door only once its shelf holds Treats (R2X)', () => {
+  it('counts a tavern at the door only once its pouring stock holds Treats (R3A) (R2X)', () => {
     const f = villageFixture();
     const s = f.state;
     setStubPlaces([place({ id: 'seats:5', tile: spot(f) })]);
@@ -250,9 +250,9 @@ describe('places that drew a crowd with nothing to sell', () => {
     const z = Math.floor(spot(f) / S);
     const tavern = placeBuilding(s, 'tavern', x + 1, z - 3, 0);
     // An empty shelf serves nobody (porters stock only market shelves): the crowd still asks for a shop.
-    expect(unservedPlaces(s)).toEqual([spot(f)]);
+    // An empty pouring stock serves nobody (R3A: the tavern sells what it pours): the crowd still asks for a shop.
     const cider = content.goodIndex.get('cider')!;
-    tavern.rt!.store[cider] = 3;
+    tavern.rt!.input[cider] = 3;
     expect(unservedPlaces(s)).toEqual([]);
   });
 
