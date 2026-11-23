@@ -50,6 +50,7 @@ export {
 export type { AnchorPoint, AnchorRect, AnchorRun } from './kits/types';
 export type { AnimalKind } from './kits/types';
 export { animalArt, standingAnimal, wolfGeometry, type AnimalArt } from './kits/animals';
+export { levelPoleGeometry, levelPoleSpot, withLevelPole, type PoleSpot } from './kits/levelPole';
 export {
   BED_Y,
   CARTER_SEAT,
