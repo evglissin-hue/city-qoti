@@ -92,8 +92,8 @@ export const carvedStone: Kit = {
 };
 
 /**
- * A tree a gardener has shaped: three clipped tiers on a straight, clean stem in a stone tub, the
- * crowns round and tight where a wild tree is ragged. A cheery little ball tops it.
+ * A tree a gardener has shaped: two clipped rounds and a little ball on a straight, clean stem in a
+ * stone tub, the crowns smooth and tight where a wild tree is ragged.
  */
 export const ornamentalTree: Kit = {
   id: 'ornamental-tree',
@@ -122,20 +122,19 @@ export const ornamentalTree: Kit = {
         s.cylinder(0, 0, 0.135, 0.135, 0.145, 0.15, 0x5a4434, 8);
         s.cylinder(0, 0, 0.152, 0.152, 0.05, 0.06, mixHex(tubStone, palette.foundation, 0.5), 8, Math.PI / 8);
         // The stem, straight and clean to the first tier.
-        s.cylinder(0, 0, 0.02, 0.02, 0.15, 0.46, stem, 5);
-        // Three clipped tiers and a ball, each a smooth flattened round, lit alike from the top.
+        s.cylinder(0, 0, 0.02, 0.02, 0.15, 0.62, stem, 5);
+        // Two clipped rounds and a ball on the straight stem, each smooth and tight, lit from the top.
         const tier = (y: number, r: number, h: number, hex: number): void => {
           s.blob(0, y, 0, r, h, r, hex, 1, undefined, 0, mixHex(hex, 0x9ac060, 0.28));
         };
-        tier(0.34, 0.18, 0.09, mixHex(leaf, 0x2e4a24, 0.2));
-        tier(0.5, 0.14, 0.085, leaf);
-        tier(0.64, 0.1, 0.08, mixHex(leaf, 0x7fae4e, 0.15));
-        s.blob(0, 0.76, 0, 0.045, 0.045, 0.045, mixHex(leaf, 0x7fae4e, 0.3), 0);
+        tier(0.33, 0.175, 0.14, mixHex(leaf, 0x2e4a24, 0.2));
+        tier(0.58, 0.115, 0.1, leaf);
+        s.blob(0, 0.74, 0, 0.05, 0.05, 0.05, mixHex(leaf, 0x7fae4e, 0.3), 0);
       },
       () => {
         farCylinder(s, 0, 0, 0.14, 0.15, 0, 0.15, tubStone, 6);
         s.cylinder(0, 0, 0.02, 0.02, 0.15, 0.4, stem, 4);
-        s.blob(0, 0.5, 0, 0.17, 0.3, 0.17, leaf, 0);
+        s.blob(0, 0.47, 0, 0.17, 0.32, 0.17, leaf, 0);
       },
     );
     return s.build();

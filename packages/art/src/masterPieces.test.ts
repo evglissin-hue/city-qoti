@@ -1,7 +1,7 @@
 // R3X: the master's sign kit and the two pieces masters bring (carved stone, ornamental tree).
 import { describe, expect, it } from 'vitest';
 import { content } from '@qoti/content';
-import { SIGN_SIZE } from './facade';
+import { SIGN_SCALE, SIGN_SIZE } from './facade';
 import { kitById } from './kits';
 import { MASTER_EMBLEMS, POST_HANG } from './kits/masterSign';
 
@@ -32,7 +32,7 @@ describe('the master-sign kit (R3X)', () => {
         expect(b.min.y, at).toBeGreaterThanOrEqual(-0.001);
         if (!post) {
           // The arm's plate sits just behind the wall plane, the sign reaches `reach` out, within its width.
-          expect(b.min.z, at).toBeGreaterThanOrEqual(-0.013);
+          expect(b.min.z, at).toBeGreaterThanOrEqual(-0.016);
           expect(b.max.z, at).toBeLessThanOrEqual(SIGN_SIZE.reach + 0.03);
           expect(b.max.y, at).toBeLessThanOrEqual(SIGN_SIZE.h + 0.001);
           expect(Math.max(-b.min.x, b.max.x), at).toBeLessThanOrEqual(SIGN_SIZE.halfW + 0.001);
@@ -63,7 +63,8 @@ describe('the master-sign kit (R3X)', () => {
       // Triangles lying in a plane of constant z outside the board's own thickness.
       const z = [pos.getZ(i), pos.getZ(i + 1), pos.getZ(i + 2)];
       if (Math.abs(z[0]! - z[1]!) > 1e-6 || Math.abs(z[1]! - z[2]!) > 1e-6) continue;
-      const mid = SIGN_SIZE.reach;
+      // The board's plane: its arm's length (0.13), scaled.
+      const mid = 0.13 * SIGN_SCALE;
       if (z[0]! > mid + 0.005) front++;
       else if (z[0]! < mid - 0.005 && z[0]! > 0.05) back++;
     }

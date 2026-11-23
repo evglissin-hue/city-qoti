@@ -9,7 +9,7 @@
 import { seeded, ShapeBuilder, vary, type V3 } from '../geometry';
 import { palette } from '../palette';
 import { beam } from '../shapes';
-import { SIGN_SIZE } from '../facade';
+import { SIGN_SCALE, SIGN_SIZE } from '../facade';
 import { SURFACE } from '../surface';
 import { farBox } from './decorFar';
 import type { Kit } from './types';
@@ -265,9 +265,15 @@ const SPRIG: Emblem = {
 /** The trades and buildings that have an emblem, alphabetical (a test keeps it equal to the masters'). */
 export const MASTER_EMBLEMS: readonly string[] = Object.keys(EMBLEMS);
 
-const { reach: A, armY: ARM_Y, boardW: BW, boardH: BH } = SIGN_SIZE;
+// The kit is drawn at 1 / SIGN_SCALE of `SIGN_SIZE` and scaled up at the end.
+/** The arm's length: the board hangs this far out. */
+const A = 0.13;
+const ARM_Y = SIGN_SIZE.armY / SIGN_SCALE;
+const BW = SIGN_SIZE.boardW / SIGN_SCALE;
+const BH = SIGN_SIZE.boardH / SIGN_SCALE;
 /** On its own post (a facade with no wall to hang it on), the board's lower edge stands this high. */
-export const POST_HANG = 0.5;
+export const POST_HANG = 0.5 * SIGN_SCALE;
+const POST_Y = 0.5;
 /** One emblem unit, tiles: the face is about 4.5 units across and 3.2 high. */
 const K = 0.052;
 const YC = BH / 2;
@@ -291,7 +297,7 @@ export const masterSign: Kit = {
     // On a wall the board hangs `A` out from it on an arm. On a post (a facade with no wall to hang it
     // on) it hangs from a rail off a timber post at its left, `oy` up from the ground.
     const post = opts?.params?.post === true;
-    const oy = post ? POST_HANG : 0;
+    const oy = post ? POST_Y : 0;
     const armY = ARM_Y + oy;
     const zb = post ? 0 : A;
     const hw = BW / 2;
@@ -423,6 +429,6 @@ export const masterSign: Kit = {
         }
       },
     );
-    return s.build();
+    return s.scale(SIGN_SCALE).build();
   },
 };

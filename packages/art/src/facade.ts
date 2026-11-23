@@ -113,7 +113,7 @@ export function facadeOf(geometry: BufferGeometry, width: number): Facade {
 /** How near the bracket's plate must be to a flat wall to count as touching it, tiles. */
 export const FACADE_TOUCH = 0.015;
 /** How far anything may stand proud of the wall under the sign before it would meet the board, tiles. */
-export const FACADE_PROUD = 0.05;
+export const FACADE_PROUD = 0.06;
 /**
  * The master's sign (the `master-sign` kit is drawn to these): a plate on the wall, a short arm out
  * from it and a rail across the arm's end, the board hanging from the rail parallel to the wall, its
@@ -122,15 +122,17 @@ export const FACADE_PROUD = 0.05;
  * board's lower edge and `boardW` by `boardH` the board.
  */
 export const SIGN_SIZE = {
-  h: 0.32,
-  halfW: 0.19,
-  reach: 0.13,
-  armY: 0.285,
-  boardW: 0.26,
-  boardH: 0.19,
+  h: 0.4,
+  halfW: 0.24,
+  reach: 0.2,
+  armY: 0.356,
+  boardW: 0.325,
+  boardH: 0.238,
 } as const;
+/** The kit is drawn at 0.8 of these (a board of 0.26 by 0.19) and scaled up by this. */
+export const SIGN_SCALE = 1.25;
 /** How far a sign keeps from a lit window's middle, across and up (tiles). */
-export const WINDOW_CLEAR = { x: 0.26, y: 0.26 } as const;
+export const WINDOW_CLEAR = { x: 0.3, y: 0.32 } as const;
 /** How far behind the door anchor a sign's wall may stand, tiles. */
 export const WALL_BEHIND_DOOR = 1.1;
 /** The lowest its lower edge may hang (tiles above the plot's ground) and the highest its top. */
