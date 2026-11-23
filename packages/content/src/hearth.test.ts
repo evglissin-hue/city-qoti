@@ -91,6 +91,8 @@ describe('the Chronicle', () => {
     'guide-done': ['surveyor'],
     // P1 (callings)
     calling: ['calling', 'credit'],
+    // R3 (R3C)
+    'town-book-page': ['page', 'place', 'text', 'credit'],
   };
 
   it('has at least three variants per kind, using only the params its callers pass', () => {

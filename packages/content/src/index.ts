@@ -13,6 +13,7 @@ import * as D from './decor';
 import * as Dr from './dressing';
 import * as DrR from './dressingRules';
 import * as Co from './commissions';
+import * as CT from './customTwists';
 import * as Fe from './festivals';
 import * as FC from './festivalsChronicle';
 import * as FD from './fineDecor';
@@ -101,7 +102,7 @@ export { PLACES } from './places';
 export { placeWords } from './placeWords';
 export { STREET_NAMES } from './streetNames';
 export { SUPPLIES } from './supplies';
-export { TOWN_BOOK } from './townBook';
+export { TOWN_BOOK, townBookPhrases } from './townBook';
 export { lifePhrases } from './lives';
 export { familyNames, valleyNamePrefixes, valleyNameSuffixes } from './names';
 export { villagePhrases } from './villageText';
@@ -393,6 +394,7 @@ export const chronicle: readonly ChronicleTemplate[] = [
   L.storyArrived,
   L.storyFinale,
   C.threatDial,
+  TB.townBookPage,
   SC.trialFailed,
   SC.trialPassed,
   L.wedding,
@@ -540,6 +542,19 @@ export const festivals: readonly FestivalDef[] = [
 // prettier-ignore
 export const twists: readonly FestivalTwistDef[] = [
   Fe.costumeParade,
+  CT.customBuntingSeason,
+  CT.customEveningWalk,
+  CT.customGreenEvenings,
+  CT.customLanternRound,
+  CT.customLongTable,
+  CT.customMarketNight,
+  CT.customOrchardStroll,
+  CT.customPondEvening,
+  CT.customPromenade,
+  CT.customSquareNight,
+  CT.customTavernNight,
+  CT.customWellGathering,
+  CT.customWinterFires,
   Fe.harvestDisplay,
   Fe.lanternsOnTheWater,
   Fe.pieContest,
