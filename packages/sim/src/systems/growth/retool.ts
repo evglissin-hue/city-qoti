@@ -3,6 +3,9 @@
 // the town, keeping its keeper; a trade the Ledger pinned never changes. A business whose site wants
 // stop being met (its windmill was moved, or no longer has room for it) retools after
 // SITE_FAIL_DAYS, pinned or not. The counters (`surplusDays`, `siteDays`) are kept here, at 01:00.
+// R3X: a business with a master of its trade on the crew keeps its trade as a pinned one does (its
+// surplus is the master's good the carrier sells to neighbors, and retooling would cost the town the
+// master's level 3); a failed site still retools it.
 import { content, type TradeDef } from '@qoti/content';
 import { BuildingStatus } from '../../constants';
 import type { Building, Lot, TickCtx, WorldState } from '../../contracts';
@@ -17,6 +20,7 @@ import type { SiteCache } from './site';
 import { siteMeets } from './site';
 import { needOf, tradeTerms, type TownNeeds } from './trades';
 import { bumpPlaceInputs } from '../places/inputs';
+import { masterOf } from '../masters/api';
 
 /** Days in surplus before a business retools to a trade the town is short of. */
 export const SURPLUS_DAYS = 6;
@@ -105,7 +109,7 @@ export function retoolPass(
     if (inSurplus(state, b, t, n)) c.surplusDays++;
     else c.surplusDays = 0;
     if (c.siteDays >= SITE_FAIL_DAYS) failed.push([b, lot]);
-    else if (!b.pinned && c.surplusDays >= SURPLUS_DAYS) {
+    else if (!b.pinned && c.surplusDays >= SURPLUS_DAYS && masterOf(state, b) === 0) {
       if (!surplus || c.surplusDays > surplus[0].counters!.surplusDays) surplus = [b, lot];
     }
   }
