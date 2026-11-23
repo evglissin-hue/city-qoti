@@ -133,6 +133,8 @@ describe('lens toolbars', () => {
       'festival',
       'patterns',
       'town-book',
+      // R3G: the storybook, a shared book, beside the Town Book on both shelves.
+      'storybook',
       'field-guide',
       'chronicle',
       'letters',
@@ -186,6 +188,7 @@ describe('lens toolbars', () => {
       'patterns',
       'purse',
       'town-book',
+      'storybook',
       'businesses',
       'watch',
       'notebook',

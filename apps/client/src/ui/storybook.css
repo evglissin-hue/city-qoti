@@ -1,0 +1,564 @@
+/* R3G: the storybook. The panel on screen, and the printed book. Every rule here is scoped to the
+   storybook: the print rules act only while <body> carries `qoti-storybook` (the panel is open), and
+   the page rules live in the print root itself (Storybook.tsx, `pageRules`), so printing anything
+   else is unchanged. Sizes on paper are in mm and pt; a Chronicle picture is a column wide (80 x 60
+   mm, half the text width) and a book page's 60 x 45 mm (docs/build/r3-wave-notes.md, The picture
+   seam). */
+
+/* --- The panel ------------------------------------------------------------------------------ */
+
+.storybook-panel .storybook-title {
+  display: grid;
+  grid-template-columns: 132px 1fr;
+  gap: 14px;
+  align-items: center;
+  margin: 4px 0 10px;
+}
+
+.storybook-thumb {
+  margin: 0;
+  width: 132px;
+  height: 132px;
+  border: 1px solid var(--ink-line, #8a7660);
+  outline: 3px double rgba(90, 70, 50, 0.35);
+  outline-offset: 2px;
+  background: #eee2c2;
+  overflow: hidden;
+}
+
+.storybook-thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.storybook-thumb-wait {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: repeating-linear-gradient(135deg, #eee2c2 0 8px, #e7d9b4 8px 16px);
+  animation: storybook-wait 1.6s linear infinite;
+  background-size: 200% 200%;
+}
+
+@keyframes storybook-wait {
+  to {
+    background-position: 45px 0;
+  }
+}
+
+.storybook-town {
+  margin: 0 0 4px;
+  font-family: 'Alegreya', Georgia, serif;
+  font-size: 1.6rem;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.storybook-pick select {
+  font: inherit;
+}
+
+.storybook-contents {
+  margin: 0 0 10px;
+  padding-left: 18px;
+  line-height: 1.5;
+}
+
+.storybook-paper {
+  display: flex;
+  gap: 16px;
+  margin: 0 0 8px;
+  padding: 6px 10px;
+  border: 1px solid rgba(90, 70, 50, 0.25);
+  border-radius: 6px;
+}
+
+.storybook-paper label {
+  display: inline-flex;
+  white-space: nowrap;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.storybook-paper input {
+  margin: 0;
+}
+
+.storybook-paper legend {
+  padding: 0 4px;
+  font-size: 0.85em;
+  color: var(--ink-soft, #6b5a48);
+}
+
+/* The Chapter card's line: in the card's top corner, level with its kicker, so it takes no room
+   from the story and the buttons stay where they were. */
+.chapter-print {
+  position: absolute;
+  top: 44px;
+  right: 22px;
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.chapter-print button.link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* The book is never on screen: only the print stylesheet below shows it. */
+.storybook-print {
+  display: none;
+}
+
+/* --- The printed book ----------------------------------------------------------------------- */
+
+@media print {
+  html:has(> body.qoti-storybook),
+  body.qoti-storybook {
+    height: auto !important;
+    overflow: visible !important;
+    background: #fff !important;
+  }
+
+  body.qoti-storybook > :not(.storybook-print) {
+    display: none !important;
+  }
+
+  body.qoti-storybook > .storybook-print {
+    display: block;
+  }
+
+  .storybook {
+    --sb-ink: #33261c;
+    --sb-soft: #6b5a48;
+    --sb-faint: #8a7660;
+    --sb-rule: #b8a589;
+    --sb-red: #9a4632;
+    color: var(--sb-ink);
+    font-family: 'Alegreya', Georgia, serif;
+    font-size: 10.5pt;
+    line-height: 1.42;
+    hyphens: auto;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .storybook p {
+    margin: 0 0 2.2mm;
+    orphans: 2;
+    widows: 2;
+  }
+
+  .storybook h1,
+  .storybook h2,
+  .storybook h3,
+  .storybook h4 {
+    break-after: avoid;
+    color: var(--sb-ink);
+  }
+
+  /* Every section after the cover starts a fresh page. */
+  .storybook > section + section {
+    break-before: page;
+  }
+
+  /* The cover: the town's name, the chapter and the endpaper map. */
+  .sb-cover {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    min-height: 255mm;
+  }
+
+  .paper-letter .sb-cover {
+    min-height: 240mm;
+  }
+
+  .sb-cover-kicker {
+    margin-top: 2mm !important;
+    font-family: 'Alegreya Sans', sans-serif;
+    font-size: 9pt;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--sb-soft);
+  }
+
+  .sb-cover-town {
+    margin: 2mm 0 1mm;
+    font-size: 40pt;
+    line-height: 1;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+  }
+
+  .sb-cover-chapter {
+    font-style: italic;
+    font-size: 15pt;
+    color: var(--sb-red);
+  }
+
+  .sb-cover-map {
+    margin: 5mm 0 6mm;
+    width: 156mm;
+    height: 156mm;
+    padding: 2.2mm;
+    border: 0.5mm solid var(--sb-ink);
+    outline: 0.25mm solid var(--sb-ink);
+    outline-offset: 1.2mm;
+    background: #eee2c2;
+  }
+
+  .paper-letter .sb-cover-map {
+    width: 150mm;
+    height: 150mm;
+  }
+
+  .sb-cover-map img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .sb-cover-nomap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    font-style: italic;
+    font-size: 20pt;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--sb-soft);
+  }
+
+  .sb-cover-span {
+    margin-top: auto !important;
+    font-size: 12pt;
+  }
+
+  .sb-cover-keepers {
+    font-style: italic;
+    color: var(--sb-soft);
+  }
+
+  /* Section titles: centered, with a rule and a small ornament under them. */
+  .sb-section {
+    margin: 4mm 0 6mm;
+    text-align: center;
+    font-size: 24pt;
+    font-weight: 700;
+    line-height: 1.1;
+  }
+
+  .sb-section::after {
+    content: '';
+    display: block;
+    width: 34mm;
+    height: 2.4mm;
+    margin: 3mm auto 0;
+    background:
+      radial-gradient(circle, var(--sb-red) 0 0.7mm, transparent 0.8mm) center / 2.4mm 2.4mm no-repeat,
+      linear-gradient(var(--sb-rule), var(--sb-rule)) left center / 14mm 0.3mm no-repeat,
+      linear-gradient(var(--sb-rule), var(--sb-rule)) right center / 14mm 0.3mm no-repeat;
+  }
+
+  .sb-section-the {
+    display: block;
+    font-size: 11pt;
+    font-weight: 400;
+    font-style: italic;
+    letter-spacing: 0.08em;
+    color: var(--sb-soft);
+  }
+
+  /* The foreword. */
+  .sb-foreword {
+    max-width: 128mm;
+    margin: 30mm auto 0;
+    font-size: 11.5pt;
+    line-height: 1.55;
+  }
+
+  .sb-lead::first-letter {
+    float: left;
+    margin: 1mm 2mm 0 0;
+    font-size: 34pt;
+    line-height: 0.8;
+    font-weight: 700;
+    color: var(--sb-red);
+  }
+
+  .sb-contents {
+    margin: 8mm 0;
+    padding: 0;
+    list-style: none;
+    text-align: center;
+    font-style: italic;
+  }
+
+  .sb-contents li {
+    margin: 1.2mm 0;
+  }
+
+  .sb-printed {
+    margin-top: 16mm !important;
+    text-align: center;
+    font-size: 9pt;
+    color: var(--sb-faint);
+  }
+
+  /* The Chronicle: one two-column gazette, read down each column, a small heading a season. */
+  .sb-cols {
+    columns: 2;
+    column-gap: 9mm;
+    column-rule: 0.2mm solid #e2d6c2;
+  }
+
+  .sb-season-head {
+    break-after: avoid;
+    margin: 1mm 0 3.4mm;
+    padding: 1.4mm 0 1.2mm;
+    border-top: 0.3mm solid var(--sb-rule);
+    border-bottom: 0.3mm solid var(--sb-rule);
+    text-align: center;
+    font-family: 'Alegreya Sans', sans-serif;
+    font-size: 8.5pt;
+    font-weight: 700;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    color: var(--sb-soft);
+  }
+
+  .sb-entry + .sb-season-head {
+    margin-top: 5mm;
+  }
+
+  .sb-entry {
+    break-inside: avoid;
+    margin: 0 0 3.6mm;
+  }
+
+  .sb-entry-head {
+    margin: 0 0 0.6mm !important;
+    font-size: 8.5pt;
+    line-height: 1.2;
+  }
+
+  .sb-mark {
+    margin-right: 2mm;
+    font-family: 'Alegreya Sans', sans-serif;
+    font-weight: 700;
+    font-size: 7.5pt;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--sb-red);
+  }
+
+  .sb-date {
+    font-style: italic;
+    color: var(--sb-faint);
+  }
+
+  .sb-entry-text {
+    margin: 0 !important;
+    text-align: justify;
+  }
+
+  .sb-entry.first .sb-entry-text::first-letter {
+    float: left;
+    margin: 0.6mm 1.6mm 0 0;
+    font-size: 30pt;
+    line-height: 0.8;
+    font-weight: 700;
+    color: var(--sb-red);
+  }
+
+  /* A Chronicle picture: a column wide, 4:3, and never parted from its entry. */
+  .sb-picture {
+    margin: 0.6mm 0 2mm;
+    width: 100%;
+    max-width: 80mm;
+    aspect-ratio: 4 / 3;
+    padding: 1.4mm;
+    background: #fff;
+    border: 0.25mm solid var(--sb-rule);
+    box-shadow: 0.5mm 0.6mm 0 rgba(80, 60, 40, 0.18);
+  }
+
+  .sb-picture img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  /* A picture taken at night prints dark on white paper: one measured too dark gets a gentle lift
+     for print only (Storybook.tsx sets --sb-lift from its mean light), so a page of evenings reads. */
+  .sb-picture.dim img,
+  .sb-slot.dim img {
+    filter: brightness(var(--sb-lift, 1.3)) contrast(1.05);
+  }
+
+  /* The Pattern Book and the Town Book: a framed slot and the page's words. */
+  .sb-book-blurb {
+    margin: -2mm 0 7mm !important;
+    text-align: center;
+    font-style: italic;
+    color: var(--sb-soft);
+  }
+
+  .sb-page {
+    display: grid;
+    grid-template-columns: 60mm 1fr;
+    gap: 7mm;
+    align-items: start;
+    break-inside: avoid;
+    margin: 0 0 7mm;
+    padding-bottom: 6mm;
+    border-bottom: 0.2mm solid #e2d6c2;
+  }
+
+  .sb-page:last-child {
+    border-bottom: none;
+  }
+
+  .sb-slot {
+    margin: 0;
+    width: 60mm;
+    height: 45mm;
+    padding: 1.4mm;
+    background: #fff;
+    border: 0.25mm solid var(--sb-rule);
+    box-shadow: 0.5mm 0.6mm 0 rgba(80, 60, 40, 0.18);
+  }
+
+  .sb-slot img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  /* An empty slot is a frame with photo corners, waiting for a picture someone may paste in. */
+  .sb-slot.empty {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: none;
+    border: 0.25mm dashed var(--sb-rule);
+    background:
+      linear-gradient(135deg, var(--sb-rule) 0 50%, transparent 50%) top left / 6mm 6mm no-repeat,
+      linear-gradient(225deg, var(--sb-rule) 0 50%, transparent 50%) top right / 6mm 6mm no-repeat,
+      linear-gradient(45deg, var(--sb-rule) 0 50%, transparent 50%) bottom left / 6mm 6mm no-repeat,
+      linear-gradient(315deg, var(--sb-rule) 0 50%, transparent 50%) bottom right / 6mm 6mm no-repeat,
+      #fbf8f1;
+  }
+
+  .sb-slot-room {
+    padding: 0 6mm;
+    text-align: center;
+    font-size: 8.5pt;
+    line-height: 1.35;
+    color: var(--sb-faint);
+  }
+
+  .sb-page-words h4 {
+    margin: 0 0 1mm;
+    font-size: 14pt;
+    line-height: 1.15;
+  }
+
+  .sb-page-place {
+    font-family: 'Alegreya Sans', sans-serif;
+    font-size: 8pt;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--sb-red);
+  }
+
+  .sb-page-text {
+    font-style: italic;
+  }
+
+  .sb-page-found {
+    font-size: 9pt;
+    color: var(--sb-soft);
+  }
+
+  .sb-quiet {
+    margin-top: 20mm !important;
+    text-align: center;
+    font-style: italic;
+    color: var(--sb-soft);
+  }
+
+  /* The folk, by household. */
+  .sb-households {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5mm 7mm;
+    justify-content: center;
+  }
+
+  .sb-household {
+    break-inside: avoid;
+    padding: 2mm 3mm 1mm;
+    border-top: 0.3mm solid var(--sb-rule);
+  }
+
+  .sb-household h4 {
+    margin: 0 0 1.6mm;
+    text-align: center;
+    font-size: 9.5pt;
+    font-weight: 400;
+    font-style: italic;
+    color: var(--sb-soft);
+  }
+
+  .sb-faces {
+    display: flex;
+    gap: 2.5mm;
+    justify-content: center;
+  }
+
+  .sb-face {
+    margin: 0;
+    width: 17mm;
+    text-align: center;
+  }
+
+  .sb-face svg {
+    display: block;
+    width: 16mm;
+    height: 16mm;
+    margin: 0 auto;
+  }
+
+  .sb-face figcaption {
+    margin-top: 0.6mm;
+    font-size: 8pt;
+    line-height: 1.1;
+  }
+
+  /* The end. */
+  .sb-end {
+    break-before: avoid !important;
+    margin: 14mm auto 0;
+    max-width: 110mm;
+    text-align: center;
+    font-style: italic;
+    color: var(--sb-soft);
+  }
+
+  .sb-fleuron {
+    font-size: 18pt;
+    color: var(--sb-red);
+  }
+}
