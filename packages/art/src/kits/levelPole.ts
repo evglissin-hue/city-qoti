@@ -3,13 +3,13 @@
 // the client beside the kit (`withLevelPole`) for every def with `levels`; the spot is found against
 // the kit's own geometry, so the post and its cloth never pass through a roof, an eave or a wall.
 import type { BufferGeometry } from 'three';
-import { ShapeBuilder, type V3 } from '../geometry';
+import { mixHex, ShapeBuilder, type V3 } from '../geometry';
 import { palette } from '../palette';
 import { SURFACE } from '../surface';
 import { mergeFlat } from './vehicles';
 
-/** The pennants' cloth: the palette's sunny yellow, which reads on grass, stone, thatch, tile and slate. */
-export const LEVEL_PENNANT = palette.flowerB;
+/** The pennants' cloth: the sunny yellow washed toward cream, pale enough to catch the moon and never a light. */
+export const LEVEL_PENNANT = mixHex(palette.flowerB, palette.white, 0.4);
 /** The post's height, a little over the low roofs; the top pennant hangs from just under it. */
 export const POLE_HEIGHT = 2.5;
 /** A pennant's length out from the post and its height; the gap between two. */
@@ -208,8 +208,8 @@ export function levelPoleGeometry(
     palette.darkWood,
   );
   s.surface(SURFACE.cloth);
-  // Lit like a lantern pane at night (glow 2), so the count still reads in the dark; day is unchanged.
-  s.glow(2);
+  // Glow 5: cloth that keeps a faint lift of its own color at night (client material); never a light.
+  s.glow(5);
   const n = Math.max(1, Math.min(3, Math.round(level)));
   for (let i = 0; i < n; i++) {
     const top = POLE_HEIGHT - 0.04 - i * (PENNANT_H + PENNANT_GAP);

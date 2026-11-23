@@ -35,6 +35,8 @@ import { patchWallAo } from './wallAo';
 export const FRESNEL_GLSL = KIT_FRESNEL_GLSL;
 
 /** The night glow's color (a warm lamp) and strength at full night. */
+/** R3X: how much of its own color a level pennant keeps lit at night (a lift, never a light: under the bloom threshold). */
+const CLOTH_NIGHT = 0.5;
 const GLOW = 'vec3(1.0, 0.7, 0.36) * 2.4';
 
 /** The Old Age's flame: the glow's own color (a candle), so a valley before I4 looks as it did. */
@@ -149,13 +151,13 @@ function patchNightGlow(
         '  qWN = mat3(modelMatrix) * qWN;',
         `  qPane = max(qWindowLit(qWorld.xyz, uWindowShare), qCandle(qWorld.xyz, qWN) * ${CANDLE_GLOW.toFixed(2)});`,
         '}',
-        `vGlow = glow > 1.5 ? 1.0 : glow * qPane;`,
+        `vGlow = glow > 4.5 ? 0.0 : glow > 1.5 ? 1.0 : glow * qPane;`,
       ].join('\n')
-    : `vGlow = glow > 1.5 ? 1.0 : glow * qWindowLit(qWorld.xyz, uWindowShare);`;
+    : `vGlow = glow > 4.5 ? 0.0 : glow > 1.5 ? 1.0 : glow * qWindowLit(qWorld.xyz, uWindowShare);`;
   shader.vertexShader = shader.vertexShader
     .replace(
       '#include <common>',
-      `#include <common>\nattribute float glow;\nvarying float vGlow;\nuniform float uNight;\nuniform float uWindowShare;\n${WINDOW_HASH_GLSL}${candles ? CANDLE_VERTEX_HEAD : ''}${lamp ? FLICKER_VERTEX_HEAD : ''}`,
+      `#include <common>\nattribute float glow;\nvarying float vGlow;\nvarying float vCloth;\nuniform float uNight;\nuniform float uWindowShare;\n${WINDOW_HASH_GLSL}${candles ? CANDLE_VERTEX_HEAD : ''}${lamp ? FLICKER_VERTEX_HEAD : ''}`,
     )
     .replace(
       '#include <project_vertex>',
@@ -171,19 +173,24 @@ function patchNightGlow(
         '#endif',
         'qWorld = modelMatrix * qWorld;',
         lit,
+        // R3X: glow 5 marks a level pennant: no light, only a faint lift of its own color at night.
+        'vCloth = glow > 4.5 ? 1.0 : 0.0;',
         // R3F: a lamp the lamplighter lit (glow 3) flickers as a flame and is marked negative.
-        lamp ? 'vFlame = glow > 1.5 ? qFlicker(qWorld.xz) * (glow > 2.5 ? -1.0 : 1.0) : 0.0;' : '',
+        lamp
+          ? 'vFlame = glow > 1.5 && glow < 4.5 ? qFlicker(qWorld.xz) * (glow > 2.5 ? -1.0 : 1.0) : 0.0;'
+          : '',
       ].join('\n'),
     );
   shader.fragmentShader = shader.fragmentShader
     .replace(
       '#include <common>',
-      `#include <common>\nvarying float vGlow;\nuniform float uNight;${lamp ? '\nvarying float vFlame;\nuniform vec3 uFlame;' : ''}`,
+      `#include <common>\nvarying float vGlow;\nvarying float vCloth;\nuniform float uNight;${lamp ? '\nvarying float vFlame;\nuniform vec3 uFlame;' : ''}`,
     )
     .replace(
       '#include <emissivemap_fragment>',
       [
         '#include <emissivemap_fragment>',
+        `totalEmissiveRadiance += diffuseColor.rgb * ${CLOTH_NIGHT.toFixed(2)} * vCloth * uNight;`,
         lamp
           ? // A flame burns its era's color at its flicker; a pane keeps the candle glow, lighting
             // the little room behind it (qRoomTint, packages/art materials.ts; 1 with rooms off).
