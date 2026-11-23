@@ -468,5 +468,5 @@ export const SUPPLY_KINDS = ['nightly', 'evening', 'season', 'outlet', 'well'] a
 export const REST_KINDS = ['unlit', 'cold', 'bare', 'faded', 'dry'] as const;
 /** Index order of the Town Book's leanings (Leaning): TownBookView.leanings. Append-only. */
 export const LEANINGS = ['industry', 'gardens', 'pilgrimage'] as const;
-/** Pairs each door keeps in the thread counts (R3D bounds them: the strongest stay). */
+/** Pairs each door keeps of each good in the thread counts (R3D bounds them: the strongest stay). */
 export const THREAD_PAIRS_PER_DOOR = 8;

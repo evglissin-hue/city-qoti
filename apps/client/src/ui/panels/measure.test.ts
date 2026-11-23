@@ -29,7 +29,7 @@ const part = (frameAvg: number, gpu: number | null): PerfPart => ({
   gpuP95: gpu === null ? null : gpu * 2,
   draws: 140,
   triangles: 1_250_000,
-  modes: { moving: 1, still: 2, idle: 90 },
+  modes: { moving: 1, still: 2, idle: 90, sample: 0 },
   shadowRenders: 1,
 });
 
@@ -77,7 +77,7 @@ describe('Measure this laptop', () => {
     expect(full).toBeGreaterThan(6 * 60);
     expect(full).toBeLessThan(8.5 * 60);
     expect(estimateText(full)).toMatch(/^about [7-8] minutes$/);
-    expect(estimateText(measureSeconds({ move: 1, rest: 1, settle: 0.5, settleMax: 4 }))).toBe(
+    expect(estimateText(measureSeconds({ move: 1, rest: 1, settle: 0.5, settleMax: 4, still: 0.5 }))).toBe(
       'about a minute',
     );
     expect(estimateText(80)).toBe('about a minute');
@@ -103,6 +103,22 @@ describe('Measure this laptop', () => {
     expect(plain).toContain('| Scene | Preset | Moving frame ms (avg / p95) |');
   });
 
+  it('V4.0: gives the still frame its own column where a row has a still part', async () => {
+    const withStill: PerfRow[] = rows.map((r) =>
+      r.quality === 'low' ? r : { ...r, still: { ...part(30, 9), draws: 210 } },
+    );
+    const table = perfTable(withStill);
+    expect(table).toContain('| Still frame GPU ms (avg / p95), draws |');
+    expect(table).toContain('| 9.0 / 18.0, 210 |');
+    // Low has no still-frame cache, so no still part.
+    expect(table.split('\n').find((l) => l.startsWith('| valley | low |'))).toMatch(/\| n\/a \|$/);
+    // Without any still part the table keeps its columns (v1-perf to v3-perf, older runs).
+    expect(perfTable(rows)).not.toContain('Still frame');
+    const m = await mount(h(MeasureTable, { rows: withStill }));
+    expect(m.text()).toContain('9.0 / 18.0');
+    m.unmount();
+  });
+
   it('shows the table: one row each, GPU n/a where the browser has no timer', async () => {
     const m = await mount(h(MeasureTable, { rows }));
     expect(m.root.querySelectorAll('[data-testid="measure-row"]')).toHaveLength(18);
@@ -120,7 +136,8 @@ describe('Measure this laptop', () => {
     const m = await mount(h(MeasureTable, { rows: [{ ...rows[0]!, moving: empty, idle: empty }] }));
     const cells = [...m.root.querySelectorAll('[data-testid="measure-row"] td')].map((td) => td.textContent);
     expect(cells[2]).toBe('11:00');
-    expect(cells.slice(3)).toEqual(['n/a', 'n/a', 'n/a', 'n/a', 'n/a', 'n/a']);
+    // V4.0: the still frame's column too (n/a: this row has no still part).
+    expect(cells.slice(3)).toEqual(['n/a', 'n/a', 'n/a', 'n/a', 'n/a', 'n/a', 'n/a']);
     m.unmount();
   });
 

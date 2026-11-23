@@ -44,7 +44,7 @@ import {
 } from 'three';
 import type { Mirror } from '../../state/mirror';
 import { inkStrength, routeEdges, townInk, townLens } from '../overlayTown';
-import { tileOutline, townGlints, townRoutes, townSheet } from '../overlayTownDraw';
+import { threadPath, tileOutline, townGlints, townRoutes, townSheet } from '../overlayTownDraw';
 import { drapeGrid, drapeOutline, drapeRing, drapeTiles, groundY, mergeDrapes, type Rgba } from '../drape';
 import { iconAtlas, IconSprites, STATUS_ICONS } from '../icons';
 import { buildingGeometry, standLevel } from '../kitGeometry';
@@ -54,7 +54,17 @@ import type { LayerContext, RenderLayer } from './types';
 export type HighlightArea =
   | { x: number; z: number; radius: number; tone?: 'hearth' | 'ledger' }
   /** R2D: `outline` inks the tiles' edge with the faintest wash inside, in place of a filled block. */
-  | { tiles: [number, number][]; tone?: 'hearth' | 'ledger'; outline?: boolean }
+  | {
+      tiles: [number, number][];
+      tone?: 'hearth' | 'ledger';
+      outline?: boolean;
+      /**
+       * R3D: the tiles are a route in walking order (a Thread's, door to door): drawn as the town
+       * overlay's ochre dashes, bolder and on a pale edge, so it reads on a brown road; a step
+       * between tiles that are not neighbors (the start of the next leg) is not drawn.
+       */
+      path?: boolean;
+    }
   | null;
 
 export interface OverlaysLayer extends RenderLayer {
@@ -1055,7 +1065,10 @@ export function overlaysLayer(): OverlaysLayer {
     const g = new Group();
     g.renderOrder = 5;
     const m = ctx.mirror;
-    if ('tiles' in area && area.outline) {
+    if ('tiles' in area && area.path) {
+      const geo = threadPath(m, area.tiles);
+      if (geo) add(geo, hlMaterial, g);
+    } else if ('tiles' in area && area.outline) {
       const geo = tileOutline(m, area.tiles, tone);
       if (geo) add(geo, hlMaterial, g);
     } else if ('tiles' in area) {

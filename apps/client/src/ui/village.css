@@ -2058,7 +2058,8 @@ li.plan.settled p {
 .minimap {
   position: absolute;
   right: 10px;
-  bottom: calc(22px + 74px * var(--ui-scale));
+  /* P3B: over the view corner (View, undo and the camera), never over the bar. */
+  bottom: calc(22px + 48px * var(--ui-scale));
   padding: 6px;
   border-radius: 14px;
   width: calc(148px * var(--ui-scale));
@@ -2135,7 +2136,7 @@ li.plan.settled p {
 .minimap-fold {
   position: absolute;
   right: 10px;
-  bottom: calc(22px + 74px * var(--ui-scale));
+  bottom: calc(22px + 48px * var(--ui-scale));
   display: grid;
   place-items: center;
   width: 40px;
@@ -2150,28 +2151,9 @@ li.plan.settled p {
   height: 22px;
 }
 
-/* The map floats over the bottom right, above the toolbar's row; the right column stops above it.
-   On wide screens it drops down beside the toolbar instead. */
+/* The map floats over the bottom right, above the view corner; the right column stops above it. */
 .game-ui.with-minimap .side.right {
-  max-height: calc(100vh - 104px - 236px * var(--ui-scale));
-}
-
-@media (min-width: 1500px) {
-  .minimap {
-    bottom: 12px;
-  }
-
-  .game-ui.with-minimap .toolbar {
-    left: calc(50% - 82px * var(--ui-scale));
-  }
-
-  .game-ui.with-minimap .toolbar-row {
-    max-width: calc(100vw - 20px - 164px * var(--ui-scale));
-  }
-
-  .game-ui.with-minimap .side.right {
-    max-height: calc(100vh - 90px - 160px * var(--ui-scale));
-  }
+  max-height: calc(100vh - 104px - 210px * var(--ui-scale));
 }
 
 /* The left feed scrolls rather than slipping under the toolbar. */

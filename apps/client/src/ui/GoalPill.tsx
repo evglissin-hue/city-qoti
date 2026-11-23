@@ -149,14 +149,21 @@ export function goalLine(c: CharterView | null, trial: TrialView | null, tick: n
   };
 }
 
+/** "Mill Town" or "Mill Town and Garden Village" or "A, B and C". */
+function joinWords(list: string[]): string {
+  return list.length < 2 ? list.join('') : `${list.slice(0, -1).join(', ')} and ${list[list.length - 1]}`;
+}
+
 export function GoalPill({ session }: { session: Session }) {
   const m = session.mirror;
   const line = goalLine(m.charter.value, m.trial.value, m.tick.value);
   if (!line) return null;
   const open = line.opens === 'chapter' ? session.ui.chapter.value : session.ui.panel.value === line.opens;
+  const callings = m.charter.value?.callings ?? [];
   const title = [
     line.text + (line.count ? ` (${line.count.replace('/', ' of ')} goals)` : ''),
     ...line.detail,
+    ...(callings.length ? [`Callings: ${joinWords(callings.map((c) => c.name))}.`] : []),
   ].join('\n');
   return (
     <button

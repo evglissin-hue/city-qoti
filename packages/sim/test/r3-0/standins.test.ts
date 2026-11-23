@@ -80,12 +80,8 @@ describe('the supplies stand-ins on a fresh standard valley', () => {
     const { s } = freshWithLanterns();
     const subject = { kind: 'good', good: 'cider' } as const;
     const t = threadView(s, subject);
-    expect(t).toEqual({
-      subject,
-      text: 'Nobody has followed this thread yet.',
-      refs: [],
-      route: [],
-    });
+    // R3D replaced the stand-in: with no counts yet, the Thread says so (test/r3d/threadView.test.ts).
+    expect(t).toEqual({ subject, text: 'Nobody has bought any cider lately.', refs: [], route: [] });
     const book = townBookView(s);
     expect(book.pages).toEqual([]);
     expect(book.hints).toEqual([]);

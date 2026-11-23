@@ -31,7 +31,7 @@ const ui = (o: Partial<GuideUiNow> = {}): GuideUiNow => ({
 describe('the guide arrows', () => {
   it('point at the tool, or at the lens it lives in, until it is in hand', () => {
     const g = step({ tool: 'lane' });
-    expect(pointTargets(g, ui())).toEqual(['tool-lane', 'lens-ledger']);
+    expect(pointTargets(g, ui())).toEqual(['tool-lane', 'tool-group-roads', 'lens-ledger']);
     expect(pointTargets(g, ui({ tool: 'lane' }))).toEqual([]);
     expect(pointDone(g, ui({ tool: 'lane' }))).toBe(true);
   });
@@ -39,6 +39,8 @@ describe('the guide arrows', () => {
   it('point at a book until it is open', () => {
     const g = step({ panel: 'wishes' }, 'hearth');
     expect(pointTargets(g, ui({ lens: 'ledger' }))).toEqual(['book-wishes', 'lens-hearth']);
+    // P3B: in its own lens the Books button points the way while the shelf is shut.
+    expect(pointTargets(g, ui({ lens: 'hearth' }))).toEqual(['book-wishes', 'books']);
     expect(pointTargets(g, ui({ lens: 'hearth', panel: 'wishes' }))).toEqual([]);
   });
 

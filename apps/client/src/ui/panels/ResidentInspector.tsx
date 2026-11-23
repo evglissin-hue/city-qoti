@@ -8,8 +8,10 @@ import { HISTORY_WORD, MOOD_LINE, MOOD_WORD, NEED_LABEL, STAGE_WORD, TIER_WORD }
 import { lettersOf, stepWord } from '../letters';
 import { openLetter } from './StoryLetter';
 import { Day } from './Day';
+import { Thread } from './Thread';
 import { Glyph } from '../icons';
 import { Portrait } from '../Portrait';
+import { ResidentMasterLines } from './masterLines';
 import { Empty, Frame, Hearts, Heading, Meter, useInspect } from './parts';
 
 type Tab = 'today' | 'story';
@@ -66,6 +68,7 @@ export function ResidentInspector({ session, id }: { session: Session; id: numbe
         <Portrait species={r.species} look={r.look} stage={r.stage} size={68} mood={r.moodBand} />
         <div class="resident-facts">
           <p class="doing">{detail?.doing ?? ''}</p>
+          {detail && <ResidentMasterLines session={session} detail={detail} />}
           <div class="traits">
             {r.traits.map((t) => {
               const def = content.traitById.get(t);
@@ -162,6 +165,8 @@ export function ResidentInspector({ session, id }: { session: Session; id: numbe
           </dd>
         </div>
       </dl>
+
+      <Thread session={session} subject={{ kind: 'resident', id }} routeWhen="hover" />
 
       {wish && (
         <div class="wish-card" data-testid="resident-wish">

@@ -13,6 +13,7 @@ import {
   type BuildingView,
   type CarrierRule,
   type Command,
+  type PlacePriority,
   type RejectReason,
   type RoadKind,
   type SeasonPlanInput,
@@ -43,7 +44,9 @@ type Before =
   /** R2D: a street's or place's own name as it stood ('' when it wore the generated one). */
   | { t: 'name'; value: string }
   /** R1C: the carrier's terms for the family, and its purse, as they stood. */
-  | { t: 'carrier'; rule: CarrierRule; sell: boolean; reserve: number; budget: number }
+  | { t: 'carrier'; rule: CarrierRule; sell: boolean; reserve: number; budget: number; places: boolean }
+  /** R3D: a place's priority as it stood (absent reads 'normal'). */
+  | { t: 'priority'; value: PlacePriority }
   | { t: 'plan'; plan: SeasonPlanInput };
 
 interface Pending {
@@ -125,6 +128,10 @@ function capture(cmd: Command, m: Mirror): Before | null {
       const pl = m.places.get(cmd.id);
       return pl ? { t: 'name', value: pl.renamedBy === undefined ? '' : pl.name } : null;
     }
+    case 'place.setPriority': {
+      const pl = m.places.get(cmd.id);
+      return pl ? { t: 'priority', value: pl.priority ?? 'normal' } : null;
+    }
     case 'field.paint':
     case 'field.remove':
       return { t: 'tiles', values: cmd.tiles.map(([x, z]) => fieldOwner(m, x, z)) };
@@ -154,7 +161,14 @@ function capture(cmd: Command, m: Mirror): Before | null {
       if (!b) return null;
       const line = 'family' in cmd ? b.lines.find((l) => l.family === cmd.family) : b.lines[0];
       if (!line) return null;
-      return { t: 'carrier', rule: line.rule, sell: line.sell, reserve: line.reserve, budget: b.budget };
+      return {
+        t: 'carrier',
+        rule: line.rule,
+        sell: line.sell,
+        reserve: line.reserve,
+        budget: b.budget,
+        places: line.forPlaces ?? false,
+      };
     }
     case 'season.setPlan': {
       // Only the answers this command changes are put back.
@@ -348,6 +362,20 @@ function inverseOf(p: Pending, m: Mirror, change: MirrorChange, seat: SeatId): U
         intact: (mm) => nameIs(mm.places.get(cmd.id), cmd.name),
       };
     }
+    case 'place.setPriority': {
+      if (before.t !== 'priority') return null;
+      const name = m.places.get(cmd.id)?.name ?? 'the place';
+      return {
+        label:
+          cmd.priority === 'keep'
+            ? `keeping ${name} first`
+            : cmd.priority === 'rest'
+              ? `letting ${name} rest`
+              : `taking ${name} as it comes`,
+        inverse: [{ t: 'place.setPriority', id: cmd.id, priority: before.value }],
+        intact: (mm) => (mm.places.get(cmd.id)?.priority ?? 'normal') === cmd.priority,
+      };
+    }
     case 'terrain.lower':
     case 'terrain.raise': {
       // Raising is lowering's inverse. The coins are not refunded.
@@ -463,10 +491,30 @@ function inverseOf(p: Pending, m: Mirror, change: MirrorChange, seat: SeatId): U
     case 'carrier.setRule': {
       if (before.t !== 'carrier') return null;
       const line = (mm: Mirror) => mm.balances.value?.lines.find((l) => l.family === cmd.family);
+      // A command without `places` leaves the switch alone, so its inverse does too.
+      const back =
+        cmd.places === undefined
+          ? { t: 'carrier.setRule' as const, family: cmd.family, rule: before.rule, sell: before.sell }
+          : {
+              t: 'carrier.setRule' as const,
+              family: cmd.family,
+              rule: before.rule,
+              sell: before.sell,
+              places: before.places,
+            };
       return {
-        label: `the ${cmd.family} rule`,
-        inverse: [{ t: 'carrier.setRule', family: cmd.family, rule: before.rule, sell: before.sell }],
-        intact: (mm) => line(mm)?.rule === cmd.rule && line(mm)?.sell === cmd.sell,
+        label:
+          cmd.places !== undefined && cmd.rule === before.rule && cmd.sell === before.sell
+            ? `${cmd.places ? 'buying' : 'not buying'} ${cmd.family} for places`
+            : `the ${cmd.family} rule`,
+        inverse: [back],
+        // A view that does not say (`forPlaces` absent: R3A fills it) cannot contradict the switch.
+        intact: (mm) =>
+          line(mm)?.rule === cmd.rule &&
+          line(mm)?.sell === cmd.sell &&
+          (cmd.places === undefined ||
+            line(mm)?.forPlaces === undefined ||
+            line(mm)!.forPlaces === cmd.places),
       };
     }
     case 'carrier.setReserve': {

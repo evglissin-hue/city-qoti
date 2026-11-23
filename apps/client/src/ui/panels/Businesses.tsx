@@ -4,7 +4,7 @@
 import { content } from '@qoti/content';
 import type { BusinessView } from '@qoti/sim';
 import type { Session } from '../../app/session';
-import { buildingName, coinCount } from '../format';
+import { buildingName, coinCount, goodName } from '../format';
 import { Glyph } from '../icons';
 import './businesses.css';
 import { Empty, Frame } from './parts';
@@ -99,6 +99,19 @@ export function PinButton({ session, b }: { session: Session; b: BusinessView })
   );
 }
 
+/** "Master Hazel; makes pies. 2 apprentices" or "Its master has gone: 4 days before it slides."; null when neither. */
+export function masterLine(session: Session, b: BusinessView): string | null {
+  if (b.graceDays !== undefined && !b.masterId) {
+    return `Its master has gone: ${b.graceDays} ${b.graceDays === 1 ? 'day' : 'days'} before it slides.`;
+  }
+  if (!b.masterId) return null;
+  const r = session.mirror.residents.get(b.masterId);
+  const makes = b.masterGood ? `; makes ${goodName(b.masterGood).toLowerCase()}` : '';
+  const n = b.apprentices?.length ?? 0;
+  const apprentices = n > 0 ? ` ${n} ${n === 1 ? 'apprentice' : 'apprentices'}` : '';
+  return `Master ${r?.given ?? 'someone'}${makes}.${apprentices}`;
+}
+
 function select(session: Session, id: number): void {
   const b = session.mirror.buildings.get(id);
   session.ui.selection.value = { kind: 'building', id };
@@ -121,6 +134,11 @@ function Row({ session, b }: { session: Session; b: BusinessView }) {
           {b.crew > 0 ? `${handsText(b)}.` : ''}
         </span>
         <span class="business-status small">{b.status}</span>
+        {masterLine(session, b) && (
+          <span class="business-master muted small" data-testid={`business-master-${b.id}`}>
+            {masterLine(session, b)}
+          </span>
+        )}
         {profitLine(b) && (
           <span class="business-profit muted small" data-testid={`business-profit-${b.id}`}>
             {profitLine(b)}

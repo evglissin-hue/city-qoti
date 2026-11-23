@@ -18,9 +18,71 @@ import {
 } from 'three';
 import { MOVING_LAYER } from './layerTags';
 import { colorTarget, FULLSCREEN_VERTEX, fullScreenTriangle, type LeanFrame } from './post';
+import type { RefineJitter } from './refine';
 
 /** How long the camera has to rest before frames come from the cache. */
 export const REST_MS = 200;
+
+/**
+ * V4: what the still frame's key is made of (the renderer's `stillKey`), so a new still frame can
+ * say what changed. The joined key is the same string as before V4.0.
+ */
+export interface StillKeyParts {
+  /** The frame's targets (`LeanFrame.revision`) and the preset. */
+  targets: number;
+  quality: string;
+  /** The camera's view (`WorldEnv.viewRevision`). */
+  view: number;
+  /** Static layers (`StaticRevisions.revision`). */
+  content: number;
+  /** The light (the renderer's light revision: the hour's quarter step, weather, photo's hour). */
+  light: number;
+  /** Sun shadow map renders. */
+  shadows: number;
+  /** The light map (`WorldEnv.lightMapRevision`: lamps lighting, windows stepping). */
+  lamps: number;
+}
+
+/** The key's string, in V1D's order. */
+export function stillKeyOf(p: StillKeyParts): string {
+  return [p.targets, p.quality, p.view, p.content, p.light, p.shadows, p.lamps].join('|');
+}
+
+/**
+ * V4: why the still frame is drawn again. `first`, `targets` and `view` start the development over
+ * (a moving camera has dropped to the plain moving frame anyway); the rest are a step of the light
+ * or a small change to the town, which V4A folds in without a restart, so the picture never pops
+ * (30-roadmap.md, V4 acceptance; the lamplighter's lamps, one light map change a tick).
+ */
+export type StillChange = 'first' | 'targets' | 'view' | 'content' | 'light' | 'lamps' | 'shadows';
+
+/** What changed between two keys (the biggest change wins), or null when they are the same. */
+export function stillChange(prev: StillKeyParts | null, next: StillKeyParts): StillChange | null {
+  if (!prev) return 'first';
+  if (prev.targets !== next.targets || prev.quality !== next.quality) return 'targets';
+  if (prev.view !== next.view) return 'view';
+  if (prev.content !== next.content) return 'content';
+  if (prev.light !== next.light) return 'light';
+  if (prev.lamps !== next.lamps) return 'lamps';
+  if (prev.shadows !== next.shadows) return 'shadows';
+  return null;
+}
+
+/** Whether a change starts the development over (else it folds in fresh samples). */
+export function restartsDevelopment(change: StillChange): boolean {
+  return change === 'first' || change === 'targets' || change === 'view';
+}
+
+/**
+ * V4: what `StillCache.refine` needs to draw and fold a sample. The renderer hands it over; the
+ * cache never draws the scene itself.
+ */
+export interface RefineContext {
+  renderer: WebGLRenderer;
+  frame: LeanFrame;
+  /** Draws the static layers into `target` with this sample's jitter (the renderer's scene pass). */
+  draw(jitter: RefineJitter, target: WebGLRenderTarget): void;
+}
 
 /** Copies a color texture and a depth texture: color out, and the depth into the depth buffer. */
 const COPY_FRAGMENT = /* glsl */ `
@@ -71,6 +133,15 @@ export class StillCache {
   ao = false;
   /** Still frames drawn so far (the `?debug` overlay). */
   renders = 0;
+  /**
+   * V4: samples folded into the kept picture after its plain still frame (0 is today's still
+   * frame). A new still frame for a restart sets it to 0; V4A's fold-in keeps some.
+   */
+  samples = 0;
+  /** V4: the samples this rest develops to (the governor's `refineGoal`; 0 in V4.0). */
+  goal = 0;
+  /** V4: why the last still frame was drawn (null before the first). */
+  lastChange: StillChange | null = null;
   /**
    * The full-screen mesh that restores the cached picture at the start of an idle frame. It lives in
    * the scene on the moving layer, drawn before everything else, and only shows on idle frames.
@@ -134,7 +205,17 @@ export class StillCache {
    * its depth texture resolved) as the cached picture for `key`, with ambient occlusion on top
    * where the preset has it.
    */
-  keep(renderer: WebGLRenderer, frame: LeanFrame, src: WebGLRenderTarget, key: string): void {
+  keep(
+    renderer: WebGLRenderer,
+    frame: LeanFrame,
+    src: WebGLRenderTarget,
+    key: string,
+    change: StillChange = 'first',
+  ): void {
+    // V4.0: every still frame is a fresh picture; V4A folds a light step or a small change into
+    // the samples it has instead of starting over (`restartsDevelopment`).
+    this.lastChange = change;
+    this.samples = 0;
     const w = src.width;
     const h = src.height;
     if (!this.target || this.target.width !== w || this.target.height !== h) {
@@ -154,6 +235,26 @@ export class StillCache {
     frame.pass(this.capture, this.target);
     this.key = key;
     this.renders++;
+  }
+
+  /**
+   * V4: whether the kept picture for `key` still has samples to develop this rest (one a frame).
+   * Always false in V4.0, where the goal is 0.
+   */
+  developing(key: string): boolean {
+    return this.enabled && this.valid(key) && this.samples < this.goal;
+  }
+
+  /**
+   * V4: develops the kept picture by up to `n` samples, each drawn by `ctx.draw` with its jitter
+   * (`refineJitter(samples + 1)`) and folded into the picture; returns how many it added. The
+   * restore mesh then shows the developed picture, and its depth stays the plain still frame's.
+   * V4.0's stub adds nothing and returns 0, so nothing on screen changes. V4A builds it.
+   */
+  refine(n: number, ctx: RefineContext): number {
+    void n;
+    void ctx;
+    return 0;
   }
 
   /** The AO pass at this size, once its code has loaded (stills before that go without). */

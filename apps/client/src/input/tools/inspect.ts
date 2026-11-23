@@ -12,6 +12,11 @@ const TERRAIN = ['Grass', 'Meadow', 'Forest floor', 'Sand', 'Rock', 'Mountain', 
 const DEPOSITS = ['', 'stone', 'clay', 'sand', 'coal'];
 /** The pointer rests this long (ms) before the hover label says what is under it. */
 const HOVER_DWELL = 450;
+/**
+ * P3B (the owner's shots: "Grass. Soil 91 (rich)." rode the pointer across open ground): the
+ * ground's line waits for a real dwell; the tools that care about soil say it as they go.
+ */
+const GROUND_DWELL = 1600;
 /** And it shows for this long (ms). */
 const HOVER_SHOWN = 4000;
 
@@ -57,16 +62,21 @@ export function inspectTool(ctx: ToolContext): Tool {
   function rest(p: PointerInfo): void {
     if (dwell) clearTimeout(dwell);
     cursorHint(null);
-    dwell = setTimeout(() => {
+    const show = (text: string) => {
       dwell = 0;
-      const text = hoverText(ctx, p);
-      if (!text) return;
       cursorHint(text, p.clientX, p.clientY);
       // Gone after a while, so a camera moved by keys never leaves it pointing at the wrong thing.
       dwell = setTimeout(() => {
         dwell = 0;
         cursorHint(null);
       }, HOVER_SHOWN);
+    };
+    dwell = setTimeout(() => {
+      dwell = 0;
+      const text = hoverText(ctx, p);
+      if (!text) return;
+      if (ctx.render.pickEntity(p.clientX, p.clientY)) show(text);
+      else dwell = setTimeout(() => show(text), GROUND_DWELL - HOVER_DWELL);
     }, HOVER_DWELL);
   }
 
