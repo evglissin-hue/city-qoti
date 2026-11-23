@@ -2,7 +2,8 @@
 // plays in, so a broken, unlit or stand-in frame is caught before a playtest. For each fixture (the
 // grown village and a fresh hamlet), season and the weathers that season has (clear, rain, fog;
 // snow in winter), it shoots the default camera (70 tiles, 45 degrees) and the nearest (12 tiles,
-// 30 degrees, the play clamp's limits) at noon, dusk, 22:00 and dawn, then lays each fixture and
+// 30 degrees, the play clamp's limits), and in the grown village the nearest in the woods west of
+// it (the forest floor, P3C follow-up), at noon, dusk, 22:00 and dawn, then lays each fixture and
 // season out as one sheet: a row per weather and camera, a column per hour. Needs the client dev
 // server (`npm run dev`; QOTI_CLIENT_PORT for another port, 5230):
 //   QOTI_CHROMIUM=/opt/pw-browsers/chromium node apps/client/e2e/p3c-contact.mjs after [fixture ...]
@@ -37,10 +38,14 @@ const SEASONS = {
 const HOURS = { noon: 12, dusk: 19.2, night: 22, dawn: 6 };
 const seasons = (process.env.QOTI_SEASONS ?? Object.keys(SEASONS).join(',')).split(',');
 const hours = (process.env.QOTI_HOURS ?? Object.keys(HOURS).join(',')).split(',');
-/** The play camera's default and its nearest (distance in tiles, pitch in degrees). */
+/**
+ * The play camera's default and its nearest (distance in tiles, pitch in degrees), and the nearest
+ * in the grown village's woods (`at`, tiles), where the forest floor once showed a grid of squares.
+ */
 const CAMERAS = [
   { name: 'default', dist: 70, pitch: 45 },
   { name: 'nearest', dist: 12, pitch: 30 },
+  { name: 'woods', dist: 12, pitch: 30, at: [52, 91], fixture: 'grown' },
 ];
 
 /** As v3-shots.mjs: at least `least` ms, then until the triangle count holds within 2%. */
@@ -107,8 +112,10 @@ for (const fixture of FIXTURES) {
       // The weather eases in over a few seconds.
       await page.waitForTimeout(6000);
       for (const cam of CAMERAS) {
+        if (cam.fixture && cam.fixture !== fixture) continue;
         // The nearest camera looks at the high street's door when there is one, else the middle.
-        const at = cam.name === 'nearest' && info?.door ? [info.door.x, info.door.z] : info.center;
+        const at =
+          cam.at ?? (cam.name === 'nearest' && info?.door ? [info.door.x, info.door.z] : info.center);
         for (const hour of hours) {
           await page.evaluate(
             ([x, z, d, h, pitch]) => {
