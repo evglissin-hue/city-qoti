@@ -28,6 +28,7 @@ export {
   placementFree,
   matches,
   mix32,
+  paramsFor,
   resolveDressing,
   rulesFor,
   subjectKey,
@@ -38,6 +39,21 @@ export {
   type Placement,
 } from './dressing';
 export {
+  facadeOf,
+  FACADE_CELLS_X,
+  FACADE_CELLS_Y,
+  FACADE_PROUD,
+  FACADE_SUB,
+  FACADE_TOUCH,
+  facadeSignSpots,
+  SIGN_SIZE,
+  signWall,
+  WALL_BEHIND_DOOR,
+  WINDOW_CLEAR,
+  type Facade,
+  type FacadeSpot,
+} from './facade';
+export {
   artKitId,
   kitById,
   kits,
@@ -47,6 +63,7 @@ export {
   type KitBuildOptions,
   type KitPart,
 } from './kits';
+export { MASTER_EMBLEMS } from './kits/masterSign';
 export type { AnchorPoint, AnchorRect, AnchorRun } from './kits/types';
 export type { AnimalKind } from './kits/types';
 export { animalArt, standingAnimal, wolfGeometry, type AnimalArt } from './kits/animals';

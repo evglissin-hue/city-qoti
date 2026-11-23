@@ -1,8 +1,8 @@
 // V3A: the yard and goods pieces (?scene=yards). Rows of pieces at their near level with the same
-// piece at its far level behind it; then a row of painted signs (one per emblem) and a row of
-// goods tables (one per good). Params: `row` (0 to 4, show one row), `cols` (pieces per row,
+// piece at its far level behind it; then a row of painted signs (one per emblem), a row of master's
+// boards (R3X, one per trade) and a row of goods tables (one per good). Params: `row` (0 to 5, show one row), `cols` (pieces per row,
 // default 8), `seed`.
-import { kitById, type KitBuildOptions } from '@qoti/art';
+import { kitById, MASTER_EMBLEMS, type KitBuildOptions } from '@qoti/art';
 import { Group, Mesh, type Material } from 'three';
 
 export const YARD_PIECES = [
@@ -70,6 +70,14 @@ export function buildYards(q: URLSearchParams, material: Material, seed: number)
       id: 'yard-sign',
       label: `sign/${e}`,
       opts: { seed: seed + k, params: { emblem: e } },
+    })),
+  );
+  // R3X: the master's boards, one per trade, hung on a wall and (the second half) on a post.
+  rows.push(
+    MASTER_EMBLEMS.map((e, k) => ({
+      id: 'master-sign',
+      label: `master/${e}`,
+      opts: { seed: seed + k, params: { emblem: e, post: k % 2 === 1 } },
     })),
   );
   rows.push(
