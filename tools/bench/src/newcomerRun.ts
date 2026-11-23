@@ -48,6 +48,8 @@ export interface NewcomerRow {
   worstHungry: number;
   /** Days some household missed a meal for another reason than an empty purse (food short, or out of reach). */
   hungryUnpaidDays: number;
+  /** R3X: of the hungry days, those at Hamlet rank (P3A's line is about the Hamlet). */
+  hungryHamletDays: number;
   /** Days with food jobs open while Food was under three days in hand. */
   foodShortOpenDays: number;
   /** The first day a business stood at level 2 (0: none). */
@@ -120,6 +122,7 @@ export function newcomerRow(seed: string, days: number, newcomer = true): Newcom
     firstFarmstead: clock.first((d) => d === 'farmstead', 1),
     hungryDays: out.filter((l) => l.hungry.households > 0).length,
     worstHungry: Math.max(0, ...out.map((l) => l.hungry.households)),
+    hungryHamletDays: out.filter((l) => l.hungry.households > 0 && l.rank === 'hamlet').length,
     hungryUnpaidDays: out.filter((l) => l.hungry.households - l.hungry.broke > 0).length,
     foodShortOpenDays: out.filter((l) => l.hands.foodOpen > 0 && l.foodDays < 3).length,
     firstLevel2: out.find((l) => l.level2 + l.level3 > 0)?.day ?? 0,
@@ -130,7 +133,7 @@ export function newcomerRow(seed: string, days: number, newcomer = true): Newcom
 }
 
 export const NEWCOMER_HEAD =
-  'seed     profile   village  pop20 pop40 pop70  homes h (day)        farmstead h (day)  hungry (worst) not purse  food open+short days  1st L2';
+  'seed     profile   village  pop20 pop40 pop70  homes h (day)        farmstead h (day)  hungry (worst) not purse hamlet  food open+short days  1st L2';
 
 export function formatNewcomer(r: NewcomerRow): string {
   const t = (xs: [number, number][]) => xs.map(([h, d]) => `${h}h (d${d})`).join(', ') || 'none';
@@ -145,6 +148,7 @@ export function formatNewcomer(r: NewcomerRow): string {
     t(r.firstHomes).padEnd(20),
     t(r.firstFarmstead).padEnd(18),
     `${r.hungryDays} (${r.worstHungry}) ${r.hungryUnpaidDays}`.padStart(19),
+    String(r.hungryHamletDays).padStart(7),
     String(r.foodShortOpenDays).padStart(21),
     String(r.firstLevel2 || '-').padStart(6),
   ].join(' ');
