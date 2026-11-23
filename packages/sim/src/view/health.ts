@@ -16,6 +16,7 @@ import {
   MAP_SIZE,
   RANKS,
   ResidentFlags,
+  RoundFlags,
   TICKS_PER_DAY,
   TICKS_PER_HOUR,
   TILE_FP,
@@ -845,13 +846,23 @@ export class HealthWatch {
         if (list) list.push(p);
         else byOutlet.set(id, [p]);
       }
+    // A household that went shopping first stops at the outlet itself (`shop:<id>`), which has no place
+    // row: the sale is on the stop's flags, not on any row (hazel's tuned Village run flagged a stall
+    // that sold 2 Treats at its own door on three of the six evenings).
+    const soldAtDoor = new Map<number, number>();
+    for (const r of state.residents)
+      for (const stop of r.round ?? [])
+        if (stop.place.startsWith('shop:') && (stop.flags & RoundFlags.treat) !== 0) {
+          const id = Number(stop.place.slice(5));
+          soldAtDoor.set(id, (soldAtDoor.get(id) ?? 0) + 1);
+        }
     const live = new Set<number>();
     for (const b of state.buildings) {
       const mine = byOutlet.get(b.id);
       if (!mine || !sellsTreats(state, b) || !treatsOnShelf(state, b)) continue;
       live.add(b.id);
       let visitors = 0;
-      let sold = 0;
+      let sold = soldAtDoor.get(b.id) ?? 0;
       for (const p of mine) {
         const row = placeState(state, p.id);
         if (!row) continue;
