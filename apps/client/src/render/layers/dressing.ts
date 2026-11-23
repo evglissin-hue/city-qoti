@@ -4,15 +4,20 @@ import {
   boundsOf,
   clearanceOf,
   cloneClearance,
+  facadeOf,
+  facadeSignSpots,
   fitPlacement,
+  footprintOf,
   kitById,
   markPlacement,
   doorCorridor,
   placementFree,
   resolveDressing,
   rulesFor,
+  SIGN_SIZE,
   subjectKey,
   type AnchorPoint,
+  type Facade,
   type AnchorRun,
   type Clearance,
   type DressingSubject,
@@ -33,7 +38,13 @@ import type { Mirror } from '../../state/mirror';
 import { fpToWorld } from '../coords';
 import { drawDef } from '../defs';
 import { DressingBatch } from '../dressingBatch';
-import { buildingKey, buildingMatrix, buildingVariantGeometry, standLevel } from '../kitGeometry';
+import {
+  buildingKey,
+  buildingMatrix,
+  buildingParams,
+  buildingVariantGeometry,
+  standLevel,
+} from '../kitGeometry';
 import type { LightDisc } from '../lightMap';
 import { lampColor } from '../lighting';
 import { lotsFor, yardOf, type ScreenLots, type YardRect } from '../lots';
@@ -139,6 +150,8 @@ export function dressingSubject(mirror: Mirror, b: BuildingView): DressingSubjec
     level,
     ...(tier ? { tier } : {}),
     season,
+    // R3X: a master works here (the sim sets it while `Building.masterId` is set): the sign rule reads it.
+    ...(b.master ? { master: true } : {}),
     stats,
   };
 }
@@ -365,6 +378,7 @@ export function dressingLayer(rules: readonly DressingRule[] = content.dressingR
   const geoms = new Map<string, BufferGeometry>();
   const infos = new Map<string, PieceInfo | null>();
   const clearances = new Map<string, Clearance>();
+  const facades = new Map<string, Facade>();
   // The camera pass.
   const lastPos = new Vector3(Infinity, 0, 0);
   const lastDir = new Vector3();
@@ -426,6 +440,75 @@ export function dressingLayer(rules: readonly DressingRule[] = content.dressingR
     return c;
   }
 
+  /** R3X: the street face of the geometry the buildings layer draws for this building, cached. */
+  function facadeFor(b: BuildingView, width: number): Facade {
+    const key = `${buildingKey(b, 'high')}|${width}`;
+    let f = facades.get(key);
+    if (!f) {
+      if (facades.size > 128) facades.clear();
+      const g = buildingVariantGeometry(b, 'high');
+      f = facadeOf(g, width);
+      g.dispose();
+      facades.set(key, f);
+    }
+    return f;
+  }
+
+  /**
+   * R3X: the master's sign on the wall, or null when this facade has no wall to hang it on. It is fitted
+   * to the measured facade (flat wall at both brackets, nothing in its way, off windows and the door),
+   * so it touches the wall wherever the kit stands it; the nearest of the places the facade offers
+   * that no piece already placed stands in.
+   */
+  function fitSign(
+    b: BuildingView,
+    size: readonly [number, number],
+    r: Placement,
+    door: AnchorPoint | undefined,
+    placed: readonly Placement[],
+  ): Placement | null {
+    if (!door || door.facing[0] !== 0 || door.facing[1] <= 0) return null;
+    const def = drawDef(b.def);
+    const trade = b.trade ? content.tradeById.get(b.trade) : undefined;
+    const kit = def ? kitById.get(artKitId(trade ? trade.look : def.art)) : undefined;
+    const lights = (
+      kit?.anchors?.({
+        ...(def ? { size: def.size, entrance: def.entrance } : {}),
+        params: buildingParams(b),
+      })?.lights ?? []
+    )
+      .filter((l) => l[2] > size[1] - 0.5)
+      .map((l) => [l[0], l[1]] as const);
+    // What stands against the street face already: its x and z extent and the heights it fills.
+    const taken: { box: GroundBox; y0: number; y1: number }[] = [];
+    for (const q of placed) {
+      const info = pieceInfo(q);
+      if (info)
+        taken.push({
+          box: footprintOf(q, info.bounds),
+          y0: q.at[1],
+          y1: q.at[1] + info.bounds.height * q.scale,
+        });
+    }
+    for (const spot of facadeSignSpots(facadeFor(b, size[0]), door.at[0], lights, door.at[2])) {
+      const x0 = spot.x - SIGN_SIZE.halfW - 0.01;
+      const x1 = spot.x + SIGN_SIZE.halfW + 0.01;
+      const z1 = spot.z + SIGN_SIZE.reach + 0.01;
+      const hit = taken.some(
+        (o) =>
+          o.box[0] < x1 &&
+          o.box[2] > x0 &&
+          o.box[1] < z1 &&
+          o.box[3] > spot.z &&
+          o.y0 < spot.y + SIGN_SIZE.h &&
+          o.y1 > spot.y,
+      );
+      // Out past the lot's front edge only by the verge: a sign over the street is a hazard to a cart.
+      if (!hit) return { ...r, at: [spot.x, spot.y, spot.z - 0.002], yaw: 0, scale: 1 };
+    }
+    return null;
+  }
+
   /** Fits resolved pieces to the walls, the door corridor, the lot and each other, in order. */
   function fitAll(
     b: BuildingView,
@@ -445,6 +528,45 @@ export function dressingLayer(rules: readonly DressingRule[] = content.dressingR
     const mask = cloneClearance(clearanceFor(b, size, extent));
     const out: Placement[] = [];
     for (const r of raw) {
+      // R3X: the master's sign hangs on the wall where the measured facade has room for it; a facade
+      // with no wall to hang it on gets it on a post beside the door instead.
+      if (r.kit === 'master-sign') {
+        let q = fitSign(b, size, r, door, out);
+        if (!q) {
+          for (const yaw of [0, Math.PI]) {
+            const post: Placement = {
+              ...r,
+              params: { ...r.params, post: true },
+              at: [r.at[0], r.at[1], r.at[2] + SIGN_OUT],
+              yaw,
+              scale: 1,
+            };
+            const pi = pieceInfo(post);
+            q = pi ? fitPlacement(post, pi.bounds, mask, lot, door) : null;
+            if (q) break;
+          }
+          // A fenced yard: the nearest clear ground to the door within a tile.
+          if (!q)
+            for (const yaw of [0, Math.PI]) {
+              const post: Placement = {
+                ...r,
+                params: { ...r.params, post: true },
+                at: [r.at[0], r.at[1], r.at[2] + SIGN_OUT],
+                yaw,
+                scale: 1,
+              };
+              const pi = pieceInfo(post);
+              q = pi ? nearestFree(post, pi.bounds, mask, lot, door) : null;
+              if (q) break;
+            }
+        }
+        const info = q ? pieceInfo(q) : null;
+        if (q && info) {
+          markPlacement(mask, q, info.bounds);
+          out.push(q);
+        }
+        continue;
+      }
       // A sign stands out on the verge by the path, where it is read from the street.
       const p: Placement =
         r.kit === 'yard-sign' && r.anchor === 'door'
@@ -775,6 +897,7 @@ export function dressingLayer(rules: readonly DressingRule[] = content.dressingR
       geoms.clear();
       infos.clear();
       clearances.clear();
+      facades.clear();
       cache.clear();
       ctx = null;
     },
