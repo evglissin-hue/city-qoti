@@ -56,7 +56,9 @@ test('an online valley saved before version 6 is refused and listed grayed', asy
   await page.reload();
   await page.getByTestId(`continue-${VALLEY_ID}`).click();
 
-  // The room refuses the hello; the session marks the valley old and returns to the title screen.
+  // The room refuses the hello; the session marks the valley old and returns to the title screen,
+  // where an old valley lives in the valleys list.
+  await page.getByTestId('more-valleys').click();
   const row = page.getByTestId(`old-${VALLEY_ID}`);
   await expect(row).toBeVisible();
   await expect(row).toContainText('Founded under the old rules. It cannot be opened in this version.');
@@ -64,6 +66,7 @@ test('an online valley saved before version 6 is refused and listed grayed', asy
 
   // It stays grayed after a reload, from the recent list alone.
   await page.reload();
+  await page.getByTestId('more-valleys').click();
   await expect(page.getByTestId(`old-${VALLEY_ID}`)).toBeVisible();
 
   // Save its file fetches the stored snapshot from the room and downloads it untouched.

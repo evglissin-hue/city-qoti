@@ -47,6 +47,7 @@ async function twoSeats(browser: Browser) {
   const a = await (await browser.newContext()).newPage();
   await a.goto(`/${HAMLET_QUERY}`);
   await a.getByTestId('new-online').click();
+  await a.getByTestId('found-valley').click();
   await waitLive(a);
   const link = await a.getByTestId('invite-link').inputValue();
   await a.getByRole('button', { name: 'Done' }).click();
@@ -132,6 +133,7 @@ test('a solo valley moves online and a partner joins it', async ({ browser }) =>
   const a = await (await browser.newContext()).newPage();
   await a.goto(`/${HAMLET_QUERY}`);
   await a.getByTestId('new-solo').click();
+  await a.getByTestId('found-valley').click();
   await waitLive(a);
   await a.getByTestId('menu-open').click();
   await expect(a.getByTestId('connection')).toHaveText('Solo');

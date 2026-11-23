@@ -181,155 +181,11 @@ input::placeholder {
     linear-gradient(180deg, #a9d3e8 0%, #cfe6e6 45%, #f6e7c6 75%, #f3dcb0 100%);
 }
 
-.title-card {
-  position: relative;
-  z-index: 1;
-  width: min(480px, 92vw);
-  margin: 24px 0;
-  padding: 30px 32px 26px;
-  display: grid;
-  gap: 16px;
-  border-radius: 20px;
-  animation: card-in 420ms ease-out;
-}
-
-.title-card::before {
-  content: '';
-  position: absolute;
-  inset: 6px;
-  border: 1.5px dashed rgba(90, 66, 49, 0.25);
-  border-radius: 15px;
-  pointer-events: none;
-}
-
 @keyframes card-in {
   from {
     opacity: 0;
     transform: translateY(10px) scale(0.985);
   }
-}
-
-.title-card h1 {
-  font-size: 3.3rem;
-  line-height: 1;
-  text-align: center;
-  letter-spacing: 0.01em;
-  color: var(--ink);
-  text-shadow:
-    2px 2px 0 #f0d9a8,
-    3px 3px 0 rgba(90, 66, 49, 0.18);
-}
-
-.title-card h1 .qoti {
-  color: var(--sage-deep);
-  font-style: italic;
-}
-
-.title-mark {
-  display: flex;
-  justify-content: center;
-  margin-bottom: -6px;
-}
-
-.tagline {
-  margin: -6px 0 0;
-  color: var(--ink-soft);
-  text-align: center;
-  font-family: 'Alegreya', Georgia, serif;
-  font-style: italic;
-  font-size: 1.08rem;
-}
-
-.title-actions {
-  display: grid;
-  gap: 10px;
-}
-
-.invite-banner {
-  display: grid;
-  gap: 8px;
-  padding: 12px 14px;
-  border: 1.5px dashed var(--river);
-  border-radius: var(--radius);
-  background: rgba(95, 147, 179, 0.08);
-}
-
-.invite-banner p {
-  margin: 0;
-}
-
-.title-options summary {
-  cursor: pointer;
-  color: var(--ink-soft);
-  font-weight: 700;
-}
-
-.title-options label {
-  display: grid;
-  gap: 4px;
-  margin-top: 10px;
-  font-size: 0.92rem;
-}
-
-.continue h2 {
-  font-size: 1.15rem;
-}
-
-.continue ul {
-  list-style: none;
-  padding: 0;
-  margin: 8px 0 0;
-  display: grid;
-  gap: 6px;
-}
-
-.continue-row {
-  display: flex;
-  gap: 6px;
-}
-
-.continue .continue-row button.forget {
-  width: auto;
-  flex: none;
-  padding: 0 10px;
-  color: rgba(90, 66, 49, 0.6);
-}
-
-.continue-old {
-  display: grid;
-  gap: 4px;
-  padding: 8px 10px;
-  border: 1.5px dashed rgba(90, 66, 49, 0.3);
-  border-radius: 10px;
-  opacity: 0.72;
-}
-
-.forget-confirm {
-  padding: 8px 10px;
-  border: 1.5px dashed rgba(90, 66, 49, 0.35);
-  border-radius: 10px;
-}
-
-.forget-confirm p {
-  margin: 0 0 6px;
-}
-
-.forget-actions {
-  display: flex;
-  gap: 6px;
-}
-
-.continue .forget-actions button {
-  width: auto;
-}
-
-.continue button {
-  width: 100%;
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 10px;
-  text-align: left;
 }
 
 /* Game */
@@ -1343,27 +1199,6 @@ kbd {
   color: var(--paper);
 }
 
-.title-card .welcome {
-  margin: -4px 0 4px;
-  text-align: center;
-}
-
-.you {
-  border: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  gap: 10px;
-}
-
-.you label,
-.title-card label.town {
-  display: grid;
-  gap: 4px;
-  font-size: 0.92rem;
-  font-weight: 700;
-}
-
 .swatches {
   display: flex;
   align-items: center;
@@ -1478,40 +1313,6 @@ kbd {
 }
 
 /* I1 title options: the creative valley toggle and the economy dial. */
-.creative-toggle {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.92rem;
-  cursor: pointer;
-}
-
-.creative-toggle input {
-  width: auto;
-  margin: 0;
-  accent-color: var(--sage-deep);
-}
-
-.title-options fieldset.economy {
-  border: none;
-  margin: 12px 0 0;
-  padding: 0;
-  display: grid;
-  gap: 6px;
-}
-
-.title-options fieldset.economy legend {
-  font-size: 0.92rem;
-  font-weight: 700;
-  padding: 0;
-  margin-bottom: 4px;
-}
-
-.title-options fieldset.economy:disabled {
-  opacity: 0.55;
-}
-
 .dial {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

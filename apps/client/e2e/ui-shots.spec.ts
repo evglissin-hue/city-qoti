@@ -12,6 +12,7 @@ test('title, create, invite, lenses and settings look right', async ({ page }) =
   await page.screenshot({ path: `${SHOTS}/c2d-title.png`, animations: 'disabled' });
 
   await page.getByTestId('new-online').click();
+  await page.getByTestId('found-valley').click();
   await expect(page.getByTestId('invite')).toBeVisible({ timeout: 60_000 });
   await waitLive(page);
   await expect(page.getByTestId('invite-link')).toHaveValue(/#/);

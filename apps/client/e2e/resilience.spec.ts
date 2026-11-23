@@ -15,6 +15,7 @@ async function pair(browser: Browser): Promise<{ a: Page; b: Page; offline: (v: 
   const a = await contextA.newPage();
   await a.goto(`/${DEBUG_QUERY}`);
   await a.getByTestId('new-online').click();
+  await a.getByTestId('found-valley').click();
   await waitLive(a);
   const link = await a.getByTestId('invite-link').inputValue();
   await a.getByRole('button', { name: 'Done' }).click();

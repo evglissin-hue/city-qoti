@@ -7,6 +7,7 @@ test('a solo valley works offline and survives a reload', async ({ page }) => {
   await page.route('**/api/**', (route) => route.abort());
   await page.goto(`/${DEBUG_QUERY}`);
   await page.getByTestId('new-solo').click();
+  await page.getByTestId('found-valley').click();
   await waitLive(page);
   await page.getByTestId('menu-open').click();
   await expect(page.getByTestId('connection')).toHaveText('Solo');

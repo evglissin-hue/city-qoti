@@ -39,7 +39,10 @@ async function open(fixture, look) {
   const fx = fixture ? `&fixture=${fixture}` : '';
   await page.goto(`${base}/?debug${fx}&clean&fixedres&quality=${quality}&${look}`);
   // No fixture: a brand new solo valley from the title screen, as a player starts one.
-  if (!fixture) await page.getByTestId('new-solo').click({ timeout: 240000 });
+  if (!fixture) {
+    await page.getByTestId('new-solo').click({ timeout: 240000 });
+    await page.getByTestId('found-valley').click();
+  }
   await page.waitForFunction(() => window.__qoti?.status() === 'live', null, { timeout: 240000 });
   for (const name of ['Done', 'Close', 'Later']) {
     const b = page.getByRole('button', { name, exact: true });

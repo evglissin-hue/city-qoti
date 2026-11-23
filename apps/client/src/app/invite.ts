@@ -24,6 +24,13 @@ export function parseInvite(hash: string): Invite | null {
 export function takeInviteFromUrl(): Invite | null {
   const invite = parseInvite(location.hash);
   if (!invite) return null;
+  rememberInvite(invite);
+  history.replaceState(null, '', location.pathname + location.search);
+  return invite;
+}
+
+/** Keeps an invite as a pending valley on this device, so the title can offer to join it. */
+export function rememberInvite(invite: Invite): void {
   rememberValley({
     valleyId: invite.valleyId,
     seat: invite.seat,
@@ -33,8 +40,6 @@ export function takeInviteFromUrl(): Invite | null {
     lastPlayed: Date.now(),
     pending: true,
   });
-  history.replaceState(null, '', location.pathname + location.search);
-  return invite;
 }
 
 export function inviteLink(fragment: string): string {
