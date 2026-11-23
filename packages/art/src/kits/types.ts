@@ -21,6 +21,11 @@ export interface KitAnchors {
   /** Lantern flames and lit windows, for ground glow and night lights. */
   lights?: [number, number, number][];
   /**
+   * R3F addition: a lamp's glass as boxes (middle and half size), for a client that draws the kit
+   * with `flame: 'off'` and lights each lamp itself as the lamplighter reaches it (kits/lamplight.ts).
+   */
+  flames?: { center: [number, number, number]; half: [number, number, number] }[];
+  /**
    * C3D addition: the painted board where custom sign text goes (center just off the board, the
    * direction it faces, and its size), so the renderer can letter it with a canvas texture.
    */
@@ -101,7 +106,8 @@ export interface KitPart {
  *
  * C2 addition: geometry may carry a `glow` vertex attribute (itemSize 1): 1 on window panes (lit
  * in a seeded share of homes each evening), 2 on lantern flames and fires (lit every night), 0
- * elsewhere. Renderers treat a missing attribute as all 0.
+ * elsewhere. Renderers treat a missing attribute as all 0. R3F: 3 on a lamp's lit glass that the
+ * client draws when the lamplighter reaches it (`lampFlameGeometry`), burning from dusk.
  */
 export interface Kit {
   id: string;

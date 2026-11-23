@@ -407,6 +407,8 @@ describe('I0 contracts', () => {
       | 'follow'
       | 'setBubbles'
       | 'highlight'
+      // R3G (additive): the endpaper map as a still for the printed storybook
+      | 'endpaperStill'
     >();
     expectTypeOf<Ghost['kind']>().toExtend<string>();
     expectTypeOf<ToWorker['k']>().toEqualTypeOf<

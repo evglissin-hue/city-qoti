@@ -29,6 +29,7 @@ export type ExtraKind =
   | 'longscarf'
   | 'lute'
   | 'overalls'
+  | 'pole'
   | 'sack'
   | 'satchel'
   | 'scarf'
@@ -71,6 +72,7 @@ export const EXTRA_KINDS: readonly ExtraKind[] = [
   'longscarf',
   'lute',
   'overalls',
+  'pole',
   'sack',
   'satchel',
   'scarf',
@@ -599,6 +601,59 @@ function staff(b: RigBuilder): void {
   );
 }
 
+/**
+ * R3F: the lamplighter's pole (docs/spec/17-presentation.md, Residents on screen), in a frame of its
+ * own: the grip (his right hand) at the origin, the pole along +y. The agents layer places it from
+ * the hand (`POLE_GRIP`) and tips it forward (`POLE_CARRY`) or up to the lamp (`POLE_REACH`), and
+ * draws the small light at `POLE_TIP` itself, so lighting a lamp is a matrix, not a pose of the rig.
+ * A long ash pole with a brass hook and a little wick cup at the top.
+ */
+function pole(b: RigBuilder): void {
+  const wood: Channel = { ...fixed(0x9a7448), surface: SURFACE.woodGrain };
+  const brass: Channel = { ...fixed(0xc9a24a), surface: SURFACE.wroughtIron };
+  b.tube(
+    [
+      [0, -0.11, 0],
+      [0, 0.12, 0],
+      [0, POLE_TIP[1] - 0.03, 0],
+    ],
+    [0.0085, 0.0078, 0.0065],
+    4,
+    wood,
+  );
+  // The brass ferrule and cup that holds the wick, and the hook beside it for the lamp's door.
+  b.tube(
+    [
+      [0, POLE_TIP[1] - 0.035, 0],
+      [0, POLE_TIP[1] - 0.01, 0],
+    ],
+    [0.0075, 0.009],
+    5,
+    brass,
+  );
+  b.tube(
+    [
+      [0, POLE_TIP[1] - 0.02, 0],
+      [0, POLE_TIP[1] + 0.025, 0.012],
+      [0, POLE_TIP[1] + 0.03, 0.03],
+      [0, POLE_TIP[1] + 0.015, 0.035],
+    ],
+    [0.003, 0.003, 0.003, 0.0025],
+    3,
+    brass,
+  );
+}
+
+/** R3F: where the lamplighter's hand holds the pole, in the figure's frame. */
+export const POLE_GRIP: V3 = [0.085, 0.13, 0.05];
+/** R3F: the pole's light, in the pole's frame (above the grip along +y). */
+export const POLE_TIP: V3 = [0, 0.41, 0];
+/** R3F: how far the pole tips forward (radians about x) as he walks his round, and as he lights a lamp. */
+export const POLE_CARRY = 0.62;
+export const POLE_REACH = 0.22;
+/** R3F: how far his hand rises (figure units) as he reaches the pole up to a lamp. */
+export const POLE_LIFT = 0.07;
+
 function hat(b: RigBuilder, kind: HatKind): void {
   const y = 0.262;
   const band = fixed(palette.accentRed);
@@ -991,6 +1046,7 @@ export function extraGeometry(kind: ExtraKind): BufferGeometry {
   else if (kind === 'sack') sack(b);
   else if (kind === 'lantern') lantern(b);
   else if (kind === 'staff') staff(b);
+  else if (kind === 'pole') pole(b);
   else hat(b, kind.slice(4) as HatKind);
   return b.build(0.3);
 }
