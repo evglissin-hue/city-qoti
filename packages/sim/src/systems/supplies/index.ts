@@ -12,6 +12,8 @@ import { isStandard } from '../../state/hamlet';
 import { suppliesView } from '../../view/supplies';
 import { dailyOffset } from '../economy/time';
 import { drawFires, FIRE_HOUR, FIRE_MINUTE, rollRound, settle } from './settle';
+// The fourth gap's rules register themselves with supplies/api.ts as this loads.
+import './gapChecks';
 
 /** The settling's offset in the day's ticks (17:30), a multiple of the system's half hour. */
 export const SUPPLIES_OFFSET = dailyOffset(

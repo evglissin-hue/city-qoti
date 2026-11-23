@@ -6,10 +6,10 @@
 import { content, type BuildingDef, type TradeDef } from '@qoti/content';
 import type { Gap, Place, WorldState } from '../../contracts';
 import { townStock } from '../../view/hamlet';
-import { someoneSells } from '../carrier/terms';
+import { someoneSells } from '../carrier/sellers';
 import { placeableNow, tradeAvailable } from '../hearth/wishes/achievable';
 import { placeById } from '../places/api';
-import { pieceRests } from './api';
+import { pieceRests, registerSupplyGapRules } from './api';
 import { drawsGoods, Kind, placePieces, suppliedIndex } from './pieces';
 
 const KIND_KEYS = ['nightly', 'evening', 'season'] as const;
@@ -166,3 +166,6 @@ export function shortGapWords(state: WorldState, gap: Gap): { good: string; when
     makes: state.economy.yesterday.produced[s.good] ?? 0,
   };
 }
+
+// The cross-track API's two rules (supplies/api.ts), registered as this module loads.
+registerSupplyGapRules({ achievable: shortGapAchievable, closable: shortGapClosable });

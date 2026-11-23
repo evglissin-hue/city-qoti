@@ -18,7 +18,6 @@ import { findById } from '../../state/entities';
 import { lanternsLit } from '../hearth/charm/sources';
 import { sellsTreats, treatsOnShelf } from '../market/round';
 import { doorTile } from '../movement/api';
-import { shortGapAchievable, shortGapClosable } from './gapChecks';
 import { Kind, kindOfDef, pieceTile, seasonOfDay, suppliesDraw, tileDist } from './pieces';
 
 /** A decor piece's supply, or undefined when it needs none. */
@@ -141,7 +140,7 @@ export function pieceRests(state: WorldState, decor: Decor): RestKind | null {
  * what its pieces burn can be made here or bought from a neighbor under some carrier rule.
  */
 export function supplyGapAchievable(state: WorldState): boolean {
-  return shortGapAchievable(state);
+  return gapRules ? gapRules.achievable(state) : false;
 }
 
 /**
@@ -150,7 +149,26 @@ export function supplyGapAchievable(state: WorldState): boolean {
  * reserve, a priority.
  */
 export function supplyGapClosable(state: WorldState, gap: Gap): boolean {
-  return shortGapClosable(state, gap);
+  return gapRules ? gapRules.closable(state, gap) : true;
+}
+
+/**
+ * The fourth gap's two rules, registered by gapChecks.ts when it loads (the supplies and gaps systems
+ * both import it). They are kept out of this file's imports on purpose: the place pass and charm read
+ * this file, and the checks reach the views, so importing them here pulled the market's evening trade
+ * into the places module's graph. Unregistered, they answer as R3.0's stand-ins did.
+ */
+let gapRules: {
+  achievable(state: WorldState): boolean;
+  closable(state: WorldState, gap: Gap): boolean;
+} | null = null;
+
+/** gapChecks.ts's registration of the fourth gap's rules. */
+export function registerSupplyGapRules(rules: {
+  achievable(state: WorldState): boolean;
+  closable(state: WorldState, gap: Gap): boolean;
+}): void {
+  gapRules = rules;
 }
 
 const CANDLES = content.goodIndex.get('candles') ?? -1;

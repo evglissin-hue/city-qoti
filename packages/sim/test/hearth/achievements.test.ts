@@ -191,8 +191,12 @@ describe('every achievement', () => {
 
   it('does not unlock a pending feat on the stand-ins', () => {
     const s = hamletFixture().state;
-    expect(checkAchievements(s, createTickCtx(s))).not.toEqual(expect.arrayContaining([...PENDING]));
-    for (const id of PENDING) expect(s.achievements.some((x) => x.id === id)).toBe(false);
+    // Id by id: an empty PENDING (every feat has its setup now) has nothing to hold back.
+    const unlocked = checkAchievements(s, createTickCtx(s));
+    for (const id of PENDING) {
+      expect(unlocked).not.toContain(id);
+      expect(s.achievements.some((x) => x.id === id)).toBe(false);
+    }
   });
 
   for (const a of content.achievements.filter((x) => !PENDING.has(x.id))) {
