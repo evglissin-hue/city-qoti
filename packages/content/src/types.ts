@@ -1515,6 +1515,11 @@ export interface PlacesTuning {
   cafeSeats: number;
   /** Every this many evening steps past a shop's door count as one more customer for its level (10). */
   stepsPerCustomer: number;
+  /**
+   * R3X: units of a market outlet's storage porters keep free of food and Wares until its Treats fill them
+   * (12), so a full pantry never leaves its shelf without a Treat for the round. Absent: 12.
+   */
+  treatsRoom?: number;
   // Good evenings
   /** Staying in scores this, every evening's floor (20). */
   stayInScore: number;
