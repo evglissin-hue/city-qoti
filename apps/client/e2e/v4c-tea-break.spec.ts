@@ -9,9 +9,10 @@ import { waitLive } from './helpers';
 const expect = baseExpect.configure({ timeout: 120_000 });
 
 const QUERY = '?debug&quality=low&noguide&teabreak&fixture=grown';
-// The grown village for two seats too: a fresh hamlet paused at 06:00 has nobody out and nothing
-// walked, so (rightly) nothing to watch and no tea break.
-const ONLINE_QUERY = QUERY;
+// Two seats share the sim's village fixture. A fresh hamlet paused at 06:00 has nobody out and
+// nothing walked, so (rightly) nothing to watch and no tea break; the grown village has plenty, but
+// a joiner catching up on it took over the 120 s `waitLive` allows on a slow CI runner.
+const ONLINE_QUERY = '?debug&quality=low&noguide&teabreak&fixture=village';
 
 interface View {
   x: number;
