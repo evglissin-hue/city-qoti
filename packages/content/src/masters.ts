@@ -20,6 +20,8 @@ export const MASTERY: MasteryTuning = {
   apprenticeDays: 10,
   // A business keeps its level six days after its last master leaves, then slides.
   graceDays: 6,
+  // The carrier sells a master's good once the town holds more than this (and twice a day's buying).
+  exportKeep: 8,
 };
 
 export const baker: MasterDef = {

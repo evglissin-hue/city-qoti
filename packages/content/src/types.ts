@@ -1750,6 +1750,11 @@ export interface MasteryTuning {
   apprenticeDays: number;
   /** A business keeps its level this many days after its last master leaves or retires (6), then slides. */
   graceDays: number;
+  /**
+   * R3X (additive): units of a master's good the town keeps before the carrier sells the rest
+   * (8; the carrier also keeps twice what households bought of it yesterday). Absent reads 8.
+   */
+  exportKeep?: number;
 }
 
 /** R3: what a Town Book page leans to; three of one leaning earn that calling. Index order is the sim's LEANINGS. */
