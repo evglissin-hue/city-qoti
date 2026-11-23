@@ -55,7 +55,8 @@ const onDay = (w: WorldState, line: DayLine) => {
   }
   const sold = w.carrier.sold[w.carrier.sold.length - 1];
   if (sold) {
-    const best = (g: number) => Math.max(0, ...w.trade.neighbors.map((n) => carrierSellPrice(w, n.id, g) ?? 0));
+    const best = (g: number) =>
+      Math.max(0, ...w.trade.neighbors.map((n) => carrierSellPrice(w, n.id, g) ?? 0));
     for (const g of masterIdx) {
       const u = Math.max(0, sold[g] ?? 0);
       masterUnits += u;
