@@ -116,13 +116,15 @@ P13's requests return without a form. A gap opens by rule, shows in both lenses 
 | Gap | Opens when | Closes when | Reads like |
 |---|---|---|---|
 | A place with nothing to sell [R2] | 8+ visitors on two evenings running and no Treats within 3 tiles | an outlet serves there for two evenings | "The Promenade drew 14 folk and had nothing to sell them." |
-| A shop nobody passes [R2] | Treats on its shelf and under 4 customers on three evenings running | a place within 3 tiles draws 8+ | "The Underbank shop sold two ciders in three evenings: nobody walks this way." |
+| A shop nobody passes [R2] | Treats on its shelf and under 4 customers of its own on three evenings running | the shop's own customers reach 4 on an evening | "The Underbank shop sold two ciders in three evenings: nobody walks this way." |
 | Nowhere to go [R2] | 6+ households stayed in three evenings running for want of a place in reach | half of them go out | "Mill Lane stays in of an evening." |
 | A place short of supplies [R3] | its pieces rested two nights running | supplied for two nights | "The Lantern Walk wants 6 candles a night; the town makes 2." |
 
 The `request.*` commands stay for free-text asks, without the ask form. Closed gaps count where fulfilled requests did (Together goals, Odette's arc).
 
 *As built (R2C)*: the pass runs at 21:10, on fair evenings only (rain and storm hold every streak), and reads each rule over the evening just closed. "Customers" for a shop nobody passes are the visitors at the places within 3 tiles (per-outlet evening sales are not saved), and "draws 8+" is 8 visitors. Credit goes to the seat whose command built the piece; a business grown on a lot goes to the seats in the Ledger lens. A kind the town cannot meet opens nothing (its open gaps still close), a gap whose subject is gone is dropped without credit, and the audit flags an open gap nobody can close (`gap-dead-end`). The Village's evening goal counts fair evenings running: a fair evening below half breaks it, rain holds it. Details in `docs/build/cycle-r2c-gaps-book.md`, As built.
+
+*As built (R3X)*: "a shop nobody passes" reads the shop's own evening customers, not the visitors at the places near it. `Building.roundSales` (`{ day, customers }`, one a sale on the evening round, stops and passing trade alike, written by `countRoundSale`) is read for the evening the gaps pass runs on (`state.evenings.tonight.day`, which the pass has checked is today); a row of an earlier day reads 0. It opens after three evenings of under 4, `n` is tonight's customers and refreshes each evening while open, and it closes on one evening of 4 or more. The remedy is unchanged (a place within 3 tiles sends folk past the door), so the achievable and closable checks stand; the nearby places are read only to credit the seats who laid the best-drawing one. Why: the R2C rule had no per-outlet sales to read and so counted the places' visitors, which a busy place a few tiles off could satisfy while the shop's own till stayed quiet.
 
 ## Supplies: places come alive [R3]
 
