@@ -115,7 +115,12 @@ export function poleColumns(spot: PoleSpot, levels = 3): [number, number, number
   ] as const)
     out.push([spot.x + dx, spot.z + dz, GROUND, top]);
   for (let i = 1; i <= 8; i++)
-    out.push([spot.x + (spot.dir * i * (PENNANT_LEN + POLE_HALF)) / 8, spot.z, Math.max(GROUND, clothLow(levels)), top]);
+    out.push([
+      spot.x + (spot.dir * i * (PENNANT_LEN + POLE_HALF)) / 8,
+      spot.z,
+      Math.max(GROUND, clothLow(levels)),
+      top,
+    ]);
   return out;
 }
 
@@ -156,7 +161,8 @@ export function levelPoleSpot(
   const rim: { x: number; z: number; score: number }[] = [];
   for (let zi = 0; zi <= nz; zi++) {
     const z = Math.min(d - inset, (zi * d) / nz);
-    for (const x of [-out, w + out]) rim.push({ x, z, score: Math.hypot(x - dc[0], z - dc[1]) + (d - z) * 0.35 });
+    for (const x of [-out, w + out])
+      rim.push({ x, z, score: Math.hypot(x - dc[0], z - dc[1]) + (d - z) * 0.35 });
   }
   for (let xi = 0; xi <= nx; xi++) {
     const x = (xi * w) / nx;
@@ -172,7 +178,7 @@ export function levelPoleSpot(
     seen.add(key);
     // Stream toward the plot's middle first, so the cloth stays over the owner's own ground.
     const inward: 1 | -1 = c.x < w / 2 ? 1 : -1;
-    for (const dir of [inward, -inward] as const) {
+    for (const dir of [inward, inward === 1 ? -1 : 1] as const) {
       const spot: PoleSpot = { x: c.x, z: c.z, dir };
       if (poleClear(tris, spot)) return spot;
     }
@@ -192,8 +198,18 @@ export function levelPoleGeometry(
   const hw = POLE_HALF;
   s.surface(SURFACE.plain);
   s.box(x - hw, 0, z - hw, x + hw, POLE_HEIGHT, z + hw, palette.timber);
-  s.box(x - hw * 1.8, POLE_HEIGHT, z - hw * 1.8, x + hw * 1.8, POLE_HEIGHT + 0.06, z + hw * 1.8, palette.darkWood);
+  s.box(
+    x - hw * 1.8,
+    POLE_HEIGHT,
+    z - hw * 1.8,
+    x + hw * 1.8,
+    POLE_HEIGHT + 0.06,
+    z + hw * 1.8,
+    palette.darkWood,
+  );
   s.surface(SURFACE.cloth);
+  // Lit like a lantern pane at night (glow 2), so the count still reads in the dark; day is unchanged.
+  s.glow(2);
   const n = Math.max(1, Math.min(3, Math.round(level)));
   for (let i = 0; i < n; i++) {
     const top = POLE_HEIGHT - 0.04 - i * (PENNANT_H + PENNANT_GAP);
@@ -205,6 +221,7 @@ export function levelPoleGeometry(
     s.tri(a, b, tip, LEVEL_PENNANT, [0, 0, 1]);
     s.tri(a, b, tip, LEVEL_PENNANT, [0, 0, -1]);
   }
+  s.glow(0);
   s.surface(SURFACE.plain);
   return s.build(false);
 }

@@ -281,7 +281,7 @@ export function buildingVariantGeometry(b: BuildingView, lod: 'high' | 'low' = '
   let g = kit.build(opts);
   // R3X: the level pole stands beside it (the kit's own geometry is left as it was).
   if (def.levels) {
-    const poled = withLevelPole(g, def.size, def.entrance, Number(opts.params.pole ?? 1), lod);
+    const poled = withLevelPole(g, def.size, def.entrance, Number(opts.params?.pole ?? 1), lod);
     g.dispose();
     g = poled;
   }

@@ -170,48 +170,56 @@ describe('specialized building levels (R3H)', () => {
       return [px, pz];
     };
     for (const def of defs)
-      it(`${def.id}: one pennant a level, inside the footprint, off the door, through nothing`, { timeout: 30000 }, () => {
-        const [w, d] = def.size;
-        const [ex, ez] = def.entrance;
-        for (const level of [1, 2, 3]) {
-          const kit = kitById.get(artKitId(def.art))!.build(optsOf(def.id, level, 1));
-          const spot = levelPoleSpot(kit, def.size, def.entrance);
-          const pole = levelPoleGeometry(spot, level);
-          const surf = pole.getAttribute('surface').array as Uint8Array;
-          let cloth = 0;
-          for (const v of surf) if (v === SURFACE.cloth) cloth++;
-          expect(cloth / 6, `${def.id} L${level} pennants`).toBe(level);
-          const merged = withLevelPole(kit, def.size, def.entrance, level);
-          expect(merged.getAttribute('position').count).toBe(
-            kit.getAttribute('position').count + pole.getAttribute('position').count,
-          );
-          // Inside the footprint, off the door tile and the strip in front of it, at every rotation.
-          for (let rot = 0; rot < 4; rot++) {
-            const rw = rot % 2 ? d : w;
-            const rd = rot % 2 ? w : d;
-            const [px, pz] = turn(spot.x, spot.z, w, d, rot);
-            // A lot the kit fills edge to edge puts the post at most POLE_OUTSET outside; see `outside`.
-            const slack = POLE_OUTSET + POLE_HALF + 1e-6;
-            expect(px - POLE_HALF, `${def.id} L${level} r${rot} x`).toBeGreaterThanOrEqual(-slack);
-            expect(px + POLE_HALF).toBeLessThanOrEqual(rw + slack);
-            expect(pz - POLE_HALF).toBeGreaterThanOrEqual(-slack);
-            expect(pz + POLE_HALF).toBeLessThanOrEqual(rd + slack);
-            if (rot === 0 && (px < 0 || px > w || pz < 0 || pz > d)) outside.add(def.id);
-            const [ax, az] = turn(ex, ez, w, d, rot);
-            const [bx, bz] = turn(ex + 1, ez + 1, w, d, rot);
-            const onDoor =
-              px > Math.min(ax, bx) && px < Math.max(ax, bx) && pz > Math.min(az, bz) && pz < Math.max(az, bz);
-            expect(onDoor, `${def.id} L${level} r${rot} on the door tile`).toBe(false);
-          }
-          // The post and the cloth meet none of the kit's walls, roofs or eaves.
-          const tris = trisOf(kit);
-          for (const [x, z, y0, y1] of poleColumns(spot, level))
-            expect(columnHit(tris, x, z, y0, y1, 0.02), `${def.id} L${level} through the kit at ${x},${z}`).toBe(
-              false,
+      it(
+        `${def.id}: one pennant a level, inside the footprint, off the door, through nothing`,
+        { timeout: 30000 },
+        () => {
+          const [w, d] = def.size;
+          const [ex, ez] = def.entrance;
+          for (const level of [1, 2, 3]) {
+            const kit = kitById.get(artKitId(def.art))!.build(optsOf(def.id, level, 1));
+            const spot = levelPoleSpot(kit, def.size, def.entrance);
+            const pole = levelPoleGeometry(spot, level);
+            const surf = pole.getAttribute('surface').array as Uint8Array;
+            let cloth = 0;
+            for (const v of surf) if (v === SURFACE.cloth) cloth++;
+            expect(cloth / 6, `${def.id} L${level} pennants`).toBe(level);
+            const merged = withLevelPole(kit, def.size, def.entrance, level);
+            expect(merged.getAttribute('position').count).toBe(
+              kit.getAttribute('position').count + pole.getAttribute('position').count,
             );
-          pole.dispose();
-          merged.dispose();
-        }
-      });
+            // Inside the footprint, off the door tile and the strip in front of it, at every rotation.
+            for (let rot = 0; rot < 4; rot++) {
+              const rw = rot % 2 ? d : w;
+              const rd = rot % 2 ? w : d;
+              const [px, pz] = turn(spot.x, spot.z, w, d, rot);
+              // A lot the kit fills edge to edge puts the post at most POLE_OUTSET outside; see `outside`.
+              const slack = POLE_OUTSET + POLE_HALF + 1e-6;
+              expect(px - POLE_HALF, `${def.id} L${level} r${rot} x`).toBeGreaterThanOrEqual(-slack);
+              expect(px + POLE_HALF).toBeLessThanOrEqual(rw + slack);
+              expect(pz - POLE_HALF).toBeGreaterThanOrEqual(-slack);
+              expect(pz + POLE_HALF).toBeLessThanOrEqual(rd + slack);
+              if (rot === 0 && (px < 0 || px > w || pz < 0 || pz > d)) outside.add(def.id);
+              const [ax, az] = turn(ex, ez, w, d, rot);
+              const [bx, bz] = turn(ex + 1, ez + 1, w, d, rot);
+              const onDoor =
+                px > Math.min(ax, bx) &&
+                px < Math.max(ax, bx) &&
+                pz > Math.min(az, bz) &&
+                pz < Math.max(az, bz);
+              expect(onDoor, `${def.id} L${level} r${rot} on the door tile`).toBe(false);
+            }
+            // The post and the cloth meet none of the kit's walls, roofs or eaves.
+            const tris = trisOf(kit);
+            for (const [x, z, y0, y1] of poleColumns(spot, level))
+              expect(
+                columnHit(tris, x, z, y0, y1, 0.02),
+                `${def.id} L${level} through the kit at ${x},${z}`,
+              ).toBe(false);
+            pole.dispose();
+            merged.dispose();
+          }
+        },
+      );
   });
 });
