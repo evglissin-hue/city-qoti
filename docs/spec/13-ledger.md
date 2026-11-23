@@ -356,7 +356,7 @@ Measured with the autoplayer on the four bench seeds (willow, hazel, oak, birch)
 Measured the same way (`npm run targets -w @qoti/bench`, 70 days, the four bench seeds), after P3A, with `npm run newcomer -w @qoti/bench` for a newcomer pair on six seeds:
 
 - **Hands and food** (the owner's playtest): the newcomer pair reaches Village on every seed (day 19 on five, 31 on birch; `main`: 37, 19, 38 and never on four) with no Hamlet day where a household missed breakfast (`main`: 5, 0, 20 and 22). First homes go up in 9 to 15 hours, the first farmstead in 14 to 37. Holds.
-- **Hands in food**: 35, 29, 27 and 45% (willow, hazel, oak, birch). About a third, with oak a little under and birch over.
-- **Decisions**: 134, 136, 118 and 90 accepted Ledger commands in 70 days. Holds. A faster growth pace (three homes waiting, an extra start and site for homes) pushed hazel to 169 and was taken out.
+- **Hands in food**: 31, 28, 27 and 39% (willow, hazel, oak, birch). About a third.
+- **Decisions**: 153, 141, 110 and 99 accepted Ledger commands in 70 days; the lanes test's both-lanes runs, which enforce the limit, send 149, 131, 114 and 94. Willow's targets run is three over: it raises 21 storehouses for 209 residents against `main`'s 15 for 206, as the rule that adds one whenever three workplaces sit with their output full fires about ten times. A faster growth pace (three homes waiting, an extra start and site for homes) pushed hazel to 169 and was taken out.
 - **Lean days**: none on any seed. Holds. The same faster pace ran willow ten days and oak five past their credit line.
-- **Tiers move**: the Craftsfolk share averages 14.9% over days 40 to 70 against `main`'s 19.1% (at day 70: 0, 24, 15 and 8%). Does not hold against `main`: households lack Treats, Wares and savings on both trees, and supply is not short. Taken up with the master in P3A's PR.
+- **Tiers move**: the Craftsfolk share averages 15.0% over days 40 to 70 against `main`'s 19.1% (at day 70: 5, 9, 15 and 18%). Does not hold against `main`: households lack Treats, Wares and savings on both trees, and supply is not short. Taken up with the master in P3A's PR.
