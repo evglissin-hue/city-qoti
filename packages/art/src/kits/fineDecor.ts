@@ -2,11 +2,12 @@
 // lantern, a bench, a planter and signposts until now) and the five pricier pieces that help the
 // workplace beside them (content/fineDecor.ts). House style as decor.ts: small chunky primitives,
 // centered on the origin, a tile across at most.
-import { seeded, ShapeBuilder, vary, type V3 } from '../geometry';
+import { mixHex, seeded, ShapeBuilder, vary, type V3 } from '../geometry';
 import { palette } from '../palette';
 import { beam } from '../shapes';
 import { SURFACE } from '../surface';
 import { farBox, farCylinder } from './decorFar';
+import { clothOf, flameBox, lampGlass, restOf } from './lamplight';
 import type { Kit } from './types';
 
 const BLOOMS = [palette.flowerA, palette.flowerB, palette.flowerC, palette.flowerD, palette.blossom];
@@ -39,15 +40,24 @@ export const cafeTable: Kit = {
     const rnd = seeded(opts?.seed ?? 21);
     const s = new ShapeBuilder();
     // A round table under a cloth on one stout leg, with a posy, and two bentwood chairs.
+    // R3F: resting `bare` (no outlet with Treats in reach), the cloth, the mat, the cup and the posy
+    // are cleared away and the plain wooden top shows: seats only.
     s.cylinder(0, 0, 0.1, 0.06, 0, 0.04, palette.metal, 8);
-    s.cylinder(0, 0, 0.025, 0.025, 0.04, 0.3, palette.darkWood, 6);
-    s.cylinder(0, 0, 0.18, 0.2, 0.25, 0.31, palette.plasterCream, 8);
-    s.cylinder(0, 0, 0.17, 0.17, 0.31, 0.325, palette.wood, 8);
-    s.cylinder(0, 0, 0.1, 0.1, 0.326, 0.33, palette.accentRed, 8);
-    s.cylinder(0.03, 0.02, 0.025, 0.02, 0.33, 0.37, palette.white, 6);
-    s.surface(SURFACE.flowers);
-    s.blob(0.03, 0.385, 0.02, 0.025, 0.02, 0.025, palette.flowerB, 0);
-    s.surface(SURFACE.plain);
+    if (restOf(opts) === 'bare') {
+      s.cylinder(0, 0, 0.025, 0.025, 0.04, 0.3, palette.darkWood, 6);
+      s.surface(SURFACE.woodGrain);
+      s.cylinder(0, 0, 0.185, 0.19, 0.3, 0.325, mixHex(palette.wood, palette.darkWood, 0.25), 10);
+      s.surface(SURFACE.plain);
+    } else {
+      s.cylinder(0, 0, 0.025, 0.025, 0.04, 0.3, palette.darkWood, 6);
+      s.cylinder(0, 0, 0.18, 0.2, 0.25, 0.31, palette.plasterCream, 8);
+      s.cylinder(0, 0, 0.17, 0.17, 0.31, 0.325, palette.wood, 8);
+      s.cylinder(0, 0, 0.1, 0.1, 0.326, 0.33, palette.accentRed, 8);
+      s.cylinder(0.03, 0.02, 0.025, 0.02, 0.33, 0.37, palette.white, 6);
+      s.surface(SURFACE.flowers);
+      s.blob(0.03, 0.385, 0.02, 0.025, 0.02, 0.025, palette.flowerB, 0);
+      s.surface(SURFACE.plain);
+    }
     for (const a of [Math.PI * 0.15, Math.PI * 1.1]) {
       const cx = Math.cos(a) * 0.3;
       const cz = Math.sin(a) * 0.3;
@@ -109,6 +119,32 @@ export const flowerCart: Kit = {
   },
 };
 
+/**
+ * R3F: a dry basin's floor in place of its water: pale stone with a darker ring where the water
+ * stood, and `leaves` blown in. Fills the same disc (radius `r`, from y0 to y1) the water did. `rnd`
+ * is a stream of its own, so the piece around it keeps the colors it has with water.
+ */
+function dryBasin(
+  s: ShapeBuilder,
+  r: number,
+  y0: number,
+  y1: number,
+  rnd: () => number,
+  leaves: number,
+): void {
+  s.surface(SURFACE.stone);
+  s.cylinder(0, 0, r, r, y0, y1 - 0.004, palette.basinStain, 10);
+  s.cylinder(0, 0, r * 0.82, r * 0.82, y1 - 0.005, y1 - 0.002, vary(palette.basinDry, rnd, 0.5), 10);
+  s.surface(SURFACE.plain);
+  s.nearOnly(() => {
+    for (let i = 0; i < leaves; i++) {
+      const a = rnd() * Math.PI * 2;
+      const d = r * (0.25 + rnd() * 0.45);
+      s.blob(Math.cos(a) * d, y1, Math.sin(a) * d, 0.022, 0.006, 0.016, vary(0xa8703a, rnd, 0.8), 0);
+    }
+  });
+}
+
 export const fountain: Kit = {
   id: 'fountain',
   kind: 'decor',
@@ -116,14 +152,22 @@ export const fountain: Kit = {
     const rnd = seeded(opts?.seed ?? 23);
     const s = new ShapeBuilder();
     // A two-tier stone fountain: a wide basin of water, a pedestal, a smaller bowl and a spout.
+    // R3F: resting `dry` (no well in reach), the basins hold no water: pale stone with a stain where
+    // the water stood and a few blown leaves, and no jet or falls.
+    const dry = restOf(opts) === 'dry';
+    // The dry look draws from its own stream, so the stone keeps its tint whether wet or dry.
+    const dust = seeded((opts?.seed ?? 23) * 7 + 1);
     s.cylinder(0, 0, 0.36, 0.34, 0, 0.14, vary(palette.stone, rnd, 0.6), 10);
-    s.cylinder(0, 0, 0.3, 0.3, 0.1, 0.145, palette.waterDeep, 10);
+    if (dry) dryBasin(s, 0.3, 0.1, 0.145, dust, 3);
+    else s.cylinder(0, 0, 0.3, 0.3, 0.1, 0.145, palette.waterDeep, 10);
     s.cylinder(0, 0, 0.07, 0.05, 0.12, 0.34, palette.foundation, 8);
     s.cylinder(0, 0, 0.18, 0.07, 0.34, 0.4, vary(palette.stone, rnd, 0.6), 8);
     s.cylinder(0, 0, 0.17, 0.18, 0.4, 0.43, palette.stone, 8);
-    s.cylinder(0, 0, 0.16, 0.16, 0.42, 0.435, palette.waterDeep, 8);
+    if (dry) dryBasin(s, 0.16, 0.42, 0.435, dust, 1);
+    else s.cylinder(0, 0, 0.16, 0.16, 0.42, 0.435, palette.waterDeep, 8);
     s.cylinder(0, 0, 0.03, 0.025, 0.4, 0.6, palette.foundation, 8);
     s.blob(0, 0.63, 0, 0.05, 0.04, 0.05, palette.stone, 1);
+    if (dry) return s.build();
     s.cylinder(0, 0, 0.012, 0.035, 0.5, 0.62, palette.foam, 6);
     for (let i = 0; i < 4; i++) {
       const a = (i / 4) * Math.PI * 2;
@@ -172,12 +216,8 @@ export const lampPost: Kit = {
         () => {},
       );
       s.surface(SURFACE.plain);
-      s.glow(2);
-      s.levels(
-        () => s.box(x - 0.032, 0.62, -0.032, x + 0.032, 0.72, 0.032, palette.lantern),
-        () => farBox(s, x - 0.032, 0.62, -0.032, x + 0.032, 0.72, 0.032, palette.lantern, 'bt'),
-      );
-      s.glow(0);
+      // R3F: lit every night, unlit for the client to light (`flame: 'off'`), or resting unlit.
+      lampGlass(s, x - 0.032, 0.62, -0.032, x + 0.032, 0.72, 0.032, opts, (b, ...a) => farBox(b, ...a, 'bt'));
       s.surface(SURFACE.wroughtIron);
       s.levels(
         () => s.cylinder(x, 0, 0.06, 0, 0.72, 0.8, palette.metal, 4, Math.PI / 4),
@@ -196,6 +236,7 @@ export const lampPost: Kit = {
       [-0.18, 0.67, 0],
       [0.18, 0.67, 0],
     ],
+    flames: [-1, 1].map((d) => flameBox(d * 0.18 - 0.032, 0.62, -0.032, d * 0.18 + 0.032, 0.72, 0.032)),
   }),
 };
 
@@ -206,28 +247,43 @@ export const maypole: Kit = {
     const rnd = seeded(opts?.seed ?? 24);
     const s = new ShapeBuilder();
     // A tall pale pole on a stone footing, a wreath at the crown, six ribbons to the ground.
+    // R3F: resting `faded` (no cloth this season), the ribbons, bands and wreath are washed toward
+    // the paper and the wreath's leaves gone dry.
+    const fade = restOf(opts) === 'faded';
     s.cylinder(0, 0, 0.14, 0.11, 0, 0.06, vary(palette.stone, rnd, 0.6), 8);
     s.cylinder(0, 0, 0.035, 0.022, 0.06, 1.1, palette.birchBark, 8);
     for (const [y, hex] of [
       [0.3, palette.accentRed],
       [0.55, palette.mustard],
     ] as const)
-      s.cylinder(0, 0, 0.04, 0.04, y, y + 0.025, hex, 8);
+      s.cylinder(0, 0, 0.04, 0.04, y, y + 0.025, clothOf(hex, opts), 8);
+    const wreath = fade ? mixHex(palette.leaf, 0xa89a6c, 0.6) : palette.leaf;
     for (let i = 0; i < 6; i++) {
       const a = (i / 6) * Math.PI * 2;
-      s.blob(Math.cos(a) * 0.1, 1.08, Math.sin(a) * 0.1, 0.045, 0.035, 0.045, palette.leaf, 0);
+      s.blob(Math.cos(a) * 0.1, 1.08, Math.sin(a) * 0.1, 0.045, 0.035, 0.045, wreath, 0);
       s.surface(SURFACE.flowers);
-      s.blob(Math.cos(a) * 0.11, 1.1, Math.sin(a) * 0.11, 0.025, 0.022, 0.025, BLOOMS[i % 5]!, 0);
+      s.blob(
+        Math.cos(a) * 0.11,
+        1.1,
+        Math.sin(a) * 0.11,
+        0.025,
+        0.022,
+        0.025,
+        clothOf(BLOOMS[i % 5]!, opts),
+        0,
+      );
       s.surface(SURFACE.plain);
     }
-    s.cylinder(0, 0, 0.02, 0, 1.1, 1.18, palette.mustard, 6);
+    s.cylinder(0, 0, 0.02, 0, 1.1, 1.18, clothOf(palette.mustard, opts), 6);
     const ribbons = [palette.accentRed, palette.mustard, palette.teal, palette.flowerC, palette.blossom];
     for (let i = 0; i < 6; i++) {
       const a = (i / 6) * Math.PI * 2 + 0.3;
-      const hex = ribbons[i % ribbons.length]!;
+      const hex = clothOf(ribbons[i % ribbons.length]!, opts);
       const sway = 0.02 + rnd() * 0.03;
       const top: V3 = [Math.cos(a) * 0.03, 1.05, Math.sin(a) * 0.03];
-      const foot: V3 = [Math.cos(a + 0.3) * (0.2 + sway), 0.08, Math.sin(a + 0.3) * (0.2 + sway)];
+      // Faded ribbons hang slacker, a little nearer the pole.
+      const reach = fade ? 0.16 + sway : 0.2 + sway;
+      const foot: V3 = [Math.cos(a + 0.3) * reach, 0.08, Math.sin(a + 0.3) * reach];
       beam(s, top, foot, 0.01, hex);
     }
     return s.build();
