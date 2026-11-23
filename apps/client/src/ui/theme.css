@@ -181,34 +181,6 @@ input::placeholder {
     linear-gradient(180deg, #a9d3e8 0%, #cfe6e6 45%, #f6e7c6 75%, #f3dcb0 100%);
 }
 
-/* Fixed, like the sky behind them: the title scrolls when More is open on a short screen, and
-   hills that scrolled away left a bare band of sand along the bottom. */
-.title-screen::before,
-.title-screen::after {
-  content: '';
-  position: fixed;
-  left: -10%;
-  right: -10%;
-  pointer-events: none;
-}
-
-.title-screen::before {
-  bottom: 0;
-  height: 42%;
-  background:
-    radial-gradient(ellipse 34% 60% at 15% 100%, #9dbb84 98%, transparent 100%),
-    radial-gradient(ellipse 40% 70% at 82% 100%, #a9c48e 98%, transparent 100%),
-    radial-gradient(ellipse 50% 46% at 50% 100%, #8eae78 98%, transparent 100%);
-}
-
-.title-screen::after {
-  bottom: 0;
-  height: 18%;
-  background:
-    radial-gradient(ellipse 60% 100% at 30% 100%, #7f9f69 98%, transparent 100%),
-    radial-gradient(ellipse 50% 90% at 85% 100%, #86a670 98%, transparent 100%);
-}
-
 .title-card {
   position: relative;
   z-index: 1;

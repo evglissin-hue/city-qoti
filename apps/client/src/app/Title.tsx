@@ -13,6 +13,8 @@ import { valleyDbName } from '../net/idb';
 import { findOldSolo, saveOldFile } from './oldValley';
 import { readValleyFile, type ValleyFile } from './valleyFile';
 import type { SessionTarget } from './session';
+import { TitleBackdrop } from './title/Backdrop';
+import { titleLight } from './title/shared';
 
 function targetOf(v: RecentValley): SessionTarget {
   return {
@@ -61,6 +63,7 @@ export function Title({
   const [guide, setGuide] = useState(() => !new URLSearchParams(location.search).has('noguide'));
   const [imported, setImported] = useState<ValleyFile | null>(null);
   const welcome = useMemo(() => welcomeLine(), []);
+  const light = useMemo(() => titleLight(), []);
   const [profile, setProfileState] = useState<PlayerProfile>(() => loadProfile());
   const setProfile = (p: PlayerProfile) => {
     setProfileState(p);
@@ -187,6 +190,7 @@ export function Title({
 
   return (
     <main class="title-screen">
+      <TitleBackdrop light={light} framing={{ x: 0, y: 0 }} />
       <div class="panel title-card">
         <div class="title-mark" aria-hidden="true">
           <CottageMark />
