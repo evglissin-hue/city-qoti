@@ -9,7 +9,7 @@ import { SURFACE } from '../surface';
 import { mergeFlat } from './vehicles';
 
 /** The pennants' cloth: the sunny yellow washed toward cream, pale enough to catch the moon and never a light. */
-export const LEVEL_PENNANT = mixHex(palette.flowerB, palette.white, 0.4);
+export const LEVEL_PENNANT = mixHex(palette.flowerB, palette.white, 0.15);
 /** The post's height, a little over the low roofs; the top pennant hangs from just under it. */
 export const POLE_HEIGHT = 2.5;
 /** A pennant's length out from the post and its height; the gap between two. */

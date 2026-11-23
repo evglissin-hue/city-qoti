@@ -190,7 +190,7 @@ function patchNightGlow(
       '#include <emissivemap_fragment>',
       [
         '#include <emissivemap_fragment>',
-        `totalEmissiveRadiance += diffuseColor.rgb * ${CLOTH_NIGHT.toFixed(2)} * vCloth * uNight;`,
+        `totalEmissiveRadiance += mix(diffuseColor.rgb, vec3(0.96, 0.93, 0.87), 0.4) * ${CLOTH_NIGHT.toFixed(2)} * vCloth * uNight;`,
         lamp
           ? // A flame burns its era's color at its flicker; a pane keeps the candle glow, lighting
             // the little room behind it (qRoomTint, packages/art materials.ts; 1 with rooms off).
