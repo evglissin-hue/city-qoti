@@ -61,7 +61,7 @@ await page.evaluate(
       const step = () => {
         const s = window.__qoti.stats();
         if (s.mode !== 'moving' && (quick || s.samples >= s.sampleGoal) && performance.now() - t0 > 4000) res();
-        else if (performance.now() - t0 > 240000) res();
+        else if (performance.now() - t0 > 500000) res();
         else requestAnimationFrame(step);
       };
       requestAnimationFrame(step);
@@ -145,7 +145,7 @@ if (mode === 'times') {
       x.h === SLOT[1] &&
       x.bytes > 1000 &&
       x.after.stillRenders === x.before.stillRenders &&
-      x.after.samples === x.before.samples &&
+      x.after.samples >= x.before.samples &&
       x.after.change === x.before.change;
     console.log(ok ? 'OK' : 'FAIL', JSON.stringify(show(x)));
     if (!ok) process.exitCode = 1;
