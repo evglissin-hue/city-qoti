@@ -31,6 +31,7 @@ import { natureBench } from './nature.bench';
 import { r1Bench } from './r1.bench';
 import { r2aBench } from './r2a.bench';
 import { r2Bench } from './r2.bench';
+import { r3dBench } from './r3d.bench';
 import { r3hBench } from './r3h.bench';
 import { raidsBench } from './raids.bench';
 import { seasonsBench } from './seasons.bench';
@@ -203,7 +204,11 @@ failures.push(...r2a.failures);
 const r2 = r2Bench();
 lines.push(...r2.lines);
 failures.push(...r2.failures);
-// 17. R3H: the levels pass at its day end (specialized buildings climbing and sliding), at City scale.
+// 17. R3D: Follow the thread's counts at City scale, the midnight halving and the Thread itself.
+const r3d = r3dBench();
+lines.push(...r3d.lines);
+failures.push(...r3d.failures);
+// 18. R3H: the levels pass at its day end (specialized buildings climbing and sliding), at City scale.
 const r3h = r3hBench();
 lines.push(...r3h.lines);
 failures.push(...r3h.failures);
@@ -244,6 +249,7 @@ const report = {
   r1: r1.report,
   r2a: r2a.report,
   r2: r2.report,
+  r3d: r3d.report,
   r3h: r3h.report,
   heapMb,
   failures,

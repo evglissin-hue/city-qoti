@@ -19,6 +19,7 @@ import { woodpile } from '../seasons/stores';
 import { jobFits, tierShortages } from '../tiers/api';
 import { pushHistory } from './records';
 import { dayIndex } from './time';
+import { masterKeeps } from '../masters/api';
 
 /** Open job slots at a built building, or 0 (paused and resting buildings hire nobody). */
 export function openJobs(b: Building): number {
@@ -411,6 +412,8 @@ export function rebalanceJobs(state: WorldState, ctx?: TickCtx): boolean {
       if (!r || r.activity.kind === 'task' || r.carry) continue;
       // Apprentices see their season out (C4D).
       if (r.apprentice && r.apprentice.untilDay > dayIndex(state.tick)) continue;
+      // R3B: a master stays where their trade needs them (level 3, the master's good, the miller's room).
+      if (masterKeeps(r, b)) continue;
       if (!jobFits(r.tier, content.buildingById.get(target.def))) continue;
       fromP = p;
       from = r;

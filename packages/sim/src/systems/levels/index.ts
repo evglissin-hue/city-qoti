@@ -1,10 +1,10 @@
 // Business levels (docs/spec/13-ledger.md, Levels; R1B builds it). Daily at 23:30, after the day's
 // selling: a business moves up a level after three days running of steady custom, reliable inputs
-// and room to grow (and, for level 3, its keeper's 20 working days until R3's masters); it slides
-// back one level after four failing days, keeping its walls. Specialized buildings climb by their
-// own good days (R3H, levels/specialized.ts).
+// and room to grow (and, for level 3, a master on the crew); it slides back one level after four
+// failing days, keeping its walls. Specialized buildings climb by their own good days (R3H,
+// levels/specialized.ts).
 import { specializedDayEnd } from './specialized';
-import { content, type BuildingDef, type TradeDef } from '@qoti/content';
+import { content, MASTERY, type BuildingDef, type TradeDef } from '@qoti/content';
 import { BUSINESS_LEVEL_MAX, MAP_SIZE, TICKS_PER_DAY, Zone } from '../../constants';
 import type { Building, BusinessCounters, System, TickCtx, WorldState } from '../../contracts';
 import { Road } from '../../map/layers';
@@ -14,14 +14,14 @@ import { isStandard } from '../../state/hamlet';
 import { emptyCounters, levelOf } from '../../state/zones';
 import { businessView } from '../../view/businesses';
 import { buildingView } from '../../view';
-import { dailyOffset } from '../economy/time';
+import { dailyOffset, dayIndex } from '../economy/time';
 import { release } from '../residents/jobs';
 import { wantsTables } from '../growth/cafes';
 import { eveningPassers } from '../growth/outlets';
 import { invalidatePlaces } from '../places';
 import { outOfSeason } from './season';
 import { bumpPlaceInputs } from '../places/inputs';
-import { canReachLevel3, KEEPER_DAYS_L3 } from '../masters/api';
+import { canReachLevel3, masterOf } from '../masters/api';
 
 /** Good days in a row that move a business up a level. */
 export const LEVEL_UP_DAYS = 3;
@@ -29,8 +29,6 @@ export const LEVEL_UP_DAYS = 3;
 export const LEVEL_DOWN_DAYS = 4;
 /** Customers a day a shop needs to hold level 2 and level 3 (and to climb toward them). */
 export const SHOP_CUSTOMERS: readonly number[] = [6, 15];
-/** Working days a keeper must have kept a business before level 3 (until R3's masters; masters/api.ts). */
-export { KEEPER_DAYS_L3 };
 /** Free farm-zoned tiles needed in reach for each hand a farmstead's next level adds: a grain farm. */
 export const FIELD_TILES_A_HAND = 12;
 /** The same for any other farmland trade. */
@@ -113,6 +111,29 @@ function settleCafe(state: WorldState, ctx: TickCtx, b: Building, levelBefore: n
   ctx.events.push({ e: 'building.updated', b: buildingView(b) });
 }
 
+/**
+ * R3B: level 3 is held by a master on the crew. Without one (and not a migrated level 3, which holds
+ * by `levelKept` until a master works there) the business keeps its level `MASTERY.graceDays` days
+ * from `masterGone`, then slides one level. True when it slid today (that is its day's decision).
+ */
+function masterGrace(state: WorldState, ctx: TickCtx, b: Building, c: BusinessCounters): boolean {
+  if (masterOf(state, b) !== 0) {
+    delete c.masterGone;
+    delete c.levelKept;
+    return false;
+  }
+  if (c.levelKept) return false;
+  const today = dayIndex(state.tick);
+  c.masterGone ??= today;
+  if (today - c.masterGone < MASTERY.graceDays) return false;
+  b.level = 2;
+  bumpPlaceInputs(state);
+  c.levelDays = 0;
+  trimCrew(state, ctx, b);
+  delete c.masterGone;
+  return true;
+}
+
 /** One business's day end. */
 function dayEnd(state: WorldState, ctx: TickCtx, b: Building): void {
   const trade = content.tradeById.get(b.trade ?? '');
@@ -134,12 +155,15 @@ function dayEnd(state: WorldState, ctx: TickCtx, b: Building): void {
     }
     const active = c.madeToday > 0 || c.customersToday > 0;
     if (b.keeperId && active && b.rt.workers.includes(b.keeperId)) c.keeperDays += 1;
+    const slid = level >= 3 && masterGrace(state, ctx, b, c);
     const up =
       level < BUSINESS_LEVEL_MAX &&
       steady(c, trade, level) &&
       roomToGrow(state, b, trade, level + 1) &&
       (level + 1 < 3 || canReachLevel3(state, b, c));
-    if (up) {
+    if (slid) {
+      // The slide was today's decision.
+    } else if (up) {
       c.levelDays = Math.max(0, c.levelDays) + 1;
       if (c.levelDays >= LEVEL_UP_DAYS) {
         b.level = level + 1;
@@ -156,6 +180,11 @@ function dayEnd(state: WorldState, ctx: TickCtx, b: Building): void {
       }
     } else {
       c.levelDays = 0;
+    }
+    // R3B: below level 3 nothing is kept and nobody is missed.
+    if (levelOf(b) < 3) {
+      delete c.levelKept;
+      delete c.masterGone;
     }
     if (trade.id === 'shop') settleCafe(state, ctx, b, level);
   }

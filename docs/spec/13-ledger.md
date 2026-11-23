@@ -120,6 +120,7 @@ The best positive score grows; none positive, nothing grows and the bar stays lo
 - reliable inputs (no day without its raw good, the carrier's counting);
 - room to grow: for a workshop or shop a good street at the door (a lane or better for level 2, a street for level 3); for a farmstead enough free farm-zoned ground in reach for the larger crew;
 - for level 3, a master on the crew [R3]; until R3 the keeper's 20 working days there stand in *(tune)*. When R3 lands, a business that reached level 3 that way keeps it, and its keeper is counted a master once they have four hearts.
+  *As built (R3B)*: a master of the trade on the crew climbs it to 3; with none on the crew a level 3 business keeps its level six days (`MASTERY.graceDays`) and then slides one level; a migrated level 3 keeps it (`levelKept`) until a master works there (`19-evenings.md`, Masters, As built).
 
 It slides back one level after four failing days, keeping its walls, as homes do. A business resting because its raw good is out of season (a cider maker in winter) neither fails nor counts those days: its level and its hands' working days wait for spring. Levels are drawn (`17-presentation.md`): a bigger yard, a painted sign, goods out front.
 

@@ -17,7 +17,6 @@
 //   open to all) or in its pantry; `Household.seen` keeps the last day it saw each good, and the
 //   family's flavors on offer are those seen in the last VARIETY_DAYS days. Wool is only an input
 //   and never counts. markSeen runs at the 18:00 household pass.
-import { MASTER_GOOD_IDS } from '../../state/masters';
 import { specialtiesOnRound } from '../townbook/api';
 import { content } from '@qoti/content';
 import { GOOD_FAMILIES, MAP_SIZE, TIERS } from '../../constants';
@@ -40,12 +39,11 @@ const FUEL = 1;
 const MATERIALS = 2;
 
 /** Good indexes of a family that a household can buy (every one but an input-only good). */
-// R3.0: the masters' goods are no shelf good yet (MASTER_GOOD_IDS, state/masters.ts): a household
-// neither wants, counts nor misses a flavor no master makes. R3B brings each in once a master makes it.
+// R3B: the masters' goods are shelf goods like any. A household only sees, counts or buys what is on
+// a shelf in reach, so a good no master makes is never counted; the one place a household asks for a
+// good it cannot see is the demand tally (baskets.ts `want`, which waits for masterGoodsInTown).
 export const SHELF_GOODS: readonly (readonly number[])[] = GOOD_FAMILIES.map((_, f) =>
-  GOODS_BY_FAMILY[f]!.filter(
-    (g) => !INPUT_ONLY.has(content.goods[g]!.id) && !MASTER_GOOD_IDS.has(content.goods[g]!.id),
-  ),
+  GOODS_BY_FAMILY[f]!.filter((g) => !INPUT_ONLY.has(content.goods[g]!.id)),
 );
 
 /** The tiers whose baskets the town buys: those its households hold, then the unlocked ones none has. */

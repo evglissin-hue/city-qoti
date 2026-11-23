@@ -23,6 +23,8 @@ export const FIXTURE = new URLSearchParams(location.search).get('fixture');
 export const MOCK_OVERLAY = new URLSearchParams(location.search).has('mock');
 /** R2D: with &mock, `&evening` also lays a mock evening over the valley (places, gaps, the edition). */
 export const EVENING_MOCK = new URLSearchParams(location.search).has('evening');
+/** R3D: with &mock&evening, `&r3` also lays the R3 mocks (Town Book, supplies, priorities, masters). */
+export const R3_MOCK = new URLSearchParams(location.search).has('r3');
 
 export type FixtureKind = 'grown' | 'hamlet' | 'village' | 'winter' | 'raid';
 export const FIXTURE_KINDS: readonly FixtureKind[] = ['grown', 'hamlet', 'village', 'winter', 'raid'];
@@ -92,6 +94,7 @@ function raidWithCaptive(f: { state: WorldState; raiders: number[] }): WorldStat
 export async function overlayMocks(session: Session): Promise<void> {
   await overlayFixtureMocks(session);
   if (EVENING_MOCK) (await import('../ui/mocks/evening')).overlayEveningMocks(session);
+  if (R3_MOCK) (await import('../ui/mocks/r3')).overlayR3Mocks(session);
 }
 
 async function overlayFixtureMocks(session: Session): Promise<void> {

@@ -19,6 +19,8 @@ import {
   statusIsTrouble,
 } from './Businesses';
 import { Glyph } from '../icons';
+import { BuildingMasterLines } from './masterLines';
+import { Thread } from './Thread';
 import { climbLine, todayLine } from './specializedWords';
 import { Empty, Frame, GoodChip, GoodList, Heading, Meter, Toggle, useInspect } from './parts';
 
@@ -99,6 +101,8 @@ export function BuildingInspector({ session, id }: { session: Session; id: numbe
       <BusinessLines session={session} id={b.id} />
       {detail?.climb && def && !site && <ClimbLines climb={detail.climb} def={def} />}
 
+      {!site && <Thread session={session} subject={{ kind: 'building', id: b.id }} routeWhen="open" />}
+
       {site && rt?.construction && (
         <div class="site">
           <ol class="stages" aria-label="Construction stages">
@@ -167,6 +171,8 @@ export function BuildingInspector({ session, id }: { session: Session; id: numbe
               )}
             </>
           )}
+          {/* R3D: the master and apprentices beside the workers they name; the Town Hall's lamplighter; a home's candle. */}
+          {detail && <BuildingMasterLines session={session} detail={detail} />}
           {detail?.method && (
             <>
               <Heading>{detail.method.name}</Heading>

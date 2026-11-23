@@ -120,7 +120,7 @@ describe('served', () => {
     const { state, b } = hamletFixture();
     const mill = building(state, b.windmill);
     // A second baker beside the lane, in the mill's reach: both of its places taken.
-    const second = place(state, 'workshop', 68, 47, 0, 0, 'baker');
+    const second = place(state, 'workshop', 68, 47, 0, 'baker');
     second.trade = 'baker';
     expect(servedToday(state, mill).map((s) => s.id)).toEqual([b.bakery, second.id].sort((x, y) => x - y));
     expect(specializedDay(state, mill)).toBe('good');
