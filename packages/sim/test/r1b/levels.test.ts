@@ -275,8 +275,10 @@ describe('the Chronicle says when a business first reaches a level (P3A)', () =>
     for (let d = 0; d < LEVEL_UP_DAYS; d++) endDay(state, b, GOOD);
     expect(b.level).toBe(2);
     expect(grew(state)).toHaveLength(1);
-    // Level 3 is news: the keeper's days are in and the door is on a street.
-    b.counters!.keeperDays = 20;
+    // Level 3 is news: a master works there (R3B) and the door is on a street.
+    const master = findById(state.residents, b.rt!.workers[0]!)!;
+    master.flags |= ResidentFlags.master;
+    master.mastery = 'baker';
     for (let d = 0; d < LEVEL_UP_DAYS; d++) endDay(state, b, GOOD);
     expect(b.level).toBe(3);
     expect(grew(state)).toHaveLength(2);

@@ -92,13 +92,21 @@ function disagreement(state: WorldState, subject: ThreadSubject, v: ThreadView):
   // The seller: the last door named before the households or the place, else the subject's own door.
   const seller = (phraseAt: number): EntityId | undefined => {
     let last: EntityId | undefined;
+    let lastAt = -1;
     let cursor = 0;
     for (const r of v.refs) {
       const i = t.indexOf(r.name, cursor);
       cursor = i + r.name.length;
-      if (i < phraseAt && r.ref.startsWith('building:')) last = Number(r.ref.slice(9));
+      if (i < phraseAt && r.ref.startsWith('building:')) {
+        last = Number(r.ref.slice(9));
+        lastAt = i;
+      }
     }
-    if (/(sold|kept|on the shelf) here/.test(t) && subject.kind === 'building') return subject.id;
+    // R3X: "kept here, sold at the Tansley shop, taken home by 2 households" names its seller after
+    // the subject's own door; the subject sells only when nothing is named after its "here".
+    const here = /(sold|kept|on the shelf) here/.exec(t);
+    if (here && subject.kind === 'building' && (last === undefined || t.indexOf(here[0]) > lastAt))
+      return subject.id;
     return last;
   };
   const households = /taken home by (at least )?(\d+) households?/.exec(t);

@@ -42,7 +42,7 @@ describe('climbing', () => {
   it('a quiet day resets a run, and so does a failing day at level 1', () => {
     const { state } = hamletFixture();
     const q = spot(state, 'quarry', 120, 100);
-    endDay(state, q, GOOD);
+    // P3A: two good days climb, so one good day then a quiet one shows the reset.
     endDay(state, q, GOOD);
     endDay(state, q, {});
     expect(q.counters!.levelDays).toBe(0);
