@@ -320,7 +320,7 @@ export function rowTownBook(seed: string, r3: R3Record): OutcomeRow {
     measured: `${pages} pages (${last?.specialties ?? 0} specialties, ${last?.customs ?? 0} customs), seat 0 on ${s0}, seat 1 on ${s1}, ${last?.together ?? 0} together, ${callings} callings`,
     target: `>= ${PAGES_WANTED} pages, each seat on one, >= 1 calling`,
     verdict: ok ? 'PASS' : 'MISS',
-    needs: 'R3C (Town Book)',
+    needs: 'R3A (supply customs), R3X (no Treat reaches ten customers at a place; R3C landed)',
   };
 }
 
