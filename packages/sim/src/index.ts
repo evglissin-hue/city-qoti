@@ -349,6 +349,7 @@ export {
   specialtiesOnRound,
 } from './systems/townbook/api';
 export { placeResting, placeSupplies, suppliesView } from './view/supplies';
+export { recordThread } from './systems/threads/api';
 export { threadView } from './view/threads';
 export { townBookView } from './view/townBook';
 export { findSkatingSpots, skatingSpots } from './systems/seasons/place';

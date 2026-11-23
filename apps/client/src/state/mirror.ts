@@ -29,7 +29,9 @@ import {
   type RenownView,
   type SeasonCardView,
   type SeasonReportView,
+  type SuppliesView,
   type ThreatView,
+  type TownBookView,
   type TrialView,
   type WatchView,
   type WeatherView,
@@ -231,6 +233,9 @@ export class Mirror implements MapReader {
   readonly loans = signal<LoansView | null>(null);
   readonly trade = signal<TradeView | null>(null);
   readonly charter = signal<CharterView | null>(null);
+  // R3 (R3D): tonight's supplies and the Town Book, from the snapshot and their events.
+  readonly supplies = signal<SuppliesView | null>(null);
+  readonly townBook = signal<TownBookView | null>(null);
   readonly lots = new Map<EntityId, LotView>();
   readonly innovations = new Map<string, InnovationView>();
   readonly plans = new Map<EntityId, PlanView>();
@@ -351,6 +356,8 @@ export class Mirror implements MapReader {
     this.loans.value = view.loans ?? null;
     this.trade.value = view.trade ?? null;
     this.charter.value = view.charter ?? null;
+    this.supplies.value = view.supplies ?? null;
+    this.townBook.value = view.townBook ?? null;
     this.lots.clear();
     this.innovations.clear();
     this.plans.clear();
@@ -554,6 +561,12 @@ export class Mirror implements MapReader {
           break;
         case 'charter.updated':
           this.charter.value = e.c;
+          break;
+        case 'supplies.updated':
+          this.supplies.value = e.s;
+          break;
+        case 'townBook.updated':
+          this.townBook.value = e.t;
           break;
         case 'rank.up':
           change.rankUp = { rank: e.rank, text: e.text };

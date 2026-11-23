@@ -262,6 +262,12 @@ export interface Apprenticeship {
   untilDay: number;
   /** R3 (R3.0): the master they serve under (19-evenings.md, Masters: apprentices); absent without one. */
   master?: EntityId;
+  /**
+   * R3 (R3B, additive): working days in `trade` since the apprenticeship under a master ended, "of
+   * their own" (`MASTERY.apprenticeDays` of them make a master, no four hearts asked). Absent until
+   * the first such day.
+   */
+  ownDays?: number;
 }
 
 /** Town counters added in I2 (charter, Together achievements, letters). */
