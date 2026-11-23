@@ -1,6 +1,7 @@
 // P3D shots: the front door in both candidate layouts, by day and at dusk (a script, not a spec):
 //   QOTI_CLIENT_PORT=5251 QOTI_RELAY_PORT=8861 npx vite --config apps/client/vite.config.ts apps/client
 //   QOTI_CLIENT_PORT=5251 node apps/client/e2e/p3d-shots.mjs
+// (or `npm run build -w @qoti/client` then `npx vite preview` and QOTI_CLIENT_PORT=4173, much faster)
 // Saves docs/build/screenshots/p3d-candidate-<layout>-<light>-<view>.png at 1366 x 768 (views: one
 // recent valley, several, the second step, an invite waiting, the valleys list, settings). Other
 // sizes: QOTI_SIZES=1250x680,1440x900,1728x1000,420x760 adds a -<width> suffix.
@@ -93,6 +94,11 @@ for (const [w, h] of sizes) {
         }, recent);
         await page.goto(`http://localhost:${port}/?quality=low&titleLayout=${layout}&titleLight=${light}`);
         await page.getByTestId('new-solo').waitFor();
+        // The live valley (QOTI_LIVE=0 shoots over the painted one): from a production build
+        // (vite preview) it is up in seconds; under vite dev on SwiftShader it can take minutes.
+        if (process.env.QOTI_LIVE !== '0')
+          await page.locator('[data-backdrop="live"]').waitFor({ state: 'attached', timeout: 240_000 });
+        await page.waitForTimeout(1500);
         await act(page);
         await page.waitForTimeout(900);
         const suffix = sizes.length > 1 || w !== 1366 ? `-${w}` : '';
