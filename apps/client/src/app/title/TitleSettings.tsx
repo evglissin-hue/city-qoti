@@ -12,8 +12,8 @@ const QUALITY_KEY = 'qoti.quality.v1';
 export function TitleSettings({ onClose }: { onClose: () => void }) {
   const [s, setS] = useState<UiSettings>(() => loadSettings());
   const [quality, setQuality] = useState<Quality>(() => initialQuality());
-  const done = useRef<HTMLButtonElement>(null);
-  useEffect(() => done.current?.focus(), []);
+  const card = useRef<HTMLDivElement>(null);
+  useEffect(() => card.current?.focus({ preventScroll: true }), []);
   const update = (next: UiSettings) => {
     setS(next);
     saveSettings(next);
@@ -37,6 +37,8 @@ export function TitleSettings({ onClose }: { onClose: () => void }) {
   return (
     <div class="modal-backdrop tf-modal-backdrop" onClick={onClose}>
       <div
+        ref={card}
+        tabIndex={-1}
         class="panel modal settings"
         role="dialog"
         aria-modal="true"
@@ -90,13 +92,7 @@ export function TitleSettings({ onClose }: { onClose: () => void }) {
         </label>
         <SoundSettings />
         <div class="actions">
-          <button
-            ref={done}
-            type="button"
-            class="primary"
-            data-testid="title-settings-done"
-            onClick={onClose}
-          >
+          <button type="button" class="primary" data-testid="title-settings-done" onClick={onClose}>
             {copy.settings.done}
           </button>
         </div>

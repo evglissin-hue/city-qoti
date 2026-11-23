@@ -474,8 +474,25 @@ button.tf-link:hover:not(:disabled),
   min-height: 0;
 }
 
+.tf-step {
+  flex: 1 1 auto;
+}
+
 .tf-step > * {
   flex-shrink: 0;
+}
+
+/* The form and the list scroll on their own, so the buttons below them stay in reach. */
+.tf-step > .tf-form,
+.tf-step > .tf-list {
+  flex-shrink: 1;
+  min-height: 0;
+  overflow-y: auto;
+  /* Room for the focus rings the scroller would otherwise clip. */
+  padding: 4px 5px;
+  margin: -4px -5px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(90, 66, 49, 0.35) transparent;
 }
 
 .tf-step h2 {
@@ -558,27 +575,11 @@ button.tf-link:hover:not(:disabled),
 }
 
 .tf-step-actions {
-  position: sticky;
-  bottom: -4px;
+  flex: none;
   display: flex;
   align-items: center;
   gap: 10px;
   margin-top: 2px;
-  padding: 10px 0 2px;
-  z-index: 1;
-}
-
-/* The bar stays in reach when the form scrolls; the paper under it fades in so text never runs
-   into the buttons. */
-.tf-step-actions::before {
-  content: '';
-  position: absolute;
-  z-index: -1;
-  inset: -30px -8px -14px;
-  background: var(--paper-deep);
-  -webkit-mask-image: linear-gradient(180deg, transparent, #000 55%);
-  mask-image: linear-gradient(180deg, transparent, #000 55%);
-  pointer-events: none;
 }
 
 .tf-step-actions .primary {
@@ -806,10 +807,6 @@ button.tf-link:hover:not(:disabled),
   background: var(--paper-light);
 }
 
-.tf-b .tf-step-actions {
-  bottom: -10px;
-}
-
 .tf-b .tf-step {
   padding: 20px 24px 14px;
   background: var(--grain);
@@ -818,10 +815,8 @@ button.tf-link:hover:not(:disabled),
   box-shadow:
     var(--shadow),
     0 0 44px var(--tf-glow);
-  overflow-y: auto;
   max-height: 100%;
   animation: tf-in 300ms ease-out;
-  scrollbar-width: thin;
 }
 
 /* ---------- a narrow window ---------- */
@@ -890,6 +885,10 @@ button.tf-link:hover:not(:disabled),
 
   .tf-b .tf-step {
     max-height: none;
+  }
+
+  .tf-b .tf-step > .tf-form,
+  .tf-b .tf-step > .tf-list {
     overflow: visible;
   }
 }

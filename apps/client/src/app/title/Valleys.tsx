@@ -4,7 +4,7 @@ import { RANK_WORD } from '../../ui/village';
 import { saveOldFile } from '../oldValley';
 import type { RecentValley } from '../recent';
 import type { ValleyFile } from '../valleyFile';
-import { sharedWith, whereItStands } from './Menu';
+import { sharedWith, whereItStands } from './describe';
 
 /** Every valley this device knows, most recent first: open it, remove it, or save an old one's file. */
 export function Valleys({
