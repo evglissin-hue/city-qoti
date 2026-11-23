@@ -35,6 +35,7 @@ import { RaidPanel } from './Raid';
 import { RankUpPanel } from './RankUp';
 import { SeasonCardPanel } from './SeasonCard';
 import { StoryLetterPanel } from './StoryLetter';
+import { StorybookPanel } from './Storybook';
 import { TownBookPanel } from './TownBook';
 import { TrialPanel } from './Trial';
 import { WatchPanel } from './Watch';
@@ -96,6 +97,7 @@ export const panels: readonly PanelDef[] = [
   { id: 'rankup', side: 'overlay', component: RankUpPanel },
   { id: 'season-card', side: 'overlay', component: SeasonCardPanel },
   { id: 'story-letter', side: 'overlay', component: StoryLetterPanel },
+  { id: 'storybook', side: 'book', component: StorybookPanel, lens: 'shared', label: 'Storybook', icon: 'chronicle', modes: STANDARD, order: 22, wide: true },
   { id: 'together', side: 'overlay', component: TogetherNote },
   { id: 'town-book', side: 'book', component: TownBookPanel, lens: 'shared', label: 'Town Book', icon: 'townbook', key: 'u', modes: STANDARD, order: 21, wide: true },
   { id: 'trial', side: 'book', component: TrialPanel, lens: 'shared', label: 'Trial', icon: 'trial', modes: STANDARD, hidden: true },
