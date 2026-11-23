@@ -10,6 +10,7 @@ import {
   isPerfAborted,
   MEASURE_NIGHT_HOUR,
   measureLaptop,
+  measureOptionsFromQuery,
   measureMarkdown,
   measureRowCount,
   measureSeconds,
@@ -69,13 +70,10 @@ const PRESET_NAMES: Record<string, string> = { low: 'Low', medium: 'Medium', hig
 const sceneName = (scene: string): string => SCENE_NAMES[scene as MeasureScene] ?? scene;
 const presetName = (q: string): string => PRESET_NAMES[q] ?? q;
 
-/** `?debug&measure=quick`: a second of movement and of rest per row, for the e2e in a software renderer. */
+/** `?debug&measure=quick` or `smoke`: short runs for the e2e in a software renderer (see perf.ts). */
 const QUICK: MeasureOptions | null = (() => {
   try {
-    const q = new URLSearchParams(location.search);
-    return q.has('debug') && q.get('measure') === 'quick'
-      ? { move: 1, rest: 1, settle: 0.5, settleMax: 4, still: 0.5 }
-      : null;
+    return measureOptionsFromQuery(location.search);
   } catch {
     return null;
   }
@@ -301,7 +299,7 @@ function Progress({ state }: { state: Extract<MeasureState, { k: 'running' }> })
             p.hour === MEASURE_NIGHT_HOUR,
           );
   const step = p ? Math.max(p.step, 0) : 0;
-  const total = p?.total ?? measureRowCount();
+  const total = p?.total ?? measureRowCount(QUICK?.presets, QUICK?.nightPresets, QUICK?.scenes);
   return (
     <>
       {/* Hands off the valley while it runs: a stray drag or key would spoil the numbers. */}
