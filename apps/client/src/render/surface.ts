@@ -22,8 +22,16 @@ const BED_Y = -0.42;
 const DEEP_Y = -0.66;
 /** Flat ground right round a pinned (built-on) tile, for doorsteps, benches and barrels, in tiles. */
 const PIN_APRON = 0.2;
-/** Beyond the apron, how far the ground takes to ease back to the hillside, in tiles. */
-const PIN_REACH = 0.6;
+/**
+ * Beyond the apron, how far the ground takes to ease back to the hillside, in tiles, on average.
+ * The reach wobbles from place to place (`pinReach`, between PIN_REACH_MIN and PIN_REACH_MAX), so
+ * the foot of a terrace meanders instead of running along a tile line. Apron plus the longest reach
+ * stays under PIN_SPAN tiles, the distance `pinsNear` looks.
+ */
+const PIN_REACH_MIN = 0.7;
+const PIN_REACH_MAX = 1.3;
+/** How many tiles round a pinned tile the surface may be eased (a pin within this many tiles). */
+export const PIN_SPAN = 2;
 /** Shoreline shaping: half-width of the band around the mask's middle line, and its slope. */
 const SHORE_BAND = 0.3;
 const SHORE_SLOPE = 1.6;
@@ -101,6 +109,31 @@ function ease(u: number): number {
   return u <= 0 ? 0 : u >= 1 ? 1 : u * u * (3 - 2 * u);
 }
 
+/** A hash of two integers in [0, 1) (deterministic, no state). */
+function lattice(ix: number, iz: number): number {
+  let h = Math.imul(ix, 374761393) ^ Math.imul(iz, 668265263) ^ 0x2545f491;
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  h ^= h >>> 16;
+  return (h >>> 0) / 4294967296;
+}
+
+/**
+ * How far the ground eases from a pad's apron back to the hillside at a world point: smooth value
+ * noise on a 1.5 tile lattice, so it drifts slowly along an edge (the terrace's foot wanders by
+ * about half a tile) and every sample of the surface, mesh and standing things alike, agrees.
+ */
+export function pinReach(px: number, pz: number): number {
+  const u = px / 1.5;
+  const v = pz / 1.5;
+  const i = Math.floor(u);
+  const j = Math.floor(v);
+  const a = ease(u - i);
+  const b = ease(v - j);
+  const top = lattice(i, j) + (lattice(i + 1, j) - lattice(i, j)) * a;
+  const bot = lattice(i, j + 1) + (lattice(i + 1, j + 1) - lattice(i, j + 1)) * a;
+  return PIN_REACH_MIN + (PIN_REACH_MAX - PIN_REACH_MIN) * (top + (bot - top) * b);
+}
+
 /**
  * Tile facts for the surface (level, base height, pinned), read from the map on demand or cached
  * for a region during a chunk build. Tiles outside the map repeat the edge tiles.
@@ -113,7 +146,7 @@ export class SurfaceTiles {
   private lv = new Int8Array(0);
   private ys = new Float32Array(0);
   private pins = new Uint8Array(0);
-  /** 1 when a pinned tile lies in the 3 x 3 block around the tile (cached regions only). */
+  /** 1 when a pinned tile lies within PIN_SPAN tiles of the tile (cached regions only). */
   private nearPins = new Uint8Array(0);
   /** Share of water round each tile (5 x 5, binomial weights: the shoreline's smooth mask). */
   private wets = new Float32Array(0);
@@ -150,8 +183,8 @@ export class SurfaceTiles {
     for (let z = 0; z < this.ch; z++) {
       for (let x = 0; x < this.cw; x++) {
         let near = 0;
-        for (let dz = -1; dz <= 1 && !near; dz++) {
-          for (let dx = -1; dx <= 1 && !near; dx++) {
+        for (let dz = -PIN_SPAN; dz <= PIN_SPAN && !near; dz++) {
+          for (let dx = -PIN_SPAN; dx <= PIN_SPAN && !near; dx++) {
             const nx = x + dx;
             const nz = z + dz;
             // Outside the cached block: assume a pin could be there (the slow path checks).
@@ -214,7 +247,7 @@ export class SurfaceTiles {
     return i >= 0 ? this.ys[i]! : this.readY(clampTile(x), clampTile(z));
   }
 
-  /** False only when no tile in the 3 x 3 block around (x, z) is pinned. */
+  /** False only when no tile within PIN_SPAN tiles of (x, z) is pinned. */
   pinsNear(x: number, z: number): boolean {
     const i = this.slot(x, z);
     return i >= 0 ? this.nearPins[i] === 1 : true;
@@ -325,8 +358,9 @@ export function tileSurfaceY(t: SurfaceTiles, tx: number, tz: number, px: number
   let sumW = 0;
   let sumY = 0;
   const ownL = t.level(tx, tz);
-  for (let dz = -1; dz <= 1; dz++) {
-    for (let dx = -1; dx <= 1; dx++) {
+  const reach = pinReach(px, pz);
+  for (let dz = -PIN_SPAN; dz <= PIN_SPAN; dz++) {
+    for (let dx = -PIN_SPAN; dx <= PIN_SPAN; dx++) {
       if (dx === 0 && dz === 0) continue;
       const nx = tx + dx;
       const nz = tz + dz;
@@ -334,8 +368,8 @@ export function tileSurfaceY(t: SurfaceTiles, tx: number, tz: number, px: number
       const ddx = px < nx ? nx - px : px > nx + 1 ? px - nx - 1 : 0;
       const ddz = pz < nz ? nz - pz : pz > nz + 1 ? pz - nz - 1 : 0;
       const d = Math.sqrt(ddx * ddx + ddz * ddz);
-      if (d >= PIN_APRON + PIN_REACH) continue;
-      const w = d <= PIN_APRON ? 1 : 1 - ease((d - PIN_APRON) / PIN_REACH);
+      if (d >= PIN_APRON + reach) continue;
+      const w = d <= PIN_APRON ? 1 : 1 - ease((d - PIN_APRON) / reach);
       sumW += w;
       sumY += w * t.y(nx, nz);
       if (w > maxW) maxW = w;

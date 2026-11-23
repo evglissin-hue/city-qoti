@@ -13,7 +13,7 @@ import { createWorldEnv, FIRST_FRAME_RADIUS, nearOf, type WorldEnv } from '../en
 import { createGroundMaterial, GroundTextures, MOWN } from '../ground';
 import { groundTexturesFor } from '../groundRead';
 import { GroundAo, groundAoFor } from '../groundAo';
-import { SURFACE_GRID, SurfaceTiles, tileSurfaceY } from '../surface';
+import { PIN_SPAN, SURFACE_GRID, SurfaceTiles, tileSurfaceY } from '../surface';
 import type { LayerContext, RenderLayer } from './types';
 
 /**
@@ -139,7 +139,9 @@ export function buildTerrainChunk(tiles: SurfaceTiles, cx: number, cz: number): 
   const flat = (x: number, z: number): boolean => flatMap[(z - z0) * span + (x - x0)] === 1;
   for (let tz = z0; tz < z0 + CHUNK_SIZE; tz++) {
     for (let tx = x0; tx < x0 + CHUNK_SIZE; tx++) {
-      const isFlat = tiles.pinned(tx, tz) || flat(tx, tz);
+      // A pad tile whose surroundings are not all level takes the shared slope normals, so the
+      // terrace's edge shades as one with the ground easing away from it (no crease at the tile line).
+      const isFlat = flat(tx, tz);
       if (isFlat) top(b, tiles.y(tx, tz), tx, tz);
       else slope(b, tiles, tx, tz);
       // Seams on the east and south edges (each edge belongs to one tile), and the valley's rim.
@@ -448,7 +450,7 @@ export function terrainLayer(): TerrainLayer {
       // A height change can move a whole building's pad (its door's level), and the ground eases
       // to a pad within a tile, so heights reach as far as the largest footprint and one more.
       for (const layer of ['height', 'water', 'occupant'] as const) {
-        for (const rect of change.rects.get(layer) ?? []) chunks.markRect(rect, layer === 'height' ? 5 : 1);
+        for (const rect of change.rects.get(layer) ?? []) chunks.markRect(rect, layer === 'height' ? 5 + PIN_SPAN : PIN_SPAN + 1);
       }
       const painted: LayerName[] = [
         'terrain',
