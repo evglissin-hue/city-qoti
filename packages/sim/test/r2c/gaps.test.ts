@@ -244,42 +244,82 @@ describe('a shop nobody passes', () => {
     setPlaces([mkPlace('seats:9', shop.z * S + shop.x + 2)]);
   });
 
-  it('opens after openAfter quiet evenings with n the folk by over them, and closes when a place draws', () => {
+  /** One evening with `customers` sales at the shop (its own round counter, as `recordSale` writes it). */
+  function evening(ctx: ReturnType<typeof newCtx>, day: number, customers: number, stale = false) {
+    const shop = findById(state.buildings, shopId)!;
+    shop.roundSales = customers > 0 || stale ? { day: stale ? day - 1 : day, customers } : undefined;
+    return night(state, ctx, { day, places: { 'seats:9': { v: 0 } } });
+  }
+
+  it("opens after openAfter evenings under the threshold with n tonight's customers, refreshing it while open", () => {
     const ctx = newCtx(state);
-    const quiet = d.threshold - 2;
     let day = 0;
     for (let i = 0; i < d.openAfter - 1; i++) {
-      night(state, ctx, { day: day++, places: { 'seats:9': { v: quiet } } });
+      evening(ctx, day++, 1);
       expect(findGap(state, kind, subject)).toBeUndefined();
     }
-    const ev = night(state, ctx, { day: day++, places: { 'seats:9': { v: quiet } } });
+    const ev = evening(ctx, day++, 2);
     const gap = findGap(state, kind, subject)!;
-    expect(gap.n).toBe(quiet * d.openAfter);
-    expect(gap.tile).toBe(findById(state.buildings, shopId)!.z * S + findById(state.buildings, shopId)!.x);
+    expect(gap.n).toBe(2);
+    const shop = findById(state.buildings, shopId)!;
+    expect(gap.tile).toBe(shop.z * S + shop.x);
     expect(eventNames(ev)).toEqual(['gaps.updated', 'evening.closed']);
-    // A shelf that empties does not drop the gap.
-    night(state, ctx, { day: day++, places: { 'seats:9': { v: quiet } } });
+    // Refresh: the card says the latest evening, and a shelf that empties does not drop the gap.
+    emptyShelfOf(shopId);
+    const ev2 = evening(ctx, day++, 3);
+    expect(gap.n).toBe(3);
+    expect(eventNames(ev2)).toEqual(['gaps.updated', 'evening.closed']);
     expect(state.gaps.open.length).toBe(1);
-    // The place draws 8 or more: it closes (closeAfter evenings), crediting its seat piece builder.
+  });
+
+  it("closes on an evening with threshold customers, crediting the nearby place's seats", () => {
+    const ctx = newCtx(state);
+    let day = 0;
+    for (let i = 0; i < d.openAfter; i++) evening(ctx, day++, 0);
+    expect(findGap(state, kind, subject)!.n).toBe(0);
     const decor: Decor = { id: state.nextId++, def: 'bench', fx: 0, fz: 0, rot: 0, builtBy: 0 };
     state.decor.push(decor);
     injected.places[0]!.members = [decor.id];
-    const draw = content.gapByKind.get('nothingToSell')!.threshold;
+    // One short of the bar keeps it open; the bar closes it.
+    evening(ctx, day++, d.threshold - 1);
+    expect(state.gaps.open.length).toBe(1);
     let closedEv: { e: string }[] = [];
-    for (let i = 0; i < d.closeAfter; i++)
-      closedEv = night(state, ctx, { day: day++, places: { 'seats:9': { v: draw } } });
+    for (let i = 0; i < d.closeAfter; i++) closedEv = evening(ctx, day++, d.threshold);
     expect(state.gaps.open).toEqual([]);
     expect(state.gaps.closed[0]!.closers).toEqual([0]);
     expect(eventNames(closedEv)).toEqual(['gaps.updated', 'evening.closed']);
   });
 
-  it('does not open for a shop with nothing on the shelf, and breaks on a busy evening', () => {
+  it('credits no one when no place stands near the shop', () => {
     const ctx = newCtx(state);
-    night(state, ctx, { day: 0, places: { 'seats:9': { v: 1 } } });
-    night(state, ctx, { day: 1, places: { 'seats:9': { v: d.threshold } } });
+    setPlaces([]);
+    let day = 0;
+    for (let i = 0; i < d.openAfter; i++) evening(ctx, day++, 0);
+    evening(ctx, day++, d.threshold);
+    expect(state.gaps.open).toEqual([]);
+    expect(state.gaps.closedCount).toBe(1);
+    expect(state.gaps.closed[0]!.closers).toEqual([]);
+  });
+
+  it('reads a round row of an earlier day as no customers', () => {
+    const ctx = newCtx(state);
+    let day = 0;
+    for (let i = 0; i < d.openAfter; i++) evening(ctx, day++, d.threshold + 5, true);
+    expect(findGap(state, kind, subject)!.n).toBe(0);
+  });
+
+  it('does not open with treats off the shelf, and a busy evening resets the streak', () => {
+    const ctx = newCtx(state);
+    evening(ctx, 0, 1);
+    evening(ctx, 1, 1);
+    expect(state.gaps.streaks).toEqual([{ kind, subject, n: 2 }]);
+    evening(ctx, 2, d.threshold);
     expect(state.gaps.streaks).toEqual([]);
+    evening(ctx, 3, 1);
+    evening(ctx, 4, 1);
+    expect(state.gaps.open).toEqual([]);
     emptyShelfOf(shopId);
-    night(state, ctx, { day: 2, places: { 'seats:9': { v: 1 } } });
+    for (let i = 5; i < 9; i++) evening(ctx, i, 0);
     expect(state.gaps.streaks).toEqual([]);
     expect(state.gaps.open).toEqual([]);
   });
