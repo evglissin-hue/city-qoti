@@ -1,16 +1,33 @@
 // R3E: the supplies advisor (the Ledger's) makes what places burn: the carrier's places switch goes
-// on with money and off with debt, at most once a day a family, with the family's rule and sell left
+// on with money and off with debt (R3X: while it owes, over the cushion with steady income), at most once a day a family, with the family's rule and sell left
 // as they stand; and the two lanes stay apart (the Ledger sends no decor or priority, the Hearth no
 // zone, carrier rule or business). State is built by hand where the stand-ins cannot reach it.
 import { content } from '@qoti/content';
-import { PENNIES_PER_COIN, TILE_FP, type Building, type Resident, type WorldState } from '@qoti/sim';
+import {
+  LEDGER_CATEGORIES,
+  PENNIES_PER_COIN,
+  TILE_FP,
+  type Building,
+  type Resident,
+  type WorldState,
+} from '@qoti/sim';
 import { describe, expect, it } from 'vitest';
 import { autoplay } from '../autoplay';
 import { startingTown } from '../hamlet';
 import { Planner } from '../planner';
 import { G } from '../town';
 import { advisors } from '.';
-import { CANDLE_POP, PLACES_OFF_COINS, PLACES_ON_COINS, supplies } from './supplies';
+import {
+  CANDLE_POP,
+  OWING_OFF_COINS,
+  OWING_ON_COINS,
+  PLACES_OFF_COINS,
+  PLACES_ON_COINS,
+  supplies,
+} from './supplies';
+
+/** The Ledger's `upkeep` category index (an expense). */
+const UPKEEP = LEDGER_CATEGORIES.findIndex((c) => c.id === 'upkeep');
 
 /** A planner on a Village-rank town with 12 lanterns and no candles (so Wares are short), seen as the supplies advisor. */
 function seen(): { p: Planner; w: WorldState } {
@@ -47,7 +64,7 @@ describe('the supplies advisor', () => {
     expect(advisors.map((a) => a.id)).toEqual([...advisors.map((a) => a.id)].sort());
   });
 
-  it('switches the carrier on for places with money, off with debt, at most once a day a family', () => {
+  it('switches the carrier on for places with money, off with debt (R3X: while it owes, over the cushion with steady income), at most once a day a family', () => {
     const { p, w } = seen();
     const advisor = supplies.create(p);
     const wares = () => w.carrier.families[3]!;
@@ -70,19 +87,33 @@ describe('the supplies advisor', () => {
     p.runDay = 11;
     advisor.visit({ afternoon: false });
     expect(!!wares().places).toBe(false);
-    // Flush again, but the town owes: stays off.
+    // Flush again and the town owes, but yesterday lost coins: stays off.
     w.economy.treasury = (PLACES_ON_COINS + 200) * PENNIES_PER_COIN;
     w.loans.loans.push({ id: 9999, principal: 50000, balance: 50000, rate: 5, takenTick: w.tick });
+    w.economy.yesterday.money[UPKEEP] = 100000;
     p.runDay = 12;
     advisor.visit({ afternoon: false });
     expect(!!wares().places).toBe(false);
-    // And a town that owes while it is on goes off.
-    w.loans.loans.length = 0;
-    p.runDay = 13;
+    // R3X: owing with the treasury over its cushion of 150 and three days with no loss: on, debt and all.
+    w.economy.yesterday.money[UPKEEP] = 0;
+    w.economy.treasury = (OWING_ON_COINS + 50) * PENNIES_PER_COIN;
+    for (const day of [13, 14]) {
+      p.runDay = day;
+      advisor.visit({ afternoon: false });
+      expect(!!wares().places).toBe(false);
+    }
+    p.runDay = 15;
     advisor.visit({ afternoon: false });
     expect(wares().places).toBe(true);
-    w.loans.loans.push({ id: 9999, principal: 50000, balance: 50000, rate: 5, takenTick: w.tick });
-    p.runDay = 14;
+    // Under the owing floor: off the next day.
+    w.economy.treasury = (OWING_OFF_COINS - 20) * PENNIES_PER_COIN;
+    p.runDay = 16;
+    advisor.visit({ afternoon: false });
+    expect(!!wares().places).toBe(false);
+    // Over the cushion again but in lean times: stays off.
+    w.economy.treasury = (OWING_ON_COINS + 50) * PENNIES_PER_COIN;
+    w.economy.leanTimes = true;
+    p.runDay = 17;
     advisor.visit({ afternoon: false });
     expect(!!wares().places).toBe(false);
   });
