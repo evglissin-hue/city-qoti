@@ -22,7 +22,9 @@ function placed(actions: readonly string[]): string[] {
   return [...out].sort();
 }
 
-describe('two players, three evenings', { timeout: 120_000 }, () => {
+// R3E: 300 s a test. With R3B's masters a Village run takes 80 s here and over 120 s on the CI
+// runner (the willow Village test timed out at 120 s on 7cdef17); the assertions are unchanged.
+describe('two players, three evenings', { timeout: 300_000 }, () => {
   for (const seed of ['willow', 'hazel']) {
     it(`plays ${seed} for twelve days without dead ends, zoned from the first day`, () => {
       const run = autoplay(seed, 12);

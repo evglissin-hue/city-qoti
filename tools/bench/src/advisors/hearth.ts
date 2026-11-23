@@ -24,6 +24,7 @@ import {
 import type { Planner } from '../planner';
 import { walledIn } from '../rows';
 import { count, G, idx, S, sites } from '../town';
+import { candlesAllow } from './lamps';
 import { wellFor } from './siting';
 import type { Advisor, AdvisorDef } from './types';
 
@@ -102,6 +103,8 @@ class Hearth implements Advisor {
     if (!route || route.length > 90 || this.p.coins() < 60) return false;
     let ok = false;
     for (let k = 1; k < route.length; k += 3) {
+      // R3E: from Village rank a lantern burns a candle: only where the town's candles cover it.
+      if (!candlesAllow(this.w)) break;
       const i = route[k]!;
       ok =
         this.place('lantern', this.p.decorSpot('lantern', i % S, Math.floor(i / S), 1), 'on the way home') ||
@@ -219,7 +222,7 @@ class Hearth implements Advisor {
     if (pick) {
       const door = doorTile(pick);
       const [x, z] = [door % S, Math.floor(door / S)];
-      this.place('lantern', p.decorSpot('lantern', x, z, 2), 'on the lane');
+      if (candlesAllow(w)) this.place('lantern', p.decorSpot('lantern', x, z, 2), 'on the lane');
       this.place(w.decor.length % 2 ? 'flower-bed' : 'planter', p.decorSpot('planter', x, z, 2), 'by a door');
     }
     this.treePlace();

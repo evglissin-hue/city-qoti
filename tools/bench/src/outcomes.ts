@@ -17,17 +17,32 @@
 // stand-ins: a town where nobody goes out simply measures 0).
 import { content } from '@qoti/content';
 import {
+  callingsCount,
   doorTile,
+  isMaster,
+  loansOwed,
+  mastersCount,
+  mastersMade,
+  creditLimit,
+  pagesFound,
+  PENNIES_PER_COIN,
   placesNear,
   placesView,
+  RANKS,
+  seasonAt,
   START_HOUR,
+  suppliesView,
   TICKS_PER_DAY,
   TICKS_PER_HOUR,
+  townStock,
+  type HealthIssue,
   type WorldState,
 } from '@qoti/sim';
 import { findById } from '../../../packages/sim/src/state/entities';
+import { MASTER_GOOD_IDS } from '../../../packages/sim/src/state/masters';
+import { tallyDecisions } from './decisions';
 import { DEFAULT_SEEDS } from './audit';
-import { autoplay, type AutoplayOptions, type DayLine } from './autoplay';
+import { autoplay, type AutoplayOptions, type AutoplayResult, type DayLine } from './autoplay';
 import { runCartScene, type CartRun } from './cartScene';
 import { NO_ROWS, rowsOf, type RowsMeasure } from './rows';
 
@@ -98,7 +113,87 @@ export interface RunRecord {
   gaps: SeenGap[];
   /** The street lots at the end of the run (R2F's rows and gardens). */
   rows: RowsMeasure;
+  /** R3E: what R3's rows and the report read (supplies, masters, the Town Book, the books). */
+  r3: R3Record;
 }
+
+/** R3E: one night's supplies, read at 18:00 or later (after the 17:30 settling). */
+export interface NightSample {
+  day: number;
+  /** 0 spring to 3 winter. */
+  season: number;
+  rank: string;
+  /** Lanterns standing (decor with a nightly supply). */
+  standing: number;
+  /** Lanterns lit tonight (`suppliesView(w).lamps`). */
+  lit: number;
+  /** Supplied pieces resting tonight. */
+  resting: number;
+  /** Units places drew the night just settled, by good. */
+  drawn: { candles: number; firewood: number; cloth: number };
+}
+
+/** R3E: one day's books, read at 23:00. */
+export interface R3DaySample {
+  day: number;
+  residents: number;
+  households: number;
+  /** Households past Settlers. */
+  crafts: number;
+  leanTimes: boolean;
+  masters: number;
+  /** Masters by trade (or specialized building def), sorted by trade. */
+  byTrade: [string, number][];
+  mastersMade: number;
+  /** Units of masters' goods on outlet shelves; made and used (consumed) yesterday. */
+  masterShelf: number;
+  masterMade: number;
+  masterUsed: number;
+  pages: number;
+  specialties: number;
+  customs: number;
+  /** Pages crediting seat 0 and seat 1 (a page crediting both counts for each). */
+  seat0: number;
+  seat1: number;
+  together: number;
+  callings: number;
+  /** Units of Treats-family goods in storehouses, stalls, shops and output buffers. */
+  treats: number;
+  /** Coins; the credit line is what the County Bank lends in all (`creditLimit`). */
+  treasury: number;
+  owed: number;
+  creditLine: number;
+}
+
+export interface R3Record {
+  nights: NightSample[];
+  days: R3DaySample[];
+  /** The first day a specialized building's level was above 1, and its def. */
+  firstClimb: { day: number; def: string; level: number } | null;
+  /** The days a master's good first stood on an outlet shelf (0 never). */
+  firstMasterDay: number;
+  firstShelfDay: number;
+  /** The day the town first stood at Village rank (0 never). */
+  villageDay: number;
+  /** The first day a tavern stood built (0 never). */
+  tavernDay: number;
+  /** Health issues seen over the run, counted by kind (the audit's watch). */
+  health: Record<string, number>;
+  /** Commands accepted by lane over the first 70 days, and refused. */
+  decisions: { ledger: number; hearth: number; refused: number };
+}
+
+export const EMPTY_R3: R3Record = {
+  nights: [],
+  days: [],
+  firstClimb: null,
+  firstMasterDay: 0,
+  firstShelfDay: 0,
+  villageDay: 0,
+  tavernDay: 0,
+  health: {},
+  decisions: { ledger: 0, hearth: 0, refused: 0 },
+};
 
 // --- Measuring functions (pure) --------------------------------------------------------------------
 
@@ -477,15 +572,135 @@ export function sampleEvening(w: WorldState): EveningSample {
   };
 }
 
+// --- R3 samples (reads only) ----------------------------------------------------------------------------
+
+const goodIndex = (id: string): number => content.goods.findIndex((g) => g.id === id);
+const G_CANDLES = goodIndex('candles');
+const G_FIREWOOD = goodIndex('firewood');
+const G_CLOTH = goodIndex('cloth');
+const TREATS_GOODS: readonly number[] = content.goods.flatMap((g, i) => (g.family === 'treats' ? [i] : []));
+const MASTER_GOODS: readonly number[] = content.goods.flatMap((g, i) =>
+  MASTER_GOOD_IDS.has(g.id) ? [i] : [],
+);
+
+export function rankIndex(rank: string): number {
+  return RANKS.indexOf(rank as (typeof RANKS)[number]);
+}
+
+/** A lantern: decor with a nightly supply. */
+export function lanternsStanding(w: WorldState): number {
+  let n = 0;
+  for (const d of w.decor) if (content.decorById.get(d.def)?.supply?.kind === 'nightly') n++;
+  return n;
+}
+
+/** One night's supplies; views and counts only. */
+export function sampleNight(w: WorldState): NightSample {
+  const v = suppliesView(w);
+  const drawn = w.supplies.drawn[w.supplies.drawn.length - 1] ?? [];
+  return {
+    day: dayOf(w),
+    season: seasonAt(w.tick).season,
+    rank: w.charter.rank,
+    standing: lanternsStanding(w),
+    lit: v.lamps.length,
+    resting: v.resting.length,
+    drawn: {
+      candles: drawn[G_CANDLES] ?? 0,
+      firewood: drawn[G_FIREWOOD] ?? 0,
+      cloth: drawn[G_CLOTH] ?? 0,
+    },
+  };
+}
+
+/** One day's R3 books. */
+export function sampleR3Day(w: WorldState, line: DayLine): R3DaySample {
+  const stock = townStock(w);
+  let shelf = 0;
+  const shelfGoods = new Array<number>(content.goods.length).fill(0);
+  for (const b of w.buildings) {
+    const rt = b.rt;
+    if (b.stage !== 'built' || !rt || !content.buildingById.get(b.def)?.tags?.includes('outlet')) continue;
+    for (const g of MASTER_GOODS) shelfGoods[g]! += Math.max(0, rt.store[g] ?? 0);
+  }
+  for (const g of MASTER_GOODS) shelf += shelfGoods[g]!;
+  const y = w.economy.yesterday;
+  const byTrade = new Map<string, number>();
+  for (const r of w.residents)
+    if (isMaster(r) && r.mastery !== undefined) byTrade.set(r.mastery, (byTrade.get(r.mastery) ?? 0) + 1);
+  let seat0 = 0;
+  let seat1 = 0;
+  for (const p of w.townBook.pages) {
+    if (p.seats.includes(0)) seat0++;
+    if (p.seats.includes(1)) seat1++;
+  }
+  return {
+    day: line.day,
+    residents: w.residents.length,
+    households: w.households.length,
+    crafts: w.households.filter((h) => h.tier !== 'settler').length,
+    leanTimes: line.leanTimes,
+    masters: mastersCount(w),
+    byTrade: [...byTrade.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1)),
+    mastersMade: mastersMade(w),
+    masterShelf: shelf,
+    masterMade: MASTER_GOODS.reduce((n, g) => n + (y.produced[g] ?? 0), 0),
+    masterUsed: MASTER_GOODS.reduce((n, g) => n + (y.consumed[g] ?? 0), 0),
+    pages: pagesFound(w),
+    specialties: pagesFound(w, 'specialty'),
+    customs: pagesFound(w, 'custom'),
+    seat0,
+    seat1,
+    together: w.townBook.pages.filter((p) => p.seats.length >= 2).length,
+    callings: callingsCount(w),
+    treats: TREATS_GOODS.reduce((n, g) => n + (stock[g] ?? 0), 0),
+    treasury: Math.round(w.economy.treasury / PENNIES_PER_COIN),
+    owed: Math.round(loansOwed(w) / PENNIES_PER_COIN),
+    creditLine: Math.round(creditLimit(w) / PENNIES_PER_COIN),
+  };
+}
+
+/** The first sight of a specialized building above level 1, or null. */
+export function specializedClimb(w: WorldState, day: number): R3Record['firstClimb'] {
+  for (const b of w.buildings) {
+    if (b.stage !== 'built' || (b.level ?? 1) <= 1) continue;
+    if (content.buildingById.get(b.def)?.specialized) return { day, def: b.def, level: b.level ?? 1 };
+  }
+  return null;
+}
+
+/** Health issues counted by kind (kinds compared as strings: R3's arrive without a type change here). */
+export function healthByKind(issues: readonly Pick<HealthIssue, 'kind'>[]): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const i of issues) out[i.kind as string] = (out[i.kind as string] ?? 0) + 1;
+  return out;
+}
+
 /** Records an autoplay run's evenings, rooms, craftsfolk and gaps (this reads state; it changes none). */
 export function recordRun(seed: string, days: number, opts: AutoplayOptions = {}): RunRecord {
-  const rec: RunRecord = { seed, days, evenings: [], rooms: [], daySamples: [], gaps: [], rows: NO_ROWS };
+  return recordRunWith(seed, days, opts).rec;
+}
+
+/** As `recordRun`, and the run itself too (its world, for the scripted scenes that go on from it). */
+export function recordRunWith(
+  seed: string,
+  days: number,
+  opts: AutoplayOptions = {},
+): { rec: RunRecord; run: AutoplayResult } {
+  const r3: R3Record = { ...EMPTY_R3, nights: [], days: [], health: {} };
+  const rec: RunRecord = { seed, days, evenings: [], rooms: [], daySamples: [], gaps: [], rows: NO_ROWS, r3 };
   const seenGap = new Map<number, SeenGap>();
   let lastEvening = -2;
   let lastRoom = -1;
+  let lastNight = -2;
   const onHour = (w: WorldState) => {
     const hour = clockHour(w);
     const day = dayOf(w);
+    // R3E: the night, once, after the 17:30 settling (18:00 to 23:00 of the same day).
+    if (hour >= 18 && hour <= 23 && day !== lastNight) {
+      lastNight = day;
+      r3.nights.push(sampleNight(w));
+    }
     // Rooms: each hour 17:00 to 21:00, once.
     if (hour >= 17 && hour <= 21) {
       const key = day * 24 + hour;
@@ -519,6 +734,14 @@ export function recordRun(seed: string, days: number, opts: AutoplayOptions = {}
   const onDay = (w: WorldState, line: DayLine) => {
     const crafts = w.households.filter((h) => h.tier !== 'settler').length;
     rec.daySamples.push({ day: line.day, crafts, households: w.households.length });
+    const d = sampleR3Day(w, line);
+    r3.days.push(d);
+    if (r3.villageDay === 0 && rankIndex(w.charter.rank) >= rankIndex('village')) r3.villageDay = line.day;
+    if (r3.firstMasterDay === 0 && d.masters > 0) r3.firstMasterDay = line.day;
+    if (r3.firstShelfDay === 0 && d.masterShelf > 0) r3.firstShelfDay = line.day;
+    if (r3.tavernDay === 0 && w.buildings.some((b) => b.def === 'tavern' && b.stage === 'built'))
+      r3.tavernDay = line.day;
+    if (!r3.firstClimb) r3.firstClimb = specializedClimb(w, line.day);
   };
   const run = autoplay(seed, days, {
     village: true,
@@ -533,8 +756,12 @@ export function recordRun(seed: string, days: number, opts: AutoplayOptions = {}
     },
   });
   rec.rows = rowsOf(run.hamlet.world);
+  r3.health = healthByKind(run.health);
+  r3.decisions = (({ ledger, hearth, refused }) => ({ ledger, hearth, refused }))(
+    tallyDecisions(run.decisions, 70),
+  );
   rec.gaps = [...seenGap.values()].sort((a, b) => a.id - b.id);
-  return rec;
+  return { rec, run };
 }
 
 // --- The report ---------------------------------------------------------------------------------------
