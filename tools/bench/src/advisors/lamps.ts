@@ -21,6 +21,7 @@ import {
   placesView,
   rankAtLeast,
   suppliesView,
+  SUPPLY_KINDS,
   townStock,
   winterMark,
   type Building,
@@ -176,6 +177,48 @@ export function specialtyNear(w: WorldState, tile: number): number {
   return sum;
 }
 
+/** R3X: the place best kept of a supply kind this season: pieces of that kind, the longest kept record, then the busiest. */
+export function supplyPlaceFor(w: WorldState, live: PlaceView[], kind: string): PlaceView | null {
+  const k = SUPPLY_KINDS.indexOf(kind as (typeof SUPPLY_KINDS)[number]);
+  let best: PlaceView | null = null;
+  let bestScore = -1;
+  for (const pl of live) {
+    if (!pl.supplies?.some((s) => s.kind === kind && s.pieces > 0)) continue;
+    const kept = w.places.find((r) => r.id === pl.id)?.supplied?.kept[k] ?? 0;
+    const score = kept * 1000 + pl.visitors.reduce((a, x) => a + x, 0);
+    if (score > bestScore) [best, bestScore] = [pl, score];
+  }
+  return best;
+}
+
+/**
+ * R3X: the places the Town Book's hints point at (a custom's or specialty's place that fits it), so
+ * the pair keep them lit first when candles run short and the Town Book advisor need not fight this
+ * one over the same priority.
+ */
+export function bookPlaceIds(w: WorldState, live: PlaceView[]): Set<string> {
+  const out = new Set<string>();
+  for (const id of w.townBook.hints) {
+    const custom = content.customById.get(id);
+    const spec = content.specialtyById.get(id);
+    if (custom?.kind === 'supply') {
+      const at = supplyPlaceFor(w, live, custom.supply!);
+      if (at) out.add(at.id);
+    }
+    for (const pl of live) {
+      if (spec && pl.id.startsWith(`site:${spec.pattern}:`)) out.add(pl.id);
+      if (custom?.kind === 'day') {
+        if (custom.pattern !== undefined && pl.id.startsWith(`site:${custom.pattern}:`)) out.add(pl.id);
+        if (custom.host !== undefined && pl.id.startsWith('host:')) {
+          const b = w.buildings.find((x) => x.id === Number(pl.id.slice('host:'.length)));
+          if (b?.def === custom.host) out.add(pl.id);
+        }
+      }
+    }
+  }
+  return out;
+}
+
 const visitedTotal = (pl: PlaceView): number => pl.visitors.reduce((a, v) => a + v, 0);
 
 type Priority = 'keep' | 'normal' | 'rest';
@@ -196,7 +239,13 @@ function wanted(live: PlaceView[], w: WorldState): [place: PlaceView, priority: 
   if (cover >= lanterns.size)
     return withLamps.filter((pl) => pl.priority === 'rest').map((pl) => [pl, 'normal']);
   // Short: the busiest places the stock covers are kept, the rest rest, the far and quiet ones first.
-  const busiest = [...withLamps].sort((a, b) => visitedTotal(b) - visitedTotal(a) || (a.id < b.id ? -1 : 1));
+  const book = bookPlaceIds(w, live);
+  const busiest = [...withLamps].sort(
+    (a, b) =>
+      Number(book.has(b.id)) - Number(book.has(a.id)) ||
+      visitedTotal(b) - visitedTotal(a) ||
+      (a.id < b.id ? -1 : 1),
+  );
   const keep = new Set<PlaceView>();
   let left = cover;
   for (const pl of busiest) {
@@ -222,7 +271,8 @@ function wanted(live: PlaceView[], w: WorldState): [place: PlaceView, priority: 
     .sort((a, b) => far(b) - far(a) || visitedTotal(a) - visitedTotal(b) || (a.id < b.id ? -1 : 1));
   // A stale keep is let go first, then the new keeps, then the rests.
   const out: [PlaceView, Priority][] = [];
-  for (const pl of withLamps) if (!keep.has(pl) && pl.priority === 'keep') out.push([pl, 'normal']);
+  for (const pl of withLamps)
+    if (!keep.has(pl) && pl.priority === 'keep' && !book.has(pl.id)) out.push([pl, 'normal']);
   for (const pl of busiest) if (keep.has(pl)) out.push([pl, 'keep']);
   for (const pl of rest) out.push([pl, 'rest']);
   return out;
