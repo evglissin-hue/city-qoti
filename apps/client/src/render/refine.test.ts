@@ -16,6 +16,7 @@ import {
   PIXEL_SPREAD,
   refineGoal,
   refineJitter,
+  refineAllFromUrl,
   refineOffFromUrl,
   SAMPLE_BUDGET_MS,
   SampleMeter,
@@ -83,6 +84,13 @@ describe('V4.0: the refinement contracts', () => {
     expect(refineOffFromUrl('?debug&refine=0')).toBe(true);
     expect(refineOffFromUrl('?refine=0')).toBe(false);
     expect(refineOffFromUrl('?debug&refine=1')).toBe(false);
+  });
+
+  it('?debug&refine=all is read only with debug, and is not refine=0', () => {
+    expect(refineAllFromUrl('?debug&refine=all')).toBe(true);
+    expect(refineAllFromUrl('?refine=all')).toBe(false);
+    expect(refineAllFromUrl('?debug&refine=0')).toBe(false);
+    expect(refineOffFromUrl('?debug&refine=all')).toBe(false);
   });
 
   it('gives the governor the moving frames of the last window, and forgets them on a reset', () => {

@@ -60,6 +60,7 @@ import { buildingDetailNow, closeUpNow, pixelRatios, QUALITY_PRESETS, type Quali
 import {
   lensAperture,
   PHOTO_SAMPLES,
+  refineAllFromUrl,
   refineGoal,
   refineOffFromUrl,
   SampleMeter,
@@ -190,6 +191,8 @@ export class Renderer implements RenderApi {
   private keptParts: StillKeyParts | null = null;
   /** V4: `?debug&refine=0`, refinement off on this build (the before for the laptop tables). */
   private readonly refineOff = refineOffFromUrl(location.search);
+  /** V4A: `?debug&refine=all`, the governor without the measured times (tests on software renderers). */
+  private readonly refineAll = refineAllFromUrl(location.search);
   /** V4: what the still-frame cache's `refine` draws a sample with. */
   private readonly refineContext: RefineContext;
   /** V4A: the GPU ms of sample frames (the governor's `sampleGpuMs`). */
@@ -667,13 +670,14 @@ export class Renderer implements RenderApi {
 
   /** V4: what the refinement's governor reads when a rest keeps a still frame (refine.ts). */
   private governorInput(): RefineGovernorInput {
+    const measured = !this.refineAll;
     return {
       quality: this.quality,
       presetSamples: QUALITY_PRESETS[this.quality].refineSamples,
-      movingFrameMs: this.resolution.movingMs,
+      movingFrameMs: measured ? this.resolution.movingMs : null,
       resolutionStep: this.resolution.stepIndex,
-      gpuMs: this.gpuTimer.ms,
-      sampleGpuMs: this.sampleMeter.read(performance.now(), this.quality),
+      gpuMs: measured ? this.gpuTimer.ms : null,
+      sampleGpuMs: measured ? this.sampleMeter.read(performance.now(), this.quality) : null,
       photo: this.photoOn,
       off: this.refineOff,
     };

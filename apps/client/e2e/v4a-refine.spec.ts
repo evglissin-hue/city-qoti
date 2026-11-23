@@ -4,7 +4,10 @@ import { expect, test, type Page } from '@playwright/test';
 // the preset's samples and settles into idle frames; moving the camera drops to the plain moving
 // frame on the very next frame; lamps lighting one by one at rest fold into the developed picture
 // and never take it back to the plain still frame; `?debug&refine=0` keeps today's still frame.
-// The grown village on High, small so the software renderer keeps up.
+// The grown village on High, small so the software renderer keeps up. `?debug&refine=all`: the
+// governor reads no measured times (a software renderer takes seconds a frame, and a CI runner's
+// Chromium may time them, which turns refinement off as it should on a slow laptop); its rules are
+// unit tested in refine.test.ts, and these tests watch the development itself.
 
 /** The parts of the `?debug` hook these tests use. */
 interface Debug {
@@ -34,7 +37,7 @@ interface Shot {
   drawn: number;
 }
 
-async function open(page: Page, query = ''): Promise<void> {
+async function open(page: Page, query = '&refine=all'): Promise<void> {
   await page.setViewportSize({ width: 640, height: 400 });
   await page.route('**/api/**', (route) => route.abort());
   await page.goto(

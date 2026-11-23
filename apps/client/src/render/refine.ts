@@ -232,6 +232,17 @@ export function refineOffFromUrl(search: string): boolean {
 }
 
 /**
+ * V4A: `?debug&refine=all` develops whatever this machine's frames measure: the governor reads no
+ * moving or GPU times (a software renderer reports seconds a frame, and a CI runner's Chromium may
+ * time them), so tests see the development itself. Its other rules (the preset, photo mode, a
+ * lower resolution) still hold.
+ */
+export function refineAllFromUrl(search: string): boolean {
+  const q = new URLSearchParams(search);
+  return q.has('debug') && q.get('refine') === 'all';
+}
+
+/**
  * V4A: the lens's widest blur at rest, a radius in pixels of the still target, for a rest of
  * `samples`: about as wide as that many samples keep smooth (a disc of copies further apart than a
  * pixel or so would show as copies), and wider by photo mode's depth of field (`dof`, 0 to 1).
