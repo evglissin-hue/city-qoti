@@ -84,15 +84,31 @@ async function startBreak(page: Page) {
   await expect.poll(async () => (await view(page)).pos.join() !== before.pos.join()).toBe(true);
 }
 
-test.afterEach(async ({ browser }) => {
-  for (const c of browser.contexts()) await c.close();
-});
+/** Ends any tea break, starts the idle count over and lets the camera settle before a test records its view. */
+async function fresh(page: Page): Promise<void> {
+  await page.keyboard.press('Shift');
+  await closeCards(page);
+  await page.waitForTimeout(1500);
+  expect(await state(page)).toBeNull();
+}
 
-test.describe('one seat', () => {
+// The tests that need a live tea break share one page in the grown village (a load is most of a
+// test's time on a runner); each starts from `fresh`, so none leans on what the one before left.
+test.describe.serial('one seat, one page', () => {
   test.setTimeout(300_000);
+  let page: Page;
+  test.beforeAll(async ({ browser }) => {
+    test.setTimeout(300_000);
+    page = await (await browser.newContext()).newPage();
+    await open(page);
+  });
+  test.afterAll(async () => {
+    await page.context().close();
+  });
+
   for (const how of ['key', 'click', 'wheel'] as const) {
-    test(`a ${how} ends the tea break and the view is exactly back`, async ({ page }) => {
-      await open(page);
+    test(`a ${how} ends the tea break and the view is exactly back`, async () => {
+      await fresh(page);
       const saved = await view(page);
       await startBreak(page);
       const during = await view(page);
@@ -108,11 +124,13 @@ test.describe('one seat', () => {
       expect(after.goal).toEqual(saved.goal);
       expect(after.pos).toEqual(saved.pos);
       expect(after.orbiting).toBe(false);
+      // A click inspects whatever it lands on: put the card away for the next test.
+      await closeCards(page);
     });
   }
 
-  test('a pan key restores, then pans from the restored view', async ({ page }) => {
-    await open(page);
+  test('a pan key restores, then pans from the restored view', async () => {
+    await fresh(page);
     const saved = await view(page);
     await startBreak(page);
     await page.keyboard.down('w');
@@ -126,10 +144,9 @@ test.describe('one seat', () => {
     expect(after.goal.yaw).toBe(saved.goal.yaw);
   });
 
-  test('88 s alone does not start one, two more seconds do', async ({ page }) => {
-    await open(page);
-    // Real time since the page mounted counts as idle too: start the count over, then leave margin.
-    await page.keyboard.press('Shift');
+  test('88 s alone does not start one, two more seconds do', async () => {
+    // `fresh` presses a key: the idle count starts over, then a margin is left.
+    await fresh(page);
     await skip(page, 88_000);
     await page.waitForTimeout(600);
     expect(await state(page)).toBeNull();
@@ -137,8 +154,8 @@ test.describe('one seat', () => {
     expect(await state(page)).not.toBeNull();
   });
 
-  test('guards: a tool in hand, a card open, the setting off, no teabreak in the URL', async ({ page }) => {
-    await open(page);
+  test('guards: a tool in hand, a card open', async () => {
+    await fresh(page);
     // A tool in hand.
     await page.evaluate(() =>
       (window.__qoti as unknown as { selectTool(id: string): void }).selectTool('erase'),
@@ -167,8 +184,12 @@ test.describe('one seat', () => {
     // Cleared guards: it does start (proves the guards were what held it back).
     await skip(page, 1_000);
     expect(await state(page)).not.toBeNull();
+    await page.keyboard.press('Shift');
   });
+});
 
+test.describe('one seat', () => {
+  test.setTimeout(300_000);
   test('the setting off keeps it off after a reload', async ({ page }) => {
     await open(page);
     await page.evaluate(() => {
@@ -196,8 +217,9 @@ test.describe('one seat', () => {
   });
 });
 
-async function twoSeats(browser: Browser) {
+async function twoSeats(browser: Browser, onA: (a: Page) => void) {
   const a = await (await browser.newContext()).newPage();
+  onA(a);
   await a.goto(`/${ONLINE_QUERY}`);
   await waitLive(a);
   await expect
@@ -227,10 +249,6 @@ async function twoSeats(browser: Browser) {
 
 test('two seats: one seat on a tea break sends nothing and moves nobody else', async ({ browser }) => {
   test.setTimeout(400_000);
-  const { a, b } = await twoSeats(browser);
-  await closeCards(a);
-  await closeCards(b);
-  await a.waitForTimeout(1500);
   const sent: string[] = [];
   const watch = (ws: {
     url(): string;
@@ -238,33 +256,36 @@ test('two seats: one seat on a tea break sends nothing and moves nobody else', a
   }) => {
     if (ws.url().includes('/api/')) ws.on('framesent', (f) => sent.push(String(f.payload)));
   };
-  // Playwright reports a socket only when it opens, so watch A's page and reload it to reopen its socket.
-  a.on('websocket', watch);
-  await a.reload();
-  await waitLive(a);
-  await expect
-    .poll(() => a.evaluate(() => !!(window as unknown as { __qotiTeaBreak?: unknown }).__qotiTeaBreak))
-    .toBe(true);
-  await closeCards(a);
-  // B has sat idle all through A's reload, which on a slow machine is over 90 s, so B may be on a
-  // tea break of its own by now. A key ends it and starts B's count over, leaving B a full 90 s.
-  await b.keyboard.press('Shift');
-  await a.waitForTimeout(1500);
-  expect(await state(b)).toBeNull();
+  // Playwright reports a socket only when it opens, so A's page is watched from its first load.
+  const { a, b } = await twoSeats(browser, (a) => a.on('websocket', watch));
+  try {
+    await closeCards(a);
+    await closeCards(b);
+    // B has sat idle all through A's setup, which on a slow machine can pass 90 s, so B may be on a
+    // tea break of its own by now. A key ends it and starts B's count over, leaving B a full 90 s.
+    await b.keyboard.press('Shift');
+    await a.waitForTimeout(1500);
+    expect(await state(b)).toBeNull();
 
-  const bView = await view(b);
-  const aSubmit = await a.evaluate(() => window.__qoti.lastSubmitAt());
-  sent.length = 0;
-  await startBreak(a);
-  await a.waitForTimeout(2500);
-  expect(await state(a)).not.toBeNull();
-  // Nothing the tea break did reached the wire: no command and no presence. The only frames a seat
-  // sends on its own are the lockstep hash reports (k: 'hash'); those are the sim's, not the tea break's.
-  const kinds = sent.map((s) => (JSON.parse(s) as { k: string }).k);
-  expect(kinds.filter((k) => k !== 'hash')).toEqual([]);
-  expect(await a.evaluate(() => window.__qoti.lastSubmitAt())).toBe(aSubmit);
-  expect(await view(b)).toEqual(bView);
-  expect(await state(b)).toBeNull();
-  await a.keyboard.press('Shift');
-  expect(await state(a)).toBeNull();
+    const bView = await view(b);
+    const aSubmit = await a.evaluate(() => window.__qoti.lastSubmitAt());
+    // The watcher is on A's socket: going online sent frames through it.
+    expect(sent.length).toBeGreaterThan(0);
+    sent.length = 0;
+    await startBreak(a);
+    await a.waitForTimeout(2500);
+    expect(await state(a)).not.toBeNull();
+    // Nothing the tea break did reached the wire: no command and no presence. The only frames a seat
+    // sends on its own are the lockstep hash reports (k: 'hash'); those are the sim's, not the tea break's.
+    const kinds = sent.map((s) => (JSON.parse(s) as { k: string }).k);
+    expect(kinds.filter((k) => k !== 'hash')).toEqual([]);
+    expect(await a.evaluate(() => window.__qoti.lastSubmitAt())).toBe(aSubmit);
+    expect(await view(b)).toEqual(bView);
+    expect(await state(b)).toBeNull();
+    await a.keyboard.press('Shift');
+    expect(await state(a)).toBeNull();
+  } finally {
+    await a.context().close();
+    await b.context().close();
+  }
 });

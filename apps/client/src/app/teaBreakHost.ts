@@ -108,8 +108,14 @@ export class TeaBreakHost {
     return open.filter(([, on]) => on).map(([name]) => name);
   }
 
-  /** Starts listening and checking; returns the host, which stops itself when the canvas goes. */
+  /**
+   * Starts listening and checking; returns the host, which stops itself when the canvas goes. Under
+   * automation without `teabreak` in the URL it installs nothing but the debug hook: no listener, no
+   * check, so a spec that does not ask for tea breaks runs exactly as it would without them.
+   */
   install(): this {
+    if (DEBUG) this.installDebug();
+    if (this.automated) return this;
     const onInput = (e: Event) => this.input(e);
     for (const type of INPUTS) {
       addEventListener(type, onInput, { capture: true, passive: true });
@@ -128,28 +134,30 @@ export class TeaBreakHost {
     addEventListener('pointermove', onMove, { capture: true, passive: true });
     this.cleanup.push(() => removeEventListener('pointermove', onMove, { capture: true }));
     this.interval = setInterval(() => this.check(), CHECK_MS);
-    if (DEBUG) {
-      (window as unknown as { __qotiTeaBreak?: unknown }).__qotiTeaBreak = {
-        /** Moves the tea break's clock on, as if `ms` passed without input; then checks. */
-        skip: (ms: number) => {
-          this.skew += ms;
-          this.check();
-        },
-        check: () => this.check(),
-        state: () => this.state,
-        idleFor: () => this.timer.idleFor(this.now()),
-        due: () => this.timer.due(this.now(), this.guards),
-        /** Each guard's answer now, to see what holds a tea break back. */
-        guards: () => ({
-          enabled: this.guards.enabled(),
-          toolInHand: this.guards.toolInHand(),
-          cardOpen: this.guards.cardOpen(),
-          busy: this.guards.busy(),
-          open: this.openCards(),
-        }),
-      };
-    }
     return this;
+  }
+
+  /** `window.__qotiTeaBreak` (with `?debug`), for specs and the console. */
+  private installDebug(): void {
+    (window as unknown as { __qotiTeaBreak?: unknown }).__qotiTeaBreak = {
+      /** Moves the tea break's clock on, as if `ms` passed without input; then checks. */
+      skip: (ms: number) => {
+        this.skew += ms;
+        this.check();
+      },
+      check: () => this.check(),
+      state: () => this.state,
+      idleFor: () => this.timer.idleFor(this.now()),
+      due: () => this.timer.due(this.now(), this.guards),
+      /** Each guard's answer now, to see what holds a tea break back. */
+      guards: () => ({
+        enabled: this.guards.enabled(),
+        toolInHand: this.guards.toolInHand(),
+        cardOpen: this.guards.cardOpen(),
+        busy: this.guards.busy(),
+        open: this.openCards(),
+      }),
+    };
   }
 
   /** The running tea break, or null. */
