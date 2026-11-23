@@ -266,7 +266,7 @@ describe('a shop nobody passes', () => {
     expect(eventNames(ev)).toEqual(['gaps.updated', 'evening.closed']);
     // Refresh: the card says the latest evening, and a shelf that empties does not drop the gap.
     emptyShelfOf(shopId);
-    const ev2 = evening(ctx, day++, 3);
+    const ev2 = evening(ctx, day, 3);
     expect(gap.n).toBe(3);
     expect(eventNames(ev2)).toEqual(['gaps.updated', 'evening.closed']);
     expect(state.gaps.open.length).toBe(1);
@@ -295,7 +295,7 @@ describe('a shop nobody passes', () => {
     setPlaces([]);
     let day = 0;
     for (let i = 0; i < d.openAfter; i++) evening(ctx, day++, 0);
-    evening(ctx, day++, d.threshold);
+    evening(ctx, day, d.threshold);
     expect(state.gaps.open).toEqual([]);
     expect(state.gaps.closedCount).toBe(1);
     expect(state.gaps.closed[0]!.closers).toEqual([]);
