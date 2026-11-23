@@ -13,6 +13,7 @@ import {
   PENNIES_PER_COIN,
   rankAtLeast,
   TAX_RATE_RANGE,
+  type WorldState,
 } from '@qoti/sim';
 import type { Planner } from '../planner';
 import type { Advisor, AdvisorDef } from './types';
@@ -28,6 +29,25 @@ const LOAN_COINS = 1000;
 const TAX_CEILING = 16;
 /** R1F: days between two turns of the wage or tax lever (the levers moved most days, a chore). */
 const LEVER_DAYS = 3;
+
+/** P3A (meals): a food need under this at the morning look is a missed breakfast. */
+const MISSED_MEAL = 60;
+
+/**
+ * P3A (meals): households with somebody in work whose food need says they missed breakfast. The
+ * advisor trims no wage while there are any (it trimmed to 80% and left two-wage households short
+ * of the cheapest food).
+ */
+export function workingHungry(w: WorldState): number {
+  const byId = new Map(w.residents.map((r) => [r.id, r]));
+  let n = 0;
+  for (const h of w.households) {
+    const members = h.members.map((id) => byId.get(id));
+    if (!members.some((r) => r && r.jobId)) continue;
+    if (members.some((r) => r && (r.needs[0] ?? 100) < MISSED_MEAL)) n++;
+  }
+  return n;
+}
 
 class Money implements Advisor {
   /** The day a wage or tax lever last moved. */
@@ -46,6 +66,8 @@ class Money implements Advisor {
     const y = w.economy.yesterday;
     const net = income(y) - expenses(y);
     const rested = p.runDay - this.moved >= LEVER_DAYS;
+    // P3A (meals): no wage trims while households in work miss meals.
+    const fedOnWages = workingHungry(w) === 0;
     const setWage = (percent: number, why: string) =>
       rested &&
       percent !== l.wageLevel &&
@@ -63,8 +85,8 @@ class Money implements Advisor {
     const deep = loansOwed(w) * 2 > creditLimit(w);
     if ((net < 0 && coins < 300 && basket >= 65) || (coins < 100 && basket >= 75) || (deep && basket >= 60)) {
       // The treasury slides while households get by: trim wages a little, then firm up the tax.
-      if (l.wageLevel > 85) setWage(l.wageLevel - 5, 'trim wages');
-      else if (l.taxRate < Math.min(TAX_CEILING, TAX_RATE_RANGE[1]))
+      if (l.wageLevel > 85 && fedOnWages) setWage(l.wageLevel - 5, 'trim wages');
+      else if (l.wageLevel <= 85 && l.taxRate < Math.min(TAX_CEILING, TAX_RATE_RANGE[1]))
         setTax(Math.min(TAX_CEILING, TAX_RATE_RANGE[1], l.taxRate + 3), 'raise the income tax');
     } else if (basket < 65 && coins > 150) {
       // Households going short while the treasury can spare it: ease off.
@@ -82,7 +104,7 @@ class Money implements Advisor {
     // stood at 145 owing 318 coins over).
     const room = Math.floor((creditLimit(w) * 0.9 - owed) / PENNIES_PER_COIN);
     // C4X: near the end of the credit line, wages go to the floor (lean times are a step away).
-    if (room < 400 && coins < 200 && l.wageLevel > 80) setWage(80, 'trim wages to the floor');
+    if (room < 400 && coins < 200 && l.wageLevel > 80 && fedOnWages) setWage(80, 'trim wages to the floor');
     // P1: a cushion of 120 coins, not 60, and repay only above 500, down to 350. P1 added coin
     // sinks (the peddler's imports, priced decor), and a player who borrows at the last coin
     // stalls the build queue for days (six seeds at day 70 with P1's first economy: 135 residents
@@ -90,9 +112,15 @@ class Money implements Advisor {
     // R1X tried a 300 floor here and oak sat lean for weeks with 100 to 299 of credit unused.
     if (coins < 120 && room >= 100) {
       p.do('take a loan', [{ t: 'loan.take', coins: Math.min(room, LOAN_COINS) }]);
-    } else if (owed > 0 && coins > 500) {
+    } else if (owed > 0 && coins > 500 + p.winterFood) {
+      // P3A: the coins the plan advisor keeps for the carrier's winter food are not spare: repaying
+      // them in autumn only borrowed them back a few days later (hazel's lanes run: three repays,
+      // ten loans, 162 decisions).
       const loan = w.loans.loans[0]!;
-      const pay = Math.min(Math.ceil(loan.balance / PENNIES_PER_COIN), Math.floor(coins - 350));
+      const pay = Math.min(
+        Math.ceil(loan.balance / PENNIES_PER_COIN),
+        Math.floor(coins - 350 - p.winterFood),
+      );
       if (pay > 0) p.do('repay a loan', [{ t: 'loan.repay', id: loan.id, coins: pay }]);
     }
   }

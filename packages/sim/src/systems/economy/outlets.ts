@@ -79,7 +79,8 @@ function outletDef(id: string) {
 
 /**
  * The nearest built outlet with food for a tile: a market stall within its coverage radius, else
- * the nearest storehouse. Straight-line distance to the outlet's door, ties by id. 0 when none.
+ * the nearest storehouse, else (P3A) the nearest stall further off. Straight-line distance to the
+ * outlet's door, ties by id. 0 when none.
  */
 export function nearestOutletWithFood(state: WorldState, tile: number): EntityId {
   const x = tile % MAP_SIZE;
@@ -88,6 +89,12 @@ export function nearestOutletWithFood(state: WorldState, tile: number): EntityId
   let bestStallD = Infinity;
   let bestStore = 0;
   let bestStoreD = Infinity;
+  // P3A: porters stock a stall before the granary, so in a lean week every unit of food in town can
+  // sit on the one stall while the granary stands empty. A home out of the stall's reach found no
+  // outlet with food at all and went hungry beside a full stall (oak, day 9: 30 on the stall, the
+  // granary bare, a porter home from long hours with an empty pantry). It walks to the stall.
+  let farStall = 0;
+  let farStallD = Infinity;
   for (const b of state.buildings) {
     if (b.stage !== 'built' || !b.rt) continue;
     const o = outletDef(b.def);
@@ -102,11 +109,14 @@ export function nearestOutletWithFood(state: WorldState, tile: number): EntityId
       if (d <= (o.levelled ? r * r : o.r2) && d < bestStallD) {
         bestStallD = d;
         bestStall = b.id;
+      } else if (d > o.r2 && d < farStallD) {
+        farStallD = d;
+        farStall = b.id;
       }
     } else if (d < bestStoreD) {
       bestStoreD = d;
       bestStore = b.id;
     }
   }
-  return bestStall || bestStore;
+  return bestStall || bestStore || farStall;
 }

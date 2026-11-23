@@ -10,6 +10,7 @@ import { LEDGER_CATEGORIES, type LedgerCategoryId } from '../../constants';
 import type { EntityId, Household, PlaceId, WorldState } from '../../contracts';
 import { findById } from '../../state/entities';
 import { isStandard } from '../../state/hamlet';
+import { isFood } from '../../state/zones';
 import { rankAtLeast } from '../../state/village';
 import { pay } from '../economy/money';
 import { takeFromOutlet } from '../economy/outlets';
@@ -59,6 +60,30 @@ export function outletFree(state: WorldState, outlet: EntityId, good: number): n
   return Math.max(0, (shelf.stock[good] ?? 0) - (shelf.reserved?.[good] ?? 0));
 }
 
+/** P3A (meals): the cheapest food any outlet can hand out now, at the till, pennies (Infinity when none). */
+export function cheapestFoodPrice(state: WorldState): number {
+  let best = Infinity;
+  for (let g = 0; g < content.goods.length; g++) {
+    if (isFood(g) && inStock(state, g)) best = Math.min(best, tillPrice(state, g));
+  }
+  return best;
+}
+
+/**
+ * P3A (meals): the coins a household keeps back for food, pennies: tomorrow's breakfast for every
+ * member the pantry does not cover, at the cheapest food on a shelf. Nothing but food is bought
+ * from this part of the purse (fill the belly, then please it): the 18:00 baskets, Treats and the
+ * rest stop short of it. 0 with a full pantry, or no food on any shelf (there is nothing to keep it for).
+ */
+export function foodReserve(state: WorldState, h: Household): number {
+  let pantry = 0;
+  for (let g = 0; g < content.goods.length; g++) if (isFood(g)) pantry += h.pantry[g] ?? 0;
+  const short = Math.max(1, h.members.length) - pantry;
+  if (short <= 0) return 0;
+  const price = cheapestFoodPrice(state);
+  return price === Infinity ? 0 : short * price;
+}
+
 /**
  * The household pays for up to `qty` units taken from the outlet(s) at the till price. Goods leave
  * the outlet but are not put anywhere: the caller carries them home or uses them up. With
@@ -76,7 +101,9 @@ export function purchase(
   if (qty <= 0) return 0;
   if (record) state.market.demandToday[good] = (state.market.demandToday[good] ?? 0) + qty;
   const price = tillPrice(state, good);
-  const affordable = price > 0 ? Math.floor(Math.max(0, h.savings) / price) : qty;
+  // P3A (meals): what a household owes its own breakfast is not spent on anything but food.
+  const purse = isFood(good) || !marketOpen(state) ? h.savings : h.savings - foodReserve(state, h);
+  const affordable = price > 0 ? Math.floor(Math.max(0, purse) / price) : qty;
   let want = Math.min(qty, affordable);
   if (want <= 0) return 0;
   let got = 0;

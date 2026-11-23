@@ -90,6 +90,10 @@ export function serveService(p: Planner, def: string, kind: 'social' | 'health')
             // from day 30, so no Craftsfolk came.
             if (!townReachesDoor(w, { def, x, z, rot })) continue;
             if (!clearOfKind(w, def, x, z)) continue;
+            // P3A: nor a spot the planner refuses for walling a home's door: willow's herbalist
+            // tried the same such spot by the Coldbrooks every visit for 70 days, so no herbalist
+            // came and no household ever reached Craftsfolk.
+            if (p.coversDoor(def, x, z, rot)) continue;
             return !!p.buildAt(`build ${def} by the ${h.family}s`, def, x, z, rot, true);
           }
         }

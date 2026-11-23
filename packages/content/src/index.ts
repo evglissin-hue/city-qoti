@@ -364,6 +364,7 @@ export const chronicle: readonly ChronicleTemplate[] = [
   Th.banditHome,
   Th.banditSent,
   L.birth,
+  C.businessGrew,
   Cl.calling,
   SC.circus,
   SC.coldSnap,

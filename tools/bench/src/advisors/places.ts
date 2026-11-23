@@ -99,10 +99,15 @@ class Places implements Advisor {
     return this.p.w;
   }
 
-  private used = 0;
+  /** The planner's decision count when this visit began. */
+  private start = 0;
 
+  /**
+   * Commands this visit may still send. P3A: counted live from the planner's records, so a step
+   * that sends several (two shops dressed at three pieces each) cannot run past the cap.
+   */
   private left(): number {
-    return VISIT_COMMANDS - this.used;
+    return VISIT_COMMANDS - (this.p.decisions.length - this.start);
   }
 
   visit(): void {
@@ -111,25 +116,17 @@ class Places implements Advisor {
     if (p.coins() < MIN_COINS) return;
     // Decor can wait while the town owes the bank (the planner's rule for what can wait).
     const spare = loansOwed(w) === 0 || p.coins() >= REPAY_RESERVE;
-    const start = p.decisions.length;
-    const spent = (): void => {
-      this.used = p.decisions.length - start;
-    };
-    this.used = 0;
+    this.start = p.decisions.length;
     const village = rankAtLeast(w, 'village');
     if (village) {
       this.tavern();
-      spent();
       if (spare && this.left() > 0) this.well();
-      spent();
       if (spare && this.left() >= 3) this.patternSite();
-      spent();
     }
     if (!spare) return;
-    if (this.left() > 0) this.benchRow();
-    spent();
+    // P3A: a row needs two commands (a lone bench is no row): with one left, the next visit lays it.
+    if (this.left() >= 2) this.benchRow();
     if (this.left() > 0) this.crowded();
-    spent();
     if (village && this.left() > 0) this.brazier();
   }
 
@@ -370,9 +367,20 @@ class Places implements Advisor {
         ...(flowers ? [] : ['flower-bed']),
       ];
       if (need.length > this.left()) return 'no';
+      // P3A: the pieces sit together, within a spot's radius of each other, or they make no place:
+      // two benches on either side of a market square stood seven tiles apart, no place served,
+      // and every visit dressed another shop.
+      const reach = content.places.spotRadius - 0.5;
+      const set: Pt[] = [];
+      const together = (x: number, z: number): boolean =>
+        close(x, z) &&
+        set.every(
+          ([px, pz]) => (px / TILE_FP - 0.5 - x) ** 2 + (pz / TILE_FP - 0.5 - z) ** 2 <= reach * reach,
+        );
       for (const def of need) {
-        const at = this.bestSpot(def, ox, oz, 4, close);
+        const at = this.bestSpot(def, ox, oz, 4, together);
         if (!at || !this.place(def, at, 'by the shop')) return 'no';
+        set.push(at);
       }
       return 'done';
     };
@@ -452,7 +460,6 @@ class Places implements Advisor {
       if (at && this.place('brazier', at, 'for winter')) {
         placed.push(at);
         have++;
-        this.used++;
       }
     }
   }

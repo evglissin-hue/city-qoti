@@ -10,7 +10,10 @@ import { findById } from '../state/entities';
 import { worldIndex } from '../state/worldIndex';
 
 /** Inclusive footprint rect of a building. */
-export function buildingRect(b: Building, def = content.buildingById.get(b.def)): Rect {
+export function buildingRect(
+  b: Pick<Building, 'x' | 'z' | 'rot' | 'def'>,
+  def = content.buildingById.get(b.def),
+): Rect {
   const [w, d] = def ? footprintSize(def, b.rot) : [1, 1];
   return [b.x, b.z, b.x + w - 1, b.z + d - 1];
 }

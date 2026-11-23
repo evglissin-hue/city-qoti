@@ -651,10 +651,29 @@ vec3 qGround(vec3 base) {
     col = mix(col, fc, on * fade);
     col = mix(col, col * vec3(1.05, 1.0, 1.04), flowers * clump * 0.25 * (1.0 - fade));
   }
-  // Leaf litter and twigs on the forest floor.
-  if (terrain > 1.5 && terrain < 2.5) {
-    float leaf = step(0.82, qHash(floor(wp * 7.0))) * fade;
-    col = mix(col, qSrgb(vec3(0.55, 0.42, 0.24)), leaf * 0.35);
+  // Leaf litter and twigs under the trees. P3C follow-up: it was whole cells of a 7-a-tile grid on
+  // forest-floor tiles, so at the nearest zoom the floor read as a checkerboard of brown squares.
+  // Now it follows the crowns' shade (the ground AO, soft across tile borders, out of the mown
+  // town), lies in soft patches of two sizes, and its leaves are dabs of their own size, turn and
+  // hue inside their cells, so no cell or tile edge shows.
+  if (grassy) {
+    float under = clamp((1.0 - qGroundAo(wp)) * 4.0 - 0.3, 0.0, 1.0) * (1.0 - mown);
+    if (under > 0.001) {
+      float lp = qNoise(wp * 1.1 + 13.0) * 0.65 + qNoise(wp * 3.3 + 5.0) * 0.35;
+      float litterK = under * (0.3 + 0.7 * smoothstep(0.38, 0.72, lp));
+      col = mix(col, col * vec3(0.96, 0.84, 0.64), litterK * (0.3 + 0.1 * (1.0 - fade)));
+      vec2 lg = wp * 3.2;
+      vec2 lc = floor(lg);
+      vec2 ld = lg - lc - 0.3 - 0.4 * vec2(qHash(lc + 3.3), qHash(lc + 7.7));
+      float la = qHash(lc + 1.9) * 3.1416;
+      vec2 lr = vec2(cos(la) * ld.x + sin(la) * ld.y, cos(la) * ld.y - sin(la) * ld.x);
+      float ls = 0.13 + 0.07 * qHash(lc + 4.4);
+      float le = length(lr / vec2(ls, ls * 0.55));
+      float leaf = (1.0 - smoothstep(0.7, 1.0, le)) * step(qHash(lc + 9.9), litterK * 0.75) * fade;
+      vec3 lcol = mix(qSrgb(vec3(0.55, 0.42, 0.24)), qSrgb(vec3(0.6, 0.37, 0.2)), qHash(lc + 6.2));
+      lcol = mix(lcol, qSrgb(vec3(0.44, 0.42, 0.25)), step(0.72, qHash(lc + 2.8)));
+      col = mix(col, lcol, leaf * 0.55);
+    }
   }
 
   if (terrain > 6.5 && terrain < 7.5) {

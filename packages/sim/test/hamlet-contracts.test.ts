@@ -78,7 +78,9 @@ describe('standard valley', () => {
     run(w, { t: 'build.place', def: 'cottage', x: 60, z: 60, rot: 0 });
     const b = w.buildings[0]!;
     expect(b.stage).toBe('construction');
-    expect(b.rt!.construction!.needs[content.goodIndex.get('timber')!]).toBe(16);
+    expect(b.rt!.construction!.needs[content.goodIndex.get('timber')!]).toBe(
+      content.buildingById.get('cottage')!.cost!.goods!.find(([g]) => g === 'timber')![1],
+    );
   });
 
   it('refuses to switch a valley between sandbox and standard', () => {

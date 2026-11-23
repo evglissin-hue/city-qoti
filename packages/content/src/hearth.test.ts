@@ -96,6 +96,8 @@ describe('the Chronicle', () => {
     'specialized-shrank': ['building', 'level', 'why'],
     // R3 (R3C)
     'town-book-page': ['page', 'place', 'text', 'credit'],
+    // P3A
+    'business-grew': ['business', 'level', 'hands'],
   };
 
   it('has at least three variants per kind, using only the params its callers pass', () => {

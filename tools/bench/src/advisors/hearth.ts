@@ -43,6 +43,9 @@ function treeNear(w: WorldState, b: Building, r: number, stage: number): boolean
   return false;
 }
 
+/** Hours a Hearth site may sit stocked and unworked before the Hearth raises it (see nudgeSites). */
+const NUDGE_AFTER_HOURS = 4;
+
 class Hearth implements Advisor {
   constructor(readonly p: Planner) {}
 
@@ -78,6 +81,9 @@ class Hearth implements Advisor {
           // R2E: not in a closed block's hollow (its gardens), and no path laid into it.
           if (walledIn(this.w, x, z)) continue;
           if (!townReachesDoor(this.w, { def: def.id, x, z, rot: 0 })) continue;
+          // P3A: nor a door the Hearth's own flower beds and trees have walled off (townReachesDoor
+          // ignores decor): oak's newcomer bed stood three days with every material in and no way in.
+          if (!this.p.doorWalkable(def.id, x, z, 0)) continue;
           return !!this.p.buildAt('a garden bed for a wish', 'garden-bed', x, z, 0, true);
         }
     return false;
@@ -125,8 +131,10 @@ class Hearth implements Advisor {
 
   /**
    * R2E: a site of the Hearth's own (a garden bed, a well, the tavern) with every material in and no
-   * work for half a day goes to the front of the builders' queue, once. Hazel's bed waited 48 hours behind
-   * the homes; a player who asked for it would nudge it.
+   * work for a few hours goes to the front of the builders' queue, once. Hazel's bed waited 48 hours behind
+   * the homes; a player who asked for it would nudge it. P3A: four hours, not twelve: a site first seen
+   * at the morning visit was only raised the next day, and willow's bed (stocked at 17:00, raised
+   * after 15:00 next day) waited a whole working day, which the audit's HearthSites counts.
    */
   private nudgeSites(): void {
     const w = this.w;
@@ -143,7 +151,7 @@ class Hearth implements Advisor {
         this.siteSeen.set(b.id, [c.workDone, w.tick]);
         continue;
       }
-      if (!c.priority && w.tick - last[1] >= 12 * TICKS_PER_HOUR)
+      if (!c.priority && w.tick - last[1] >= NUDGE_AFTER_HOURS * TICKS_PER_HOUR)
         this.p.do(`raise the ${b.def}`, [{ t: 'build.setPriority', id: b.id, priority: true }]);
     }
     for (const id of [...this.siteSeen.keys()]) if (!live.has(id)) this.siteSeen.delete(id);

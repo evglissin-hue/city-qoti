@@ -125,6 +125,17 @@ function advance(
     pass.changed = true;
     return;
   }
+  // P3A (the class behind the audit's gap-dead-end): a gap nothing could close any more (the lots
+  // around the shop filled in after it opened) is not left open, a tag with no remedy. It reopens by
+  // itself when ground frees up. A gap that is closing tonight closes with its credit as usual. The
+  // two seat kinds only: a place's missing outlet is looked for by walking every building def over
+  // the ground nearby, which is dear to repeat on every open gap every evening.
+  if (!r.closes && def.kind !== 'nothingToSell' && pass.closable && !pass.closable(def.kind, subject, tile)) {
+    dropGap(state, ctx, gap);
+    clearStreak(state, def.kind, subject);
+    pass.changed = true;
+    return;
+  }
   if (r.refresh && r.opens && gap.n !== r.n) {
     gap.n = r.n;
     pass.changed = true;

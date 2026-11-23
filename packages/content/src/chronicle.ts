@@ -51,6 +51,19 @@ export const founding: ChronicleTemplate = {
   notable: true,
 };
 
+/**
+ * P3A: a business reaches a level for the first time (systems/levels). The Ledger's feed reads it
+ * from the Chronicle, so a player sees the moment a business that does well grows.
+ */
+export const businessGrew: ChronicleTemplate = {
+  kind: 'business-grew',
+  text: [
+    'Business is good at {business}: level {level} now, with room for {hands} hands and a bigger sign to say so.',
+    'Word in the lane is that {business} has grown. Level {level}, room for {hands} hands, and the paint is still wet.',
+    'More custom than counter at {business}, so it grew: level {level}, with room for {hands} hands.',
+  ],
+};
+
 export const householdArrived: ChronicleTemplate = {
   kind: 'household-arrived',
   text: [

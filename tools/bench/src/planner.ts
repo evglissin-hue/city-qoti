@@ -37,6 +37,7 @@ import {
   isFrozen,
   loansOwed,
   onFloodplain,
+  pathFor,
   PENNIES_PER_COIN,
   TILE_FP,
   townStock,
@@ -63,6 +64,8 @@ export const TIMBER_RESERVE: ReadonlyMap<string, number> = new Map([['timber', 1
 export const REPAY_RESERVE = 350;
 /** A want with this priority joins any build queue. */
 export const URGENT = Infinity;
+/** P3A: sites a newcomer pair has going up at once at most (several, without a queue). */
+export const NEWCOMER_SITES = 6;
 /** C5X: coins a new building's path may cost, kept back while the Charter wants a season in surplus. */
 const PATH_ALLOWANCE = 10;
 
@@ -178,6 +181,24 @@ export class Planner {
   offLanes = new Set<PlayLane>();
   /** R1F: every command the players sent, by lane and kind (the decisions count). */
   readonly decisions: DecisionRecord[] = [];
+  /**
+   * P3A: a newcomer pair (`newcomer.ts`) keeps no labor sums and no build queue: a want starts
+   * whatever the hands, up to NEWCOMER_SITES sites at once.
+   */
+  newcomer = false;
+  /**
+   * P3A: coins the land advisor is saving for a lane a lit bar needs (a broke Hamlet whose Farmland
+   * bar asked for land for days, while every coin over the reserve went on a well or a stall).
+   * Wants that can wait leave it in the treasury too.
+   */
+  laneReserve = 0;
+  /**
+   * P3A: coins the plan advisor keeps back, from the summer's fourth day to the thaw, for what the
+   * carrier must still bring to fill the winter's food mark (wants that can wait leave them alone;
+   * willow spent its autumn on building, stood at its credit line and ran out of food on the last
+   * day of winter).
+   */
+  winterFood = 0;
   private readonly noSpot = new Map<string, number>();
 
   constructor(readonly h: Hamlet) {}
@@ -228,6 +249,44 @@ export class Planner {
     return false;
   }
 
+  /**
+   * P3A: whether builders can walk from the town hall to the door of a building set down here. The
+   * sim's own CUT_OFF check (townReachesDoor) ignores decor, so a bed set beside a flower bed the
+   * Hearth had put on its door tile passed it and then stood cut off, every material in, for days
+   * (the audit's site-stalled on oak, newcomer, and willow's garden bed). The real walk grid knows.
+   */
+  doorWalkable(def: string, x: number, z: number, rot: Rot4): boolean {
+    const d = content.buildingById.get(def);
+    const hall = this.w.buildings.find((b) => b.def === 'town-hall' && b.stage === 'built');
+    if (!d || !hall) return true;
+    const door = doorTile({ def, x, z, rot } as Building, d);
+    const [fw, fd] = rot % 2 === 0 ? d.size : [d.size[1], d.size[0]];
+    const inside = (t: number): boolean => {
+      const tx = t % S;
+      const tz = Math.floor(t / S);
+      return tx >= x && tx < x + fw && tz >= z && tz < z + fd;
+    };
+    const m = this.w.map;
+    // A tile a walker can stand on: free, dry (or bridged) and with no piece of decor that blocks walking.
+    const standable = (t: number): boolean => {
+      if (m.occupant[t] || (m.water[t] && !m.road[t])) return false;
+      return !this.w.decor.some(
+        (e) =>
+          content.decorById.get(e.def)?.blocksWalking &&
+          Math.floor(e.fz / TILE_FP) * S + Math.floor(e.fx / TILE_FP) === t,
+      );
+    };
+    const from = doorTile(hall);
+    // The step onto the door may come from any side but the building itself, which does not yet
+    // stand (its own tiles are no way in once it does); the walker may then step onto the door.
+    for (const n of [door + 1, door - 1, door + S, door - S]) {
+      if (n < 0 || n >= S * S || inside(n) || !standable(n)) continue;
+      const path = pathFor(this.w, from, n, 'walk');
+      if (path !== null && !path.some(inside)) return true;
+    }
+    return false;
+  }
+
   wallsDoor(def: string, fx: number, fz: number): boolean {
     if (!content.decorById.get(def)?.blocksWalking) return false;
     const tx = Math.floor(fx / TILE_FP);
@@ -249,6 +308,18 @@ export class Planner {
     const lane: PlayLane = adv === 'both' ? (seat === 0 ? 'ledger' : 'hearth') : adv;
     if (this.offLanes.has(lane)) {
       this.actions.push(`${calendar(this.w.tick).day}:${label} (lane off)`);
+      return false;
+    }
+    // P3A: while the Ledger saves for a lane a lit bar needs, the Hearth's spending waits for it (the
+    // pair agree the lane comes first; oak's broke Hamlet spent every coin on flower beds and festival
+    // stalls while its Farmland bar asked for land for five days).
+    if (
+      this.laneReserve > 0 &&
+      lane === 'hearth' &&
+      this.coins() < this.laneReserve + MONEY_RESERVE &&
+      cmds.some((c) => c.t === 'decor.place' || c.t === 'build.place' || c.t === 'festival.plan')
+    ) {
+      this.actions.push(`${calendar(this.w.tick).day}:${label} (waits: saving for a lane)`);
       return false;
     }
     if (
@@ -286,7 +357,7 @@ export class Planner {
 
   /** The labor budget: whether a new `def` can be staffed (pressing wants may use the reserve). */
   staffs(def: string, pressing: boolean): boolean {
-    return canStaff(this.w, def, pressing);
+    return this.newcomer || canStaff(this.w, def, pressing);
   }
 
   /** Goods free of what sites (and upgrades) have been promised. */
@@ -305,11 +376,14 @@ export class Planner {
   allows(want: Want): boolean {
     const w = this.w;
     if (want.budget && want.budget.left <= 0) return false;
-    if (sites(w) >= want.priority) return false;
+    if (sites(w) >= (this.newcomer ? NEWCOMER_SITES : want.priority)) return false;
     if (!this.staffs(want.def, want.pressing)) return false;
     // C5A: an urgent want that keeps the town going may spend the reserve, which is there for it (a
     // Hamlet down to 37 coins could never replace its last woodcutter, and with no logs, nothing else).
-    const reserve = want.essential && want.priority === URGENT ? 0 : MONEY_RESERVE;
+    const reserve =
+      want.essential && want.priority === URGENT
+        ? 0
+        : MONEY_RESERVE + (want.pressing ? 0 : this.laneReserve + this.winterFood);
     if (this.coins() < want.cost.coins + reserve) return false;
     // C5A: late in a season the Charter's surplus wants, nothing that can wait may tip it into deficit.
     // C5X: counting the upkeep still to pay this season and a path, and only food or materials

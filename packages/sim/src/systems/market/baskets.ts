@@ -200,11 +200,17 @@ export function basketScore(state: WorldState, h: Household): number {
 }
 
 /**
- * A shopping outing at an outlet with the market open: the food the household likes best for the
- * price (a nudge toward what the pantry is short of, for variety), as much as it can pay for up
- * to `want`. A household that cannot pay for a single loaf and has too little for tomorrow's
- * breakfast takes it on the slate: the cheapest food, free, enough for breakfast, and the basket
- * remembers it. Returns the food carried home, or null.
+ * A shopping outing at an outlet with the market open. P3A (meals): fill the belly, then please it.
+ * A household whose pantry does not cover tomorrow's breakfast buys what tomorrow's meals need: the
+ * food it likes best for the price when the shelf and the purse cover every mouth with it, else the
+ * plainest, cheapest food on this shelf, as much as the purse stretches to (a Thrifty or
+ * favorite-loving household no longer spends its coins on one dear loaf and goes hungry). Once the
+ * pantry covers tomorrow, it buys the food it likes best for the price (a nudge toward what the
+ * pantry is short of, for variety), as much as it can pay for up to `want`.
+ * A household whose purse cannot pay for what is still missing takes the rest on the slate: the
+ * cheapest food, free, enough for breakfast, and the basket remembers it (`onTheSlate`: newcomers,
+ * households with nobody in work, and, now, a household in work whose purse is short of the
+ * cheapest food). Returns the food carried home, or null.
  */
 export function shopFood(
   state: WorldState,
@@ -218,57 +224,96 @@ export function shopFood(
   const gi = groups.findIndex((g) => g.id === FOOD_GROUP);
   const taste = tasteOf(state, h);
   const likes = favoriteWeights(state, h);
-  let best = -1;
-  let bestValue = -1;
+  // The plainest food on this shelf: the lowest price, a favorite winning a tie.
   let cheapest = -1;
   let cheapestPrice = Infinity;
+  let cheapestLiking = -1;
   for (const g of foodIndexes()) {
     if (outletFree(state, outlet, g) <= 0) continue;
     const price = tillPrice(state, g);
-    if (price < cheapestPrice) {
+    const liking = likeHalves(likes[g] ?? 1, taste.thrifty, taste.comfortable);
+    if (price < cheapestPrice || (price === cheapestPrice && liking > cheapestLiking)) {
       cheapestPrice = price;
+      cheapestLiking = liking;
       cheapest = g;
     }
-    if (price > h.savings) continue;
+  }
+  if (cheapest < 0) return null;
+  const members = Math.max(1, h.members.length);
+  const short = members - pantryFood(h);
+  if (short > 0) {
+    // The belly first: tomorrow's meals. The food the household likes best when the shelf and the
+    // purse cover every mouth at its price (variety: Craftsfolk ask for three kinds, and plain food
+    // every time left willow's households with one), else the plainest food on the shelf.
+    const need = Math.min(want, short);
+    const liked = likedFood(state, h, outlet, need);
+    if (liked >= 0) {
+      const got = purchase(state, h, liked, need, outlet);
+      if (got > 0) {
+        if (gi >= 0) satisfy(h, gi, 100);
+        return [liked, got];
+      }
+    }
+    let got = purchase(state, h, cheapest, need, outlet);
+    if (got > 0 && gi >= 0) satisfy(h, gi, 100);
+    if (got < need && h.savings < cheapestPrice && onTheSlate(state, h, cheapestPrice)) {
+      // On the slate: nobody in the valley goes without breakfast for want of a coin.
+      const n = Math.min(need - got, outletFree(state, outlet, cheapest));
+      const shop = findById(state.buildings, outlet);
+      if (shop?.rt && n > 0) {
+        shop.rt.store[cheapest]! -= n;
+        countSold(shop, n);
+        countCustomer(shop);
+        got += n;
+        // Elders and children are the town's to look after; grown-ups without work feel it.
+        if (gi >= 0 && canWork(state, h)) satisfy(h, gi, 0);
+      }
+    }
+    return got > 0 ? [cheapest, got] : null;
+  }
+  // The belly is covered: what the household likes, for the price.
+  const best = likedFood(state, h, outlet, 1);
+  if (best < 0) return null;
+  const got = purchase(state, h, best, want, outlet);
+  if (got <= 0) return null;
+  if (gi >= 0) satisfy(h, gi, 100);
+  return [best, got];
+}
+
+/**
+ * The food on the outlet's shelf a household likes best for the price, with at least `need` units
+ * free and `need` of them within its purse; -1 when none. Variety: each unit already in the pantry
+ * makes another of it a little less tempting.
+ */
+function likedFood(state: WorldState, h: Household, outlet: EntityId, need: number): number {
+  const taste = tasteOf(state, h);
+  const likes = favoriteWeights(state, h);
+  let best = -1;
+  let bestValue = -1;
+  for (const g of foodIndexes()) {
+    if (outletFree(state, outlet, g) < need) continue;
+    const price = tillPrice(state, g);
+    if (price * need > h.savings) continue;
     const liking = likeHalves(likes[g] ?? 1, taste.thrifty, taste.comfortable);
-    // Variety: each unit already in the pantry makes another of it a little less tempting.
     const value = Math.floor((valueOf(liking, price) * 4) / (4 + (h.pantry[g] ?? 0)));
     if (value > bestValue) {
       bestValue = value;
       best = g;
     }
   }
-  if (best >= 0) {
-    const got = purchase(state, h, best, want, outlet);
-    if (got > 0) {
-      if (gi >= 0) satisfy(h, gi, 100);
-      return [best, got];
-    }
-  }
-  const short = Math.max(1, h.members.length) - pantryFood(h);
-  if (cheapest < 0 || short <= 0 || !onTheSlate(state, h)) return null;
-  // On the slate: nobody in the valley goes without breakfast for want of a coin.
-  const n = Math.min(want, short, outletFree(state, outlet, cheapest));
-  const rt = findById(state.buildings, outlet)?.rt;
-  if (!rt || n <= 0) return null;
-  rt.store[cheapest]! -= n;
-  const shop = findById(state.buildings, outlet);
-  if (shop) {
-    countSold(shop, n);
-    countCustomer(shop);
-  }
-  // Elders and children are the town's to look after; grown-ups without work feel it.
-  if (gi >= 0 && canWork(state, h)) satisfy(h, gi, 0);
-  return [cheapest, n];
+  return best;
 }
 
 /**
- * Who may eat on the slate: newcomers in their first SLATE_DAYS, and households with nobody in
- * work (elders, children, the jobless). A household with a wage coming in pays its way, so short
- * purses show up at the market (stock stays on the shelf, and the price eases) rather than vanish.
+ * Who may eat on the slate: newcomers in their first SLATE_DAYS, households with nobody in work
+ * (elders, children, the jobless), and (P3A, meals) any household whose purse is under `price`, the
+ * cheapest food on the shelf: a wage that cannot buy even the plainest food today is not a reason
+ * to miss breakfast. A household whose purse can pay still pays its way, so shortfalls of price
+ * show up at the market (stock stays on the shelf, and the price eases) rather than vanish.
  */
-export function onTheSlate(state: WorldState, h: Household): boolean {
+export function onTheSlate(state: WorldState, h: Household, price = 0): boolean {
   if (dayIndex(state.tick) - h.arrivedDay < SLATE_DAYS) return true;
+  if (price > 0 && h.savings < price) return true;
   for (const id of h.members) if ((findById(state.residents, id)?.jobId ?? 0) !== 0) return false;
   return true;
 }

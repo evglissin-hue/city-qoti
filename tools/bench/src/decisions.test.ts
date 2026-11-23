@@ -4,6 +4,7 @@ import {
   DECISIONS_LIMIT,
   decisionVerdict,
   formatDecisions,
+  heldActions,
   stuckCommands,
   tallyDecisions,
   type DecisionRecord,
@@ -116,5 +117,25 @@ describe('stuck commands (R2E)', () => {
     expect(stuckCommands(five.slice(0, 5))).toEqual([]);
     expect(stuckCommands([1, 2, 3, 4, 5].map((d) => rec(d, false, 100 + d)))).toEqual([]);
     expect(stuckCommands([1, 2, 3, 4, 5].map((d) => rec(d, true)))).toEqual([]);
+  });
+});
+
+describe('heldActions (P3A)', () => {
+  const held = (day: number, label = 'build herbalist by the Coldbrooks') =>
+    `${day}:${label} (would wall a door)`;
+  it('flags an action the planner holds back on five separate days, not four, nor a moving one', () => {
+    const five = [1, 2, 2, 3, 4, 5].map((d) => held(d));
+    expect(heldActions(five)).toEqual([
+      {
+        advisor: 'planner',
+        label: 'build herbalist by the Coldbrooks (would wall a door)',
+        days: 5,
+        first: 1,
+        last: 5,
+      },
+    ]);
+    expect(heldActions(five.slice(0, 5))).toEqual([]);
+    expect(heldActions([1, 2, 3, 4, 5].map((d) => held(d, `build herbalist by the Family${d}`)))).toEqual([]);
+    expect(heldActions(['1:build herbalist by the Coldbrooks', '2:take a loan (refused)'])).toEqual([]);
   });
 });

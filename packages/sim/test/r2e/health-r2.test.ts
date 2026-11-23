@@ -4,8 +4,8 @@
 // its case and stays quiet on its near miss; the real stand-ins raise none of them.
 import { content, type NeedsBasket } from '@qoti/content';
 import { describe, expect, it, vi } from 'vitest';
-import { DAYS_PER_SEASON, MAP_SIZE, TICKS_PER_DAY, TICKS_PER_HOUR } from '../../src/constants';
-import type { Gap, Lot, Place, WorldState } from '../../src/contracts';
+import { DAYS_PER_SEASON, MAP_SIZE, RoundFlags, TICKS_PER_DAY, TICKS_PER_HOUR } from '../../src/constants';
+import type { Gap, Lot, Place, RoundStop, WorldState } from '../../src/contracts';
 import { dailyOffset } from '../../src/systems/economy/time';
 import * as buildingRules from '../../src/rules/building';
 import * as decorRules from '../../src/rules/decor';
@@ -278,6 +278,29 @@ describe('treats-unsold', () => {
     expect(evening(w, s, row, 11, 6, 0)).toHaveLength(0);
     // Five unsold so far (6 to 9 and 11 make five); the sixth flags.
     expect(evening(w, s, row, 12, 6, 0)).toHaveLength(1);
+    reset();
+  });
+
+  it("counts a Treat sold at the outlet's own door (a shop-first stop has no place row)", () => {
+    const { s, row, stall } = setup();
+    const w = new HealthWatch();
+    const buyer = s.residents[0]!;
+    buyer.round = [
+      {
+        place: `shop:${stall.id}`,
+        kind: 'shop',
+        tile: 0,
+        draw: 0,
+        flags: RoundFlags.arrived | RoundFlags.treat,
+        arrived: 1,
+      } as RoundStop,
+    ];
+    // Six evenings with visitors at the place and nothing sold on its row, but the stall sold at its door.
+    for (let d = 0; d < 2 * DAYS_PER_SEASON; d++) expect(evening(w, s, row, d, 6, 0)).toHaveLength(0);
+    // The door sales stop: the same evenings now flag it.
+    buyer.round = [];
+    for (let d = 20; d < 20 + DAYS_PER_SEASON - 1; d++) expect(evening(w, s, row, d, 6, 0)).toHaveLength(0);
+    expect(evening(w, s, row, 20 + DAYS_PER_SEASON - 1, 6, 0)).toHaveLength(1);
     reset();
   });
 

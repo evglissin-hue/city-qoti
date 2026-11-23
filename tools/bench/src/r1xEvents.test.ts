@@ -161,9 +161,9 @@ const EXPECT = {
     n: 44,
     kinds:
       '[["building.added",3],["business.updated",2],["demand.updated",3],["lot.updated",33],["tiles.changed",3]]',
-    // P2: the same 44 events; only the three demand.updated ones changed (a bar's last reason now
+    // P3A: the autoplayer keeps the winter food back, so the town these nights grow differs. P2: the same 44 events; only the three demand.updated ones changed (a bar's last reason now
     // says where it stands). The other 41 hash as they did on main (3e70e3ef6f193f69 on both).
-    sha: '4f2cb0a6bdef12cc',
+    sha: '492ca3e0388f1482',
   },
 };
 
