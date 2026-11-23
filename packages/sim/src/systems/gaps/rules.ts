@@ -204,9 +204,10 @@ function nothingToSell(pass: GapPass): void {
 function nobodyPasses(pass: GapPass): void {
   const { state } = pass;
   const d = def('nobodyPasses');
-  // A place "draws" when it fills the rule's own visitor bar: the number a place with nothing to sell
-  // is measured by (docs/spec/19-evenings.md, Gaps: both rows say 8+).
-  const draws = def('nothingToSell').threshold;
+  // R3X: the outlet's own evening customers (Building.roundSales, one a sale, stops and passing trade
+  // alike), read for the evening the round wrote them under. The gaps pass runs only when
+  // `tonight.day` is today (gaps/index.ts), so a row of an earlier day is a quiet evening: 0.
+  const tonight = state.evenings.tonight.day;
   const held = new Set<string>();
   dropGone(pass, d.kind, (s) => !findById(state.buildings, Number(s.slice('building:'.length))));
   for (const b of state.buildings) {
@@ -214,30 +215,23 @@ function nobodyPasses(pass: GapPass): void {
     const open = findGap(state, d.kind, subject);
     if (!open && !(sellsTreats(state, b) && treatsOnShelf(state, b))) continue;
     const tile = b.z * MAP_SIZE + b.x;
-    const near = placesNear(state, tile, NEAR_TILES);
-    let folk = 0;
+    const customers = b.roundSales && b.roundSales.day === tonight ? b.roundSales.customers : 0;
+    // Credit only: the seats who laid the place near the shop that drew best tonight.
     let best: PlaceId | undefined;
     let bestVisitors = -1;
-    let drawing = false;
-    const rows: number[][] = [];
-    for (const p of near) {
+    for (const p of placesNear(state, tile, NEAR_TILES)) {
       const row = placeState(state, p.id);
-      const visitors = row ? row.visitors : [];
-      rows.push(visitors);
-      const v = last(visitors);
-      folk += v;
-      if (v >= draws) drawing = true;
+      const v = row ? last(row.visitors) : 0;
       if (v > bestVisitors) {
         bestVisitors = v;
         best = p.id;
       }
     }
-    const opens = folk < d.threshold;
     advance(pass, held, d, subject, tile, {
-      opens,
-      n: opens ? rows.reduce((sum, v) => sum + v.slice(-d.openAfter).reduce((a, c) => a + c, 0), 0) : 0,
-      closes: drawing,
-      refresh: false,
+      opens: customers < d.threshold,
+      n: customers,
+      closes: customers >= d.threshold,
+      refresh: true,
       closers: () => placeCredit(state, best === undefined ? undefined : placeById(state, best)),
     });
   }

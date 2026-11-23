@@ -2,6 +2,7 @@ import type { ChronicleTemplate } from './types';
 
 // I3 Chronicle kinds for festivals, renown, commissions and the River Dock (C5B). Params by kind:
 //   festival          {festival} {stars} {guests} {place}
+//                     ({stars} is "1 star" or "4 stars", {guests} is "1 resident" or "23 residents")
 //   renown-level      {level}
 //   commission-done   {commission} {from}
 //   first-boat        {neighbor}
@@ -18,9 +19,9 @@ export const commissionDone: ChronicleTemplate = {
 export const festival: ChronicleTemplate = {
   kind: 'festival',
   text: [
-    'The {festival} on {place}: {guests} came, and the town gave it {stars} stars. The tables were cleared long after the lanterns burned low.',
-    '{guests} turned out for the {festival} on {place}. Verdict: {stars} stars, several speeches nobody asked for, and not a crumb left over.',
-    'The {festival} filled {place} with {guests} of us until well after dark. {stars} stars, and a few sore feet in the morning.',
+    'The {festival} on {place}: {guests} came, and the town gave it {stars}. The tables were cleared long after the lanterns burned low.',
+    '{guests} turned out for the {festival} on {place}. Verdict: {stars}, several speeches nobody asked for, and not a crumb left over.',
+    'The {festival} filled {place} with {guests} until well after dark. {stars}, and a few sore feet in the morning.',
   ],
   notable: true,
 };

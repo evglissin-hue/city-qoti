@@ -55,7 +55,7 @@ export function grantFestival(
   chronicle(state, ctx, 'festival', {
     text: [
       ['festival', content.festivalById.get(plan.festival)?.name ?? 'festival'],
-      ['stars', String(stars)],
+      ['stars', `${stars} ${stars === 1 ? 'star' : 'stars'}`],
       ['guests', `${outcome.attendance} ${outcome.attendance === 1 ? 'resident' : 'residents'}`],
       ['place', place],
     ],

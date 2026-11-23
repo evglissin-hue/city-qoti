@@ -29,11 +29,11 @@ export const nobodyPasses: GapDef = {
   openAfter: 3,
   closeAfter: 1,
   text: [
-    '{shop} had treats out three evenings running and {folk} came by. The evening walks elsewhere.',
-    '{shop} has a full shelf and an empty doorstep: {folk} in three evenings. Nobody walks this way.',
+    '{shop} has had treats out three evenings running, and {folk} stopped to buy tonight. The evening walks elsewhere.',
+    '{shop} has a full shelf and an empty doorstep: {folk} bought a treat tonight.',
   ],
   closes:
-    'A place within three tiles that draws eight or more of an evening: seats, some charm, somewhere to be.',
+    'Four customers of an evening at the shop itself. A place within three tiles, with seats and some charm, sends them its way.',
   closed: 'Folk walk past {shop} now: {closers} gave them somewhere to be.',
   closedQuiet: 'Folk walk past {shop} again.',
 };
