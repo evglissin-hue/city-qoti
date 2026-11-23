@@ -6,6 +6,20 @@ import { counts, DEBUG_QUERY, waitLive } from './helpers';
 // the browser draws in software), shows and copies the table, keeps the run with the valley for
 // this seat through the relay and lists it, and puts the valley back exactly as it was: the Mirror's
 // counts, the camera and the preset. Escape stops a run at once, the valley put back again.
+//
+// Two sizes. By default the run is the short smoke (`?measure=smoke`, app/perf.ts): Medium only, by
+// day and at night, in the valley and the two showcases (6 rows), quick durations. It proves the same
+// things as the full table (panel, estimate, progress, every scene loaded and put back, numbers,
+// Copy, kept per seat, Escape) in about a third of the time. `QOTI_MEASURE_FULL=1` runs the whole
+// table: 18 rows (every preset by day, Medium and High at night), `?measure=quick`, 11 minutes on a
+// fast host. None of v2-perf.mjs, v3-perf.mjs or v4-perf.mjs drives the Measure panel (they call
+// `__qoti.perf` per preset), so this switch is the only way to run the full 18 rows in a browser.
+// Players always get the real thing: no parameter, full durations.
+
+const FULL = process.env.QOTI_MEASURE_FULL === '1';
+/** Rows in the table: every preset by day plus Medium and High at night (18), or the smoke's 6. */
+const ROWS = FULL ? 18 : 6;
+const NIGHT_ROWS = FULL ? 2 : 1;
 
 interface Snapshot {
   counts: { buildings: number; decor: number; notes: number; trees: number; roads: number };
@@ -39,13 +53,13 @@ function expectSame(after: Snapshot, before: Snapshot): void {
 test('Measure this laptop: the table, Copy, kept per seat, the valley put back; Escape stops', async ({
   browser,
 }) => {
-  // Eighteen rows (every preset by day, Medium and High at night) and two showcases (one of 1,000 buildings and 2,000 residents) drawn in software:
-  // about ten minutes here, so room for a slower CI runner.
-  test.setTimeout(1_800_000);
+  // Full: eighteen rows and two showcases (one of 1,000 buildings and 2,000 residents) drawn in
+  // software, about ten minutes here, so room for a slower CI runner. The smoke is a third of that.
+  test.setTimeout(FULL ? 1_800_000 : 900_000);
   const context = await browser.newContext({ permissions: ['clipboard-read', 'clipboard-write'] });
   const page = await context.newPage();
   page.on('pageerror', (e) => console.log('pageerror:', e.message));
-  await page.goto(`/${DEBUG_QUERY}&measure=quick`);
+  await page.goto(`/${DEBUG_QUERY}&measure=${FULL ? 'quick' : 'smoke'}`);
   await page.getByTestId('new-online').click();
   await waitLive(page);
   await page.getByRole('button', { name: 'Done' }).click();
@@ -71,20 +85,34 @@ test('Measure this laptop: the table, Copy, kept per seat, the valley put back; 
   await page.getByTestId('settings-open').click();
   await page.getByTestId('measure-open').click();
   await expect(page.getByTestId('settings')).toHaveCount(0);
-  await expect(page.getByTestId('measure-estimate')).toContainText('about a minute');
+  await expect(page.getByTestId('measure-estimate')).toContainText(
+    FULL ? 'about a minute' : 'under a minute',
+  );
   await expect(page.getByTestId('measure-kept')).toContainText('Nothing kept yet');
   await page.getByTestId('measure-start').click();
   await expect(page.getByTestId('measure-progress')).toBeVisible();
-  await expect(page.getByTestId('measure-progress')).toContainText(/of 18/);
+  await expect(page.getByTestId('measure-progress')).toContainText(new RegExp(`of ${ROWS}`));
 
-  // The table: eighteen rows, four presets by day and two at night in three scenes.
-  await expect(page.getByTestId('measure-row')).toHaveCount(18, { timeout: 1_500_000 });
+  // The table: every preset by day and the night presets at night, in three scenes.
+  await expect(page.getByTestId('measure-row')).toHaveCount(ROWS, { timeout: FULL ? 1_500_000 : 750_000 });
   await expect(page.getByTestId('measure-done')).toContainText('back as it was');
   const table = page.getByTestId('measure-table');
   for (const scene of ['This valley', 'Village showcase', 'Town showcase'])
     await expect(table).toContainText(scene);
   // Every part caught a frame, even where one frame outlasts a quick run: no row reads as zeros.
   await expect(table).not.toContainText('0.0 / 0.0');
+  // And the numbers are sane: in every row the moving average is above zero and the 95th percentile
+  // at least the average (the table's first cells: moving frame ms, avg / p95), the still part is there.
+  const cells = await page
+    .getByTestId('measure-row')
+    .evaluateAll((trs) => trs.map((tr) => [...tr.querySelectorAll('td')].map((td) => td.textContent ?? '')));
+  expect(cells).toHaveLength(ROWS);
+  for (const c of cells) {
+    const [avg, p95] = c[3]!.split(' / ').map(Number);
+    expect(avg).toBeGreaterThan(0);
+    expect(p95).toBeGreaterThanOrEqual(avg!);
+    expect(c[9]).not.toBe('n/a');
+  }
   expectSame(await snapshot(page), before);
 
   // Kept with the valley for this seat, and listed.
@@ -97,8 +125,10 @@ test('Measure this laptop: the table, Copy, kept per seat, the valley put back; 
   await expect(page.getByTestId('measure-copy')).toHaveText('Copied');
   const text = await page.evaluate(() => navigator.clipboard.readText());
   expect(text).toContain('| Scene | Preset | Hour | Moving frame ms (avg / p95) |');
-  expect(text.split('\n').filter((l) => /^\| (valley|village|town) \|/.test(l))).toHaveLength(18);
-  expect(text.split('\n').filter((l) => /^\| town \| (medium|high) \| 22:00 \|/.test(l))).toHaveLength(2);
+  expect(text.split('\n').filter((l) => /^\| (valley|village|town) \|/.test(l))).toHaveLength(ROWS);
+  expect(text.split('\n').filter((l) => /^\| town \| (medium|high) \| 22:00 \|/.test(l))).toHaveLength(
+    NIGHT_ROWS,
+  );
   await page.getByTestId('measure-close').click();
   await expect(page.getByTestId('measure')).toHaveCount(0);
 
