@@ -13,7 +13,9 @@ import {
   LEDGER_CATEGORIES,
   loansOwed,
   PENNIES_PER_COIN,
+  residentIsMaster,
   tierProgress,
+  townStock,
   type WorldState,
 } from '@qoti/sim';
 import { autoplay, type DayLine } from './autoplay';
@@ -35,6 +37,8 @@ let imp41 = 0;
 let masterUnits = 0;
 let masterPennies = 0;
 const at = new Map<number, { res: number; owed: number; line: number }>();
+const madeFirst = new Map<string, number>();
+const boughtUnits = new Map<string, number>();
 let last: Record<string, unknown> = {};
 
 const onDay = (w: WorldState, line: DayLine) => {
@@ -52,6 +56,12 @@ const onDay = (w: WorldState, line: DayLine) => {
     const m = w.economy.yesterday.money;
     exp41 += m[cats.indexOf('exports')] ?? 0;
     imp41 += m[cats.indexOf('imports')] ?? 0;
+  }
+  for (const m of content.masters) {
+    if (!m.good) continue;
+    const g = content.goodIndex.get(m.good)!;
+    if (!madeFirst.has(m.good) && (w.economy.everProduced[g] ?? 0) > 0) madeFirst.set(m.good, d);
+    boughtUnits.set(m.good, (boughtUnits.get(m.good) ?? 0) + (w.market.bought?.[g] ?? 0));
   }
   const sold = w.carrier.sold[w.carrier.sold.length - 1];
   if (sold) {
@@ -71,7 +81,24 @@ const onDay = (w: WorldState, line: DayLine) => {
       if (h.tier !== 'settler') continue;
       for (const m of tierProgress(w, h)?.missing ?? []) wants.set(m, (wants.get(m) ?? 0) + 1);
     }
+    const byTrade = new Map<string, number>();
+    for (const r of w.residents)
+      if (residentIsMaster(r)) byTrade.set(r.mastery ?? '?', (byTrade.get(r.mastery ?? '?') ?? 0) + 1);
+    const goods = content.masters.flatMap((m) => (m.good ? [m] : []));
+    const goodsMasters = [...byTrade]
+      .filter(([k]) => goods.some((m) => m.of === k))
+      .reduce((n, [, v]) => n + v, 0);
+    const per = (f: (id: string, g: number) => number) =>
+      goods
+        .map((m) => [m.good!, f(m.good!, content.goodIndex.get(m.good!)!)] as const)
+        .filter(([, v]) => v > 0);
     last = {
+      mastersByTrade: [...byTrade].map(([k, v]) => `${k}:${v}`).join(' '),
+      mastersWithGood: goodsMasters,
+      made: Object.fromEntries(per((_, g) => w.economy.everProduced[g] ?? 0)),
+      boughtByHouseholds: Object.fromEntries(per((id) => boughtUnits.get(id) ?? 0)),
+      stockNow: Object.fromEntries(per((_, g) => townStock(w)[g] ?? 0)),
+      firstMade: Object.fromEntries(madeFirst),
       wage: w.levers.wageLevel,
       tax: w.levers.taxRate,
       hh: w.households.length,
