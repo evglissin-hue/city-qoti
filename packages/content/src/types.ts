@@ -168,6 +168,11 @@ export interface SpecializedLevelsDef {
   /** Businesses it serves in its reach at each level (the Windmill's bakers). */
   capacity?: number[];
   /**
+   * R3H (the master's ruling of 2026-11-22): for `full`, the share of its level's storage, in
+   * percent, a store holds on a good day toward each next level, level 2 first (a third, then half).
+   */
+  fullShare?: number[];
+  /**
    * What a good day is, toward the next level: its goods `carried` off (the Quarry, the Fishery, the
    * Forester's Lodge), `customers` served (the Market Stall), everything it serves `served` (the Windmill:
    * every baker in reach had grain), or `full` (a store at least half full with every porter at work).

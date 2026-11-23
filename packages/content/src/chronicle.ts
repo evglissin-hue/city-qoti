@@ -14,6 +14,8 @@ import type { ChronicleTemplate } from './types';
 //   wishes-digest       {wishes} {examples}         ("three wishes", "a bench by the river for Clover and ...")
 //   season-summary      {season} {year} {people} {coins} {pages} {wishes} {books}
 //                       ("nine residents", "one page", "no wishes")
+//   specialized-grew    {building} {level} {more}   (R3H)
+//   specialized-shrank  {building} {level} {why}    (R3H)
 //
 // {credit} reads like "Ada" or "Ada and Bo, between them", so it always ends a sentence.
 
@@ -97,6 +99,32 @@ export const wishesDigest: ChronicleTemplate = {
     'This week in {town}, {wishes} came true: {examples}.',
     'The week in wishes: {examples}. That makes {wishes}, and a great many thank-you letters.',
     'Our weekly tally of granted wishes stands at {wishes}, namely {examples}.',
+  ],
+};
+
+/**
+ * R3H: a specialized building climbed a level (systems/levels/specialized.ts). {building} reads like
+ * "the granary"; {more} is what the level brings ("a third porter and room for 1,680 goods").
+ */
+export const specializedGrew: ChronicleTemplate = {
+  kind: 'specialized-grew',
+  text: [
+    'Good days at {building}, so it grew: level {level}, with {more}.',
+    'Level {level} for {building}, with {more}. Success, it turns out, needs elbow room.',
+    'Word in the lane is that {building} has grown: level {level}, with {more}.',
+  ],
+};
+
+/**
+ * R3H: a specialized building slid back a level after four failing days. {why} says what failed
+ * ("four days of too few customers").
+ */
+export const specializedShrank: ChronicleTemplate = {
+  kind: 'specialized-shrank',
+  text: [
+    'Back to level {level} for {building}: {why}.',
+    'A step down for {building}, to level {level}: {why}. It can climb again.',
+    'Leaner days at {building}, now level {level} again: {why}.',
   ],
 };
 

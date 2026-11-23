@@ -22,7 +22,7 @@ import { content } from '@qoti/content';
 import { GOOD_FAMILIES, MAP_SIZE, TIERS } from '../../constants';
 import type { Household, TierId, WorldState } from '../../contracts';
 import { findById } from '../../state/entities';
-import { GOODS_BY_FAMILY } from '../../state/zones';
+import { coverageAt, GOODS_BY_FAMILY } from '../../state/zones';
 import { townStock } from '../../view/hamlet';
 import { dayIndex } from '../economy/time';
 import { doorTile } from '../movement/api';
@@ -236,7 +236,7 @@ export function markSeen(state: WorldState): void {
       for (let g = 0; g < n; g++) if (shelfFree(rt, g)) any = goods[g] = true;
       if (!any) continue;
       const door = doorTile(b, def);
-      const r = def.coverage?.find((c) => c.kind === 'food')?.radius ?? 14;
+      const r = coverageAt(b, 'food', 14);
       stalls.push({ x: door % MAP_SIZE, z: Math.floor(door / MAP_SIZE), r2: r * r, goods });
     } else {
       for (let g = 0; g < n; g++) if (!open[g] && shelfFree(rt, g)) open[g] = true;

@@ -29,6 +29,8 @@ import { roofPart, type RoofMaterial } from './roofs';
 import { customOf, level, roofColor, streams } from './style';
 import type { KitAnchors, KitBuildOptions } from './types';
 import { villageKit } from './village';
+import { levelOf } from './business';
+import { bale, leanTo, loadedCart } from './levelPieces';
 
 const IRON = 0x4b4f55;
 
@@ -570,9 +572,11 @@ function tradingPost(opts: KitBuildOptions | undefined): Built {
   const [ex] = opts?.entrance ?? [1, d - 1];
   const { rnd, look } = streams(opts, 64);
   const c = customOf(opts);
+  const lv = levelOf(opts);
   const { s, anchors } = start(opts);
   const x0 = 0.2;
-  const x1 = w - 0.2;
+  // R3H: from level 2 the post makes room for a cart bay (and at 3 a second shed) on its right.
+  const x1 = lv >= 2 ? w - 0.9 : w - 0.2;
   const z0 = 0.2;
   const z1 = d - 1.0;
   const material: RoofMaterial = c.roofMaterial ?? (look() < 0.5 ? 'shingle' : 'slate');
@@ -692,6 +696,72 @@ function tradingPost(opts: KitBuildOptions | undefined): Built {
   });
   if (c.chimney ?? true)
     anchors.smoke!.push(chimneyPart(s, x0 + 0.3, z0 + 0.35, sh.top - 0.1, sh.ridge + 0.05, palette.brick));
+  if (lv >= 2) {
+    // R3H level 2: a cart bay with a loaded cart and stacked bales, bales along the veranda too.
+    const lr = streams(opts, 164).rnd;
+    const bx0 = x1 + 0.14;
+    const bx1 = w - 0.08;
+    leanTo(
+      s,
+      {
+        x0: bx0,
+        z0: 1.25,
+        x1: bx1,
+        z1: d - 0.08,
+        lo: 0.74,
+        hi: 1.02,
+        high: 'x+',
+        material,
+        color: vary(sh.roof.color, lr, 0.3),
+        wall: vary(c.wall ?? 0x9a6b43, lr, 0.5),
+      },
+      lr,
+    );
+    s.detail(() => {
+      loadedCart(s, (bx0 + bx1) / 2 - 0.08, 1.85, 0xd9cfae, lr);
+      for (let k = 0; k < 3; k++)
+        bale(s, x1 + 0.35, k * 0.16, d - 0.3, [0xd9cfae, 0xa96b49, 0x8a9ab0][k]!, lr);
+    });
+    // Bales on the veranda, a tall stack by the post's end.
+    s.box(x1 - 0.5, 0.08, vz - 0.3, x1 - 0.1, 0.24, vz - 0.04, 0xd9cfae);
+    s.box(x1 - 0.42, 0.24, vz - 0.28, x1 - 0.14, 0.4, vz - 0.06, 0xa96b49);
+    if (lv >= 3) {
+      // Level 3: a second shed, a closed little gabled store at the back of the strip.
+      const sx0 = x1 + 0.14;
+      const sx1 = w - 0.08;
+      shell(s, {
+        x0: sx0,
+        z0: 0.2,
+        x1: sx1,
+        z1: 1.15,
+        base: 0.1,
+        wallH: 0.8,
+        wall: 'weatherboard',
+        wallColor: vary(0x7d8fa0, lr, 0.4),
+        trim: palette.white,
+        roof: {
+          shape: 'gable',
+          material,
+          color: vary(sh.roof.color, lr, 0.4),
+          rise: 0.5,
+          overhang: 0.12,
+          ridgeAlongX: false,
+        },
+        rnd: lr,
+      });
+      doorPart(
+        s,
+        { dir: 'z+', plane: 1.15 },
+        (sx0 + sx1) / 2,
+        0.4,
+        0.5,
+        accent,
+        palette.white,
+        'plank',
+        0.02,
+      );
+    }
+  }
   return { s, anchors };
 }
 

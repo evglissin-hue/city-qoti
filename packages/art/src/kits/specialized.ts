@@ -17,6 +17,8 @@ import { roofPart } from './roofs';
 import { customOf, level, roofColor, streams } from './style';
 import type { KitAnchors, KitBuildOptions } from './types';
 import { postAndRail } from './details';
+import { levelOf } from './business';
+import { leanTo } from './levelPieces';
 import { bottleKiln, pugMill, spade, villageKit, wheelbarrow } from './village';
 
 const CLAY = GOOD_COLORS.clay;
@@ -73,14 +75,18 @@ function dryingHack(
   z1: number,
   c: ReturnType<typeof customOf>,
   rnd: () => number,
+  tiers = 1,
 ): void {
+  // R3H: a big hack (tiers above 1) stands taller, with more rows of bricks under its roof.
+  const h = 0.4 + (tiers - 1) * 0.22;
   for (const [x, z] of [
     [x0, z0],
     [x1, z0],
     [x0, z1],
     [x1, z1],
   ] as const)
-    beam(s, [x, 0, z], [x, 0.4, z], 0.018, palette.timber);
+    if (tiers > 1) s.box(x - 0.025, 0, z - 0.025, x + 0.025, h, z + 0.025, palette.timber);
+    else beam(s, [x, 0, z], [x, h, z], 0.018, palette.timber);
   roofPart(s, {
     shape: 'gable',
     material: c.roofMaterial ?? 'shingle',
@@ -88,38 +94,45 @@ function dryingHack(
     z0: z0 - 0.1,
     x1: x1 + 0.1,
     z1: z1 + 0.1,
-    y0: 0.38,
-    y1: 0.58,
+    y0: h - 0.02,
+    y1: h + 0.18,
     color: vary(roofColor(c, c.roofMaterial ?? 'shingle', 0x8a6a4e), rnd, 0.5),
     trim: palette.timber,
     ridgeAlongX: true,
     rnd,
   });
-  s.detail(() => {
-    for (const z of [z0 + 0.14, z1 - 0.14]) {
-      s.box(x0 + 0.04, 0.1, z - 0.07, x1 - 0.04, 0.115, z + 0.07, vary(palette.wood, rnd, 0.5));
-      const n = Math.floor((x1 - x0 - 0.1) / 0.085);
-      for (let i = 0; i < n; i++) {
-        const x = x0 + 0.08 + i * 0.085;
-        for (let l = 0; l < 2; l++)
-          s.box(
-            x - 0.03,
-            0.115 + l * 0.04,
-            z - 0.055,
-            x + 0.03,
-            0.15 + l * 0.04,
-            z + 0.055,
-            vary(0x9aa078, rnd, 0.6),
-          );
+  const racks = (): void => {
+    for (let tier = 0; tier < tiers; tier++)
+      for (const z of [z0 + 0.14, z1 - 0.14]) {
+        const y = 0.1 + tier * 0.22;
+        s.box(x0 + 0.04, y, z - 0.07, x1 - 0.04, y + 0.015, z + 0.07, vary(palette.wood, rnd, 0.5));
+        const n = Math.floor((x1 - x0 - 0.1) / 0.085);
+        for (let i = 0; i < n; i++) {
+          const x = x0 + 0.08 + i * 0.085;
+          for (let l = 0; l < 2; l++)
+            s.box(
+              x - 0.03,
+              y + 0.015 + l * 0.04,
+              z - 0.055,
+              x + 0.03,
+              y + 0.05 + l * 0.04,
+              z + 0.055,
+              vary(0x9aa078, rnd, 0.6),
+            );
+        }
       }
-    }
-  });
+  };
+  if (tiers > 1)
+    // The far level shows the tiers as one block of grey-green bricks under the roof.
+    s.levels(racks, () => s.box(x0 + 0.04, 0.1, z0 + 0.07, x1 - 0.04, h - 0.04, z1 - 0.07, 0x9aa078));
+  else s.detail(racks);
 }
 
 function brickworks(opts: KitBuildOptions | undefined): Built {
   const [w, d] = opts?.size ?? [3, 3];
   const { rnd } = streams(opts, 61);
   const c = customOf(opts);
+  const lv = levelOf(opts);
   const { s, anchors } = start(opts);
   groundPatch(s, 0.08, 0.08, w - 0.08, d - 0.08, vary(0xa89276, rnd, 0.4), rnd);
   // The kiln: the tallest mass, in the back left corner, smoking.
@@ -156,6 +169,9 @@ function brickworks(opts: KitBuildOptions | undefined): Built {
   // Drying hacks: one by the pit, one in front of the kiln.
   dryingHack(s, px0 + 0.05, 1.5, px1 - 0.05, 2.05, c, rnd);
   dryingHack(s, 0.25, 2.3, 1.2, 2.85, c, rnd);
+  // R3H level 2: a big tall hack beside them, three tiers of bricks under one roof; level 3 a second.
+  if (lv >= 2) dryingHack(s, 1.35, 2.3, 2.1, 2.9, c, streams(opts, 161).rnd, 3);
+  if (lv >= 3) dryingHack(s, 0.25, 1.65, 1.25, 2.1, c, streams(opts, 261).rnd, 3);
   // Fired bricks stacked at the front by the output, more of them as it fills.
   const outLv = Math.max(0, Math.min(4, level(opts, 'out:brick') + level(opts, 'out:bricks')));
   const spots: [number, number][] = [
@@ -168,10 +184,10 @@ function brickworks(opts: KitBuildOptions | undefined): Built {
   for (let i = 0; i < stacks; i++) brickStack(s, spots[i]![0], spots[i]![1], 4 + (i % 3), rnd);
   s.detail(() => {
     pugMill(s, 1.8, 1.25, rnd, CLAY_DARK);
-    wheelbarrow(s, 1.5, 2.3, CLAY, rnd);
+    if (lv < 2) wheelbarrow(s, 1.5, 2.3, CLAY, rnd);
     spade(s, px0 + 0.4, pz1 - 0.1, 0.06);
     // Kiln wood, stacked by the firing mouth.
-    pileOf(s, 'firewood', Math.max(1, level(opts, 'in:firewood')), 0.55, 0, 1.85, rnd);
+    if (lv < 3) pileOf(s, 'firewood', Math.max(1, level(opts, 'in:firewood')), 0.55, 0, 1.85, rnd);
     // Spade marks in the fresh cut of the back bank.
     for (let i = 0; i < 5; i++) {
       const x = px0 + 0.1 + i * 0.2;
@@ -213,6 +229,9 @@ function granary(opts: KitBuildOptions | undefined): Built {
   const [ex] = opts?.entrance ?? [1, 2];
   const { rnd } = streams(opts, 62);
   const c = customOf(opts);
+  const lv = levelOf(opts);
+  // R3H: a taller body from level 2.
+  const rise = lv >= 2 ? 0.6 : 0;
   const { s, anchors } = start(opts);
   const x0 = 0.75;
   const x1 = w - 0.75;
@@ -227,7 +246,7 @@ function granary(opts: KitBuildOptions | undefined): Built {
     x1,
     z1,
     base: 0.04,
-    wallH: 1.3,
+    wallH: 1.3 + rise,
     wall: 'weatherboard',
     wallColor: c.wall ?? vary(0x8f8576, rnd, 0.4),
     trim: palette.timber,
@@ -235,7 +254,7 @@ function granary(opts: KitBuildOptions | undefined): Built {
       shape: 'gable',
       material,
       color: vary(roofColor(c, material, 0xa4552f), rnd, 0.4),
-      rise: 1.1,
+      rise: lv >= 3 ? 1.5 : lv >= 2 ? 1.35 : 1.1,
       overhang: 0.16,
       ridgeAlongX: false,
     },
@@ -244,8 +263,18 @@ function granary(opts: KitBuildOptions | undefined): Built {
   const front: Face = { dir: 'z+', plane: z1 };
   doorPart(s, front, doorU, 0.5, 0.62, c.accent ?? vary(0x6e8a5a, rnd, 0.4), palette.white, 'double', 0.015);
   // The hoist loft: an upper hatch under the gable, a beam running out of the peak, a rope and a sack.
-  faceBox(s, front, doorU - 0.19, 0.98, 0.004, doorU + 0.19, 1.42, 0.03, palette.timber);
-  faceBox(s, front, doorU - 0.15, 1.0, 0.03, doorU + 0.15, 1.38, 0.045, vary(0x6b4a30, rnd, 0.4));
+  faceBox(s, front, doorU - 0.19, 0.98 + rise, 0.004, doorU + 0.19, 1.42 + rise, 0.03, palette.timber);
+  faceBox(
+    s,
+    front,
+    doorU - 0.15,
+    1.0 + rise,
+    0.03,
+    doorU + 0.15,
+    1.38 + rise,
+    0.045,
+    vary(0x6b4a30, rnd, 0.4),
+  );
   const peak = sh.ridge - 0.12;
   beam(
     s,
@@ -262,6 +291,14 @@ function granary(opts: KitBuildOptions | undefined): Built {
     [{ dir: 'x-', plane: x0 } as Face, z0, z1],
   ] as const)
     windowRow(s, f, u0, u1, 0.8, style, rnd, anchors.lights!, [], 0.9, [0.14, 0.18], 0.02);
+  if (lv >= 2) {
+    const sr = streams(opts, 162).rnd;
+    for (const [f, u0, u1] of [
+      [{ dir: 'x+', plane: x1 } as Face, z0, z1],
+      [{ dir: 'x-', plane: x0 } as Face, z0, z1],
+    ] as const)
+      windowRow(s, f, u0, u1, 1.55, style, sr, anchors.lights!, [], 0.9, [0.14, 0.18], 0.02);
+  }
   // The loading platform, its steps and a hand rail, all above ground level once lifted.
   // A plank deck on posts, with its boards' edge in shadow, so it reads light from above.
   const deck = vary(palette.wood, rnd, 0.5);
@@ -334,6 +371,47 @@ function granary(opts: KitBuildOptions | undefined): Built {
     postAndRail(s, [w - 0.18, 0.3], [w - 0.18, d - 0.2], rnd);
     sacks(s, 0.5, 0, 2.55, 2, rnd);
   });
+  if (lv >= 3) {
+    // R3H level 3: a side wing, a lean-to with its own roof, sacks stacked inside.
+    const lr = streams(opts, 262).rnd;
+    leanTo(
+      s,
+      {
+        x0: x1 + 0.04,
+        z0: 0.35,
+        x1: w - 0.08,
+        z1: 1.75,
+        lo: 0.95,
+        hi: 1.5,
+        high: 'x-',
+        material,
+        color: vary(roofColor(c, material, 0xa4552f), lr, 0.4),
+        wall: vary(0x8f8576, lr, 0.4),
+      },
+      lr,
+    );
+    // A second wing on the other side, so the level 3 granary spreads wider than it stands.
+    leanTo(
+      s,
+      {
+        x0: 0.08,
+        z0: 0.35,
+        x1: x0 - 0.04,
+        z1: 1.75,
+        lo: 0.95,
+        hi: 1.5,
+        high: 'x+',
+        material,
+        color: vary(roofColor(c, material, 0xa4552f), lr, 0.4),
+        wall: vary(0x8f8576, lr, 0.4),
+      },
+      lr,
+    );
+    s.detail(() => {
+      sacks(s, x1 + 0.3, 0, 0.7, 3, lr);
+      sacks(s, x1 + 0.3, 0, 1.2, 4, lr);
+    });
+  }
   if (c.sign) signBoard(s, { dir: 'z+', plane: 2.9 }, 1.5, 0.4, 0.4, 0.02, anchors);
   return { s, anchors };
 }

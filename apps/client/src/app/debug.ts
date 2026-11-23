@@ -27,7 +27,7 @@ import { streetsShowcase } from '../render/streetsShowcase';
 import { roadsShowcase } from '../render/roadShowcase';
 import { audio, type SoundCueId } from '../audio/api';
 import { audioEngine } from '../audio/install';
-import { villageShowcase } from '../render/showcase';
+import { LEVEL_ROWS, villageShowcase } from '../render/showcase';
 import { seasonsShowcase } from '../render/seasonsShowcase';
 import { townShowcase, type TownShowcaseOptions } from '../render/townShowcase';
 import { fakeCharm, fakeRuntime, startSyntheticResidents, type SyntheticOptions } from '../render/synthetic';
@@ -467,11 +467,11 @@ export function installDebugHook(getSession: () => Session | null): void {
      * village buildings, streets, carts, couples, babies and story characters. `dense` adds two
      * streets of homes for the 150-building budget scene. Returns what it placed.
      */
-    villageShowcase: (dense = false) => {
+    villageShowcase: (dense = false, levels = false) => {
       const session = s();
       if (!session) return null;
-      const r = villageShowcase(session.mirror, { dense });
-      return { buildings: r.buildings, carts: r.carts };
+      const r = villageShowcase(session.mirror, { dense, levels });
+      return { buildings: r.buildings, carts: r.carts, levelRows: levels ? LEVEL_ROWS.slice() : [] };
     },
     /**
      * V1.0: a City-scale stress scene in this client's Mirror (never the sim): about 1,000 of today's

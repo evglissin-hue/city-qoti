@@ -9,6 +9,7 @@ import { buildingRect, rectGap2, within } from '../../../conditions/geo';
 import { findById } from '../../../state/entities';
 import { doorTile } from '../../movement/api';
 import { withinReach } from '../../specialized/api';
+import { coverageAt } from '../../../state/zones';
 
 const S = MAP_SIZE;
 
@@ -69,7 +70,7 @@ export function shelfInReach(
     if (b.stage !== 'built' || !b.rt || (b.rt.store[good] ?? 0) < need) continue;
     const def = content.buildingById.get(b.def);
     if (!def?.tags?.includes('market')) continue;
-    const reach = def.coverage?.find((c) => c.kind === 'food')?.radius ?? def.reach ?? 14;
+    const reach = coverageAt(b, 'food', def.reach ?? 14);
     const d = doorTile(b, def);
     const dx = (d % S) - (door % S);
     const dz = Math.floor(d / S) - Math.floor(door / S);

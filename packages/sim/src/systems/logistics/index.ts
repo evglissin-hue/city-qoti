@@ -178,7 +178,7 @@ function needsOf(spots: readonly Spot[]): Need[] {
       continue;
     }
     if (isMarket(def)) {
-      const want = Math.min(STALL_RESTOCK_TARGET - foodIncoming(rt), storageSpace(def, rt));
+      const want = Math.min(STALL_RESTOCK_TARGET - foodIncoming(rt), storageSpace(s.b, rt));
       if (want > 0) out.push({ dest: s, good: -1, want, cls: JobClass.stallFood });
       // R1B: an outlet that takes Wares or Treats (the Market Square takes every family, a stall
       // Food and Treats) is kept stocked with them too, a few of each.
@@ -191,7 +191,7 @@ function needsOf(spots: readonly Spot[]): Need[] {
         if (INPUT_ONLY.has(content.goods[g]!.id)) continue;
         const room = Math.min(
           MARKET_GOODS_TARGET - (rt.store[g] ?? 0) - (rt.reservedIn[g] ?? 0),
-          storageSpace(def, rt),
+          storageSpace(s.b, rt),
         );
         if (room > 0) out.push({ dest: s, good: g, want: room, cls: JobClass.stallFood });
       }
@@ -339,7 +339,7 @@ function assign(
   const g = bestGood;
   let qty = Math.min(carryOf(state, g), sourceAvail(bestSrc.b, bestSrc.def, g));
   if (bestNeed) qty = Math.min(qty, bestNeed.want);
-  if (isStorage(bestDest.def)) qty = Math.min(qty, storageSpace(bestDest.def, bestDest.rt));
+  if (isStorage(bestDest.def)) qty = Math.min(qty, storageSpace(bestDest.b, bestDest.rt));
   if (qty <= 0) return;
 
   const lg = state.logistics;
@@ -383,7 +383,7 @@ function findRelay(
       if (other.b === reach.b || !staffed(other) || !within(reach, other.door)) continue;
       if (!within(other, need.dest.door)) continue;
       const dest = spots.find((s) => s.b === other.b);
-      if (!dest || !takes(dest.def, g) || storageSpace(dest.def, dest.rt) <= 0) continue;
+      if (!dest || !takes(dest.def, g) || storageSpace(dest.b, dest.rt) <= 0) continue;
       if (dest.rt.store[g]! + dest.rt.reservedIn[g]! - dest.rt.reservedOut[g]! >= need.want) continue;
       let src: Spot | null = null;
       let bestD = Infinity;
@@ -407,7 +407,7 @@ function nearestStorehouse(spots: readonly Spot[], reach: Reach, src: Spot, good
   let bestD = Infinity;
   for (const s of spots) {
     if (s === src || s.b.stage !== 'built' || !isStorehouse(s.def) || !takes(s.def, good)) continue;
-    if (storageSpace(s.def, s.rt) <= 0 || !within(reach, s.door)) continue;
+    if (storageSpace(s.b, s.rt) <= 0 || !within(reach, s.door)) continue;
     const d = tileDistance(src.door, s.door);
     if (d < bestD) {
       bestD = d;
@@ -591,7 +591,7 @@ function rerouteTarget(
   for (const b of state.buildings) {
     if (b.id === exclude || b.stage !== 'built' || !b.rt) continue;
     const def = defOf(b);
-    if (!isStorehouse(def) || !takes(def, good) || storageSpace(def, b.rt) < qty) continue;
+    if (!isStorehouse(def) || !takes(def, good) || storageSpace(b, b.rt) < qty) continue;
     const d = tileDistance(tile, doorTile(b, def));
     if (d < bestD) {
       bestD = d;

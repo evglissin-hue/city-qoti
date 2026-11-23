@@ -114,7 +114,7 @@ export function emptyCounters(): BusinessCounters {
   };
 }
 
-/** A business's level, 1 to BUSINESS_LEVEL_MAX (absent means 1). */
+/** A business's (or R3H, a specialized building's) level, 1 to BUSINESS_LEVEL_MAX (absent means 1). */
 export function levelOf(b: Building): number {
   return Math.min(BUSINESS_LEVEL_MAX, Math.max(1, b.level ?? 1));
 }
@@ -128,13 +128,40 @@ export function methodOf(b: Pick<Building, 'def' | 'trade'>): ProductionMethod |
   return content.buildingById.get(b.def)?.methods?.[0] ?? null;
 }
 
-/** Hands a building wants: a business's trade crew at its level, else its def's jobs. */
+/**
+ * R3 (R3H): what a specialized building has at its level (`BuildingDef.levels`): its crew, reach,
+ * storage or capacity from the level's entry, or `base` when its def names none for that field. A
+ * level is a bigger building, never a multiplier: every reader of these reads the number itself.
+ */
+export function atLevel(
+  b: Pick<Building, 'def' | 'level'>,
+  field: 'crew' | 'reach' | 'storage' | 'capacity',
+  base: number,
+): number {
+  const at = content.buildingById.get(b.def)?.levels?.[field];
+  if (!at || at.length === 0) return base;
+  return at[Math.min(at.length, Math.max(1, b.level ?? 1)) - 1]!;
+}
+
+/** R3H: the radius of a building's coverage of `kind` at its level (the Market Stall's food reach). */
+export function coverageAt(b: Pick<Building, 'def' | 'level'>, kind: string, fallback: number): number {
+  const def = content.buildingById.get(b.def);
+  const r = def?.coverage?.find((c) => c.kind === kind)?.radius ?? fallback;
+  return def?.levels?.reach ? atLevel(b, 'reach', r) : r;
+}
+
+/** R3H: units a storage building keeps at its level (`def.storage`, bigger at each level it climbs). */
+export function storageOf(b: Pick<Building, 'def' | 'level'>): number {
+  return atLevel(b, 'storage', content.buildingById.get(b.def)?.storage ?? 0);
+}
+
+/** Hands a building wants: a business's trade crew at its level, else its def's jobs (R3H: at its level). */
 export function jobsOf(b: Pick<Building, 'def' | 'trade' | 'level'>): number {
   if (b.trade) {
     const crew = content.tradeById.get(b.trade)?.crew;
     if (crew) return crew[Math.min(BUSINESS_LEVEL_MAX, Math.max(1, b.level ?? 1)) - 1]!;
   }
-  return content.buildingById.get(b.def)?.jobs?.count ?? 0;
+  return atLevel(b, 'crew', content.buildingById.get(b.def)?.jobs?.count ?? 0);
 }
 
 /**

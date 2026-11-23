@@ -1,7 +1,7 @@
 // Outlet API (C3.0 contract; C3C owns it). Residents (C3A) shop through it: market stalls first,
 // storehouses when no stall is within reach. Porters keep stalls stocked to STALL_RESTOCK_TARGET
 // food (logistics); goods a porter has been promised (reservedOut) are never handed out.
-import { isFood } from '../../state/zones';
+import { coverageAt, isFood } from '../../state/zones';
 import { content, type BuildingDef } from '@qoti/content';
 import { MAP_SIZE } from '../../constants';
 import type { BuildingRuntime, EntityId, WorldState } from '../../contracts';
@@ -61,7 +61,8 @@ export function outletFood(state: WorldState, buildingId: EntityId): number {
  * R2X: the outlet defs, and for a market its food coverage radius squared, found once (evening
  * shopping asks for the nearest outlet for every shopper; the scan read each building's tags).
  */
-let outletDefs: Map<string, { def: BuildingDef; market: boolean; r2: number }> | null = null;
+let outletDefs: Map<string, { def: BuildingDef; market: boolean; r2: number; levelled: boolean }> | null =
+  null;
 
 function outletDef(id: string) {
   if (!outletDefs) {
@@ -70,7 +71,7 @@ function outletDef(id: string) {
       if (!def.tags?.includes('outlet')) continue;
       const market = def.tags.includes('market');
       const r = market ? (def.coverage?.find((c) => c.kind === 'food')?.radius ?? 14) : 0;
-      outletDefs.set(def.id, { def, market, r2: r * r });
+      outletDefs.set(def.id, { def, market, r2: r * r, levelled: market && !!def.levels?.reach });
     }
   }
   return outletDefs.get(id);
@@ -96,7 +97,9 @@ export function nearestOutletWithFood(state: WorldState, tile: number): EntityId
     const dz = Math.floor(door / MAP_SIZE) - z;
     const d = dx * dx + dz * dz;
     if (o.market) {
-      if (d <= o.r2 && d < bestStallD) {
+      // R3H: a stall's food reaches farther at each level it has climbed.
+      const r = o.levelled ? coverageAt(b, 'food', 14) : 0;
+      if (d <= (o.levelled ? r * r : o.r2) && d < bestStallD) {
         bestStallD = d;
         bestStall = b.id;
       }

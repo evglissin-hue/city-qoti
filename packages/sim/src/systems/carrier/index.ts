@@ -669,7 +669,7 @@ function scan(state: WorldState): Scan {
     }
     if (info?.storehouse) {
       const def = info.def;
-      out.stores.push({ b, def, space: storageSpace(def, rt), takes: info.takes, door: doorTile(b, def) });
+      out.stores.push({ b, def, space: storageSpace(b, rt), takes: info.takes, door: doorTile(b, def) });
       if (!out.post && def.tags?.includes('trading-post')) out.post = b;
     }
     if (!out.dock && (info ? info.dock : b.def === 'river-dock')) out.dock = b;

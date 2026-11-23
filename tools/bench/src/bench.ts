@@ -34,6 +34,7 @@ import { r3aBench } from './r3a.bench';
 import { r2Bench } from './r2.bench';
 import { r3Bench } from './r3.bench';
 import { r3dBench } from './r3d.bench';
+import { r3hBench } from './r3h.bench';
 import { raidsBench } from './raids.bench';
 import { seasonsBench } from './seasons.bench';
 import { villageBench } from './village.bench';
@@ -218,6 +219,10 @@ failures.push(...r3.failures);
 const r3d = r3dBench();
 lines.push(...r3d.lines);
 failures.push(...r3d.failures);
+// 18. R3H: the levels pass at its day end (specialized buildings climbing and sliding), at City scale.
+const r3h = r3hBench();
+lines.push(...r3h.lines);
+failures.push(...r3h.failures);
 
 const heapMb = process.memoryUsage().heapUsed / 1024 / 1024;
 lines.push(`memory          ${heapMb.toFixed(0)} MB heap in use`);
@@ -258,6 +263,7 @@ const report = {
   r2: r2.report,
   r3: r3.report,
   r3d: r3d.report,
+  r3h: r3h.report,
   heapMb,
   failures,
 };

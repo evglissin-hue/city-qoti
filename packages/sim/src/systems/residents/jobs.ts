@@ -167,6 +167,12 @@ export function slotPriority(
 ): number {
   const role = def.jobs?.role ?? 'worker';
   if (role === 'builder') return k === 0 ? 0 : k === 1 ? 1 : 4;
+  // R3H: the hands a specialized building's level adds (past its level 1 crew) come last, behind food
+  // work (6, never a tie with plentiful food's 5), the builders and the porters, so a bigger crew never
+  // takes a hand a farm, a fishery or a site wants (the owner's first complaint was too few workers).
+  // A Fishery's are food work and rank as such.
+  const levelOne = def.levels?.crew?.[0];
+  if (levelOne !== undefined && k >= levelOne && makes(method, NO_SHORTAGES) !== 'food') return 6;
   // C5A: with the larder short of the winter in autumn and goods piling up for want of porters, a
   // storehouse's first two porters come first and the rest rank with food work (a harvest waiting
   // in full baskets fills no larder).

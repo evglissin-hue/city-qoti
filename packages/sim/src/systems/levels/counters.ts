@@ -1,12 +1,13 @@
 // A business's daily counters (docs/spec/13-ledger.md, Levels). The writers (production, porters and
 // carts, shopping) call these; the levels pass at 23:30 reads and resets them. Only buildings with a
-// trade keep counters.
+// trade keep counters, and (R3H) specialized buildings that climb levels (`BuildingDef.levels`).
+import { content } from '@qoti/content';
 import type { Building, BusinessCounters } from '../../contracts';
 import { emptyCounters } from '../../state/zones';
 
-/** The building's counters, created when first needed. Only for a business (has a trade). */
+/** The building's counters, created when first needed: a business, or a specialized building with levels. */
 export function countersOf(b: Building): BusinessCounters | null {
-  if (!b.trade) return null;
+  if (!b.trade && !content.buildingById.get(b.def)?.levels) return null;
   return (b.counters ??= emptyCounters());
 }
 
@@ -22,9 +23,9 @@ export function countSold(b: Building, qty: number): void {
   if (c) c.soldToday += qty;
 }
 
-/** A shop served a household. */
+/** A shop (or R3H, a Market Stall that climbs on its customers) served a household. */
 export function countCustomer(b: Building): void {
-  if (b.trade !== 'shop') return;
+  if (b.trade !== 'shop' && content.buildingById.get(b.def)?.levels?.good !== 'customers') return;
   const c = countersOf(b);
   if (c) c.customersToday += 1;
 }

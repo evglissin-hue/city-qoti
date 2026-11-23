@@ -41,6 +41,12 @@ function variants(kit: Kit): KitBuildOptions[] {
   const out: KitBuildOptions[] = [base, { ...base, lod: 'low' }, { ...base, seed: 5 }];
   if (kit.kind === 'tree') for (const stage of [0, 1, 2]) out.push({ ...base, stage, seed: 3 });
   if (kit.kind === 'tree' || kit.kind === 'nature') out.push({ ...base, params: { thin: 0.4 } });
+  // R3H: a specialized building's kit at each level it climbs, near and far, with its def's params.
+  const def = content.buildings.find((b) => artKitId(b.art) === kit.id && b.levels);
+  if (def)
+    for (const level of [2, 3])
+      for (const lod of ['high', 'low'] as const)
+        out.push({ ...base, lod, params: { ...(def.art.params ?? {}), level } });
   return out;
 }
 

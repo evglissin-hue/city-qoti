@@ -36,6 +36,7 @@ import {
   valueOf,
 } from './baskets';
 import { isTreat, sellsTreats, TREATS, TREATS_GROUP, treatsOnShelf } from './round';
+import { coverageAt } from '../../state/zones';
 
 const S = MAP_SIZE;
 
@@ -249,7 +250,7 @@ function outletsInReach(state: WorldState, home: Building): EntityId[] {
   for (const b of state.buildings) {
     if (!sellsTreats(state, b) || !treatsOnShelf(state, b)) continue;
     const def = content.buildingById.get(b.def);
-    const r = def?.coverage?.find((c) => c.kind === 'food')?.radius ?? 14;
+    const r = coverageAt(b, 'food', 14);
     const od = doorTile(b, def);
     const dx = (od % S) - x;
     const dz = Math.floor(od / S) - z;

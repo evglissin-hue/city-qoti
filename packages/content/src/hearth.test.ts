@@ -91,6 +91,9 @@ describe('the Chronicle', () => {
     'guide-done': ['surveyor'],
     // P1 (callings)
     calling: ['calling', 'credit'],
+    // R3H
+    'specialized-grew': ['building', 'level', 'more'],
+    'specialized-shrank': ['building', 'level', 'why'],
     // R3 (R3C)
     'town-book-page': ['page', 'place', 'text', 'credit'],
   };

@@ -29,6 +29,7 @@ import {
   wallSurface,
 } from './parts';
 import { SURFACE } from '../surface';
+import { leanTo } from './levelPieces';
 import { fitRow, ROW_NATIVE_STOREYS, rowOf, STOREY_H, storeyLift, storeysOf } from './rows';
 import { barrel, bench, flowerPot, wallLantern, weathervane } from './props';
 import {
@@ -1424,6 +1425,76 @@ function mill(opts: KitBuildOptions | undefined): Built {
     const sx = cx + 0.42 + (i % 2) * 0.15;
     const sz = cz + 0.72 + Math.floor(i / 2) * 0.16;
     s.blob(sx, 0.07, sz, 0.08, 0.07, 0.065, vary(0xece4d2, rnd, 0.5), 1);
+  }
+  // R3H: a lean-to flour store beside the door from level 2, a second one from level 3. Its walls
+  // are the tower's plaster, drawn with the plaster's surface (P3C: no pale plain face).
+  const lvl = Math.max(1, Math.min(3, Math.round(Number(opts?.params?.level ?? 1))));
+  if (lvl >= 2) {
+    const lr = streams(opts, 105).rnd;
+    const roofCol = vary(capColor, lr, 0.3);
+    s.surface(SURFACE.plaster);
+    leanTo(
+      s,
+      {
+        x0: cx - 0.96,
+        z0: cz + 0.05,
+        x1: cx - 0.45,
+        z1: cz + 0.95,
+        lo: 0.55,
+        hi: 0.85,
+        high: 'x+',
+        material: capMaterial,
+        color: roofCol,
+        wall: vary(wall, lr, 0.4),
+      },
+      lr,
+    );
+    s.detail(() => {
+      for (let i = 0; i < 4; i++)
+        s.blob(
+          cx - 0.78 + (i % 2) * 0.2,
+          0.07 + Math.floor(i / 2) * 0.1,
+          cz + 0.4 + (i % 2) * 0.05 + Math.floor(i / 2) * 0.1,
+          0.08,
+          0.07,
+          0.065,
+          vary(0xece4d2, lr, 0.5),
+          1,
+        );
+    });
+    if (lvl >= 3) {
+      s.surface(SURFACE.plaster);
+      leanTo(
+        s,
+        {
+          x0: cx + 0.45,
+          z0: cz - 0.85,
+          x1: cx + 0.96,
+          z1: cz + 0.05,
+          lo: 0.55,
+          hi: 0.85,
+          high: 'x-',
+          material: capMaterial,
+          color: roofCol,
+          wall: vary(wall, lr, 0.4),
+        },
+        lr,
+      );
+      s.detail(() => {
+        for (let i = 0; i < 5; i++)
+          s.blob(
+            cx + 0.7 + (i % 2) * 0.12,
+            0.07 + Math.floor(i / 3) * 0.1,
+            cz - 0.6 + (i % 3) * 0.17,
+            0.08,
+            0.07,
+            0.065,
+            vary(0xece4d2, lr, 0.5),
+            1,
+          );
+      });
+    }
+    s.surface(SURFACE.plain);
   }
   if (c.sign) signBoard(s, face, cx, 0.95, 0.4, 0.02, anchors);
   return { s, anchors };
