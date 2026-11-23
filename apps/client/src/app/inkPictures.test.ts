@@ -111,6 +111,59 @@ describe('V4B: the picture source (the seam, with the structural PictureRef)', (
   });
 });
 
+describe('V4X: a Chronicle picture is of its entry moment', () => {
+  const DAY = 4800;
+  const snap = { focus: [20, 20] as [number, number], radius: 12 };
+  /** A session whose Chronicle holds entries written on day 3 (today), day 1 (older) and one with no place. */
+  function chronicle(stored: [number, string][]) {
+    const out = withCamera();
+    const m = out.session.mirror as unknown as { chronicle: { value: unknown[] }; tick: { value: number } };
+    m.tick.value = 3 * DAY + 100;
+    m.chronicle.value = [
+      { id: 1, tick: 3 * DAY + 50, kind: 'first-of', text: 'today', snapshot: snap },
+      { id: 2, tick: DAY + 50, kind: 'first-of', text: 'old', snapshot: snap },
+      { id: 3, tick: 3 * DAY + 60, kind: 'household-arrived', text: 'no place' },
+    ];
+    (out.session.ui.snapshots as { value: ReadonlyMap<number, string> }).value = new Map(stored);
+    return out;
+  }
+  const ref = (id: number): PictureRef => ({ book: 'chronicle', id: String(id) });
+
+  it('uses the stored snapshot, and takes no capture, when there is one', async () => {
+    const { session, captures } = chronicle([[2, 'blob:then']]);
+    expect(await inkPictureSource(session)(ref(2))).toBe('blob:then');
+    expect(captures).toHaveLength(0);
+  });
+
+  it("captures fresh only for today's entry", async () => {
+    const { session, captures } = chronicle([]);
+    const source = inkPictureSource(session);
+    expect(await source(ref(1))).toMatch(/^blob:/);
+    expect(captures).toHaveLength(1);
+    expect(captures[0]).toMatchObject({ style: 'ink', size: SLOT_SIZE, focus: snap.focus });
+    // An older entry with no stored picture, and an entry with no place, get none.
+    expect(await source(ref(2))).toBeNull();
+    expect(await source(ref(3))).toBeNull();
+    expect(captures).toHaveLength(1);
+  });
+
+  it('at print size: today gets a print capture, older its stored snapshot or none', async () => {
+    const { session, captures } = chronicle([
+      [1, 'blob:stored-today'],
+      [2, 'blob:then'],
+    ]);
+    const source = inkPictureSource(session);
+    expect(await source(ref(1), { print: true })).toMatch(/^blob:/);
+    expect(captures).toHaveLength(1);
+    expect(captures[0]).toMatchObject({ size: PRINT_SIZE });
+    expect(await source(ref(1), { print: true })).not.toBe('blob:stored-today');
+    expect(await source(ref(2), { print: true })).toBe('blob:then');
+    expect(captures).toHaveLength(1);
+    const bare = chronicle([]);
+    expect(await inkPictureSource(bare.session)(ref(2), { print: true })).toBeNull();
+  });
+});
+
 describe('V4B: nothing is captured while no book is open', () => {
   it('takes no picture until a page with a slot is shown, and keeps it after', async () => {
     const { session, captures } = withCamera();

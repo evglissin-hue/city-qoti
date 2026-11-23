@@ -1,5 +1,6 @@
 import { calendar, SEASON_NAMES, TICKS_PER_DAY, type ChronicleEntryView } from '@qoti/sim';
 import type { Session } from '../../app/session';
+import { chroniclePictures } from '../chroniclePictures';
 import { formatDate } from '../format';
 import { Empty, Frame } from './parts';
 
@@ -54,7 +55,11 @@ export function ChroniclePanel({ session }: { session: Session }) {
   const entries = m.chronicle.value;
   const town = m.settings.value.townName;
   const days = chronicleDays(entries);
-  const pictures = session.ui.snapshots.value;
+  // In display order (newest day first), a picture that repeats the one above it is left out.
+  const pictures = chroniclePictures(
+    days.flatMap((d) => d.entries),
+    session.ui.snapshots.value,
+  );
   const close = () => (session.ui.panel.value = null);
   return (
     <Frame id="chronicle" class="book-panel chronicle" onClose={close} title={<Masthead town={town} />}>
