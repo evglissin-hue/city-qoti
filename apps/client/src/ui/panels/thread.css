@@ -1,0 +1,22 @@
+/* R3D: the Thread, one quiet sentence. No box, no heading: the inspector's body type, a little smaller and quieter. */
+.thread {
+  margin: 6px 0;
+  font-size: 0.84rem;
+  line-height: 1.4;
+  color: var(--ink-soft, var(--muted, inherit));
+  overflow-wrap: anywhere;
+}
+
+.thread .glyph {
+  width: 1.05em;
+  height: 1.05em;
+  margin-right: 5px;
+  vertical-align: -0.18em;
+  opacity: 0.7;
+}
+
+.thread button.link {
+  font: inherit;
+  color: var(--ink);
+  text-align: left;
+}

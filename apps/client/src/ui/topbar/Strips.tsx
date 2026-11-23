@@ -125,7 +125,7 @@ function BalanceChips({ session }: { session: Session }) {
       <button
         key={line.family}
         type="button"
-        class={`balance-chip ${r.low ? 'low' : ''}`}
+        class={`balance-chip ${r.low ? 'low' : ''} ${r.easy ? 'easy' : ''}`}
         data-testid={`balance-${line.family}`}
         title={r.title}
         onClick={() => open(line.family)}
@@ -163,7 +163,7 @@ function BalanceChips({ session }: { session: Session }) {
           <button
             key={r.good}
             type="button"
-            class={`balance-chip material ${r.warm ? 'low' : ''}`}
+            class={`balance-chip material ${r.warm ? 'low' : ''} ${r.easy ? 'easy' : ''}`}
             data-testid={`material-${r.good}`}
             title={r.title}
             onClick={() => open('materials')}
@@ -243,7 +243,7 @@ export function HearthStrip({ session }: { session: Session }) {
       </button>
       <button
         type="button"
-        class="strip-chip"
+        class={`strip-chip ${wishes > 0 ? '' : 'easy'}`}
         data-testid="hearth-wishes"
         title="Wishes folk have voiced and are waiting on. Click to read them."
         onClick={() => toggleBook(session, 'wishes')}

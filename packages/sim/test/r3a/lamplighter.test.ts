@@ -1,11 +1,12 @@
 // R3A: the lamplighter (docs/spec/19-evenings.md, Supplies): the walk's reach ticks, the job, the round.
 import { content } from '@qoti/content';
 import { describe, expect, it } from 'vitest';
-import { MAP_SIZE, START_HOUR, TICKS_PER_DAY, TICKS_PER_HOUR } from '../../src/constants';
+import { MAP_SIZE, ResidentFlags, START_HOUR, TICKS_PER_DAY, TICKS_PER_HOUR } from '../../src/constants';
 import type { Resident, WorldState } from '../../src/contracts';
 import { findById } from '../../src/state/entities';
 import { worldIndex } from '../../src/state/worldIndex';
-import { assignJobs, auditJobs, release } from '../../src/systems/residents/jobs';
+import { masteryKey } from '../../src/systems/masters/api';
+import { assignJobs, auditJobs, rebalanceJobs, release } from '../../src/systems/residents/jobs';
 import { scheduleOverrides } from '../../src/systems/residents/overrides';
 import {
   lamplighterJobs,
@@ -172,6 +173,33 @@ describe('lamplighter jobs', () => {
     auditJobs(s, ctx);
     assignJobs(s, ctx);
     expect(s.supplies.lamplighters).not.toContain(again);
+  });
+
+  it('never pulls a master off their trade to light the lamps; a free hand takes the job', () => {
+    const s = valley('village');
+    const ctx = createTickCtx(s);
+    // Every open job filled first, with no lantern yet (so no lamplighter's job).
+    assignJobs(s, ctx);
+    const th = hall(s);
+    const working = s.residents.filter(
+      (r) => r.jobId && r.jobId !== th.id && r.activity.kind !== 'task' && !r.carry,
+    );
+    const master = working[0]!;
+    const job = master.jobId;
+    master.flags |= ResidentFlags.master;
+    master.mastery = masteryKey(findById(s.buildings, job)!);
+    // Another hand is free.
+    const free = working[1]!;
+    release(s, free, false, ctx);
+    decor(s, 'lantern', 50, 50);
+    for (let k = 0; k < 3; k++) {
+      assignJobs(s, ctx);
+      rebalanceJobs(s, ctx);
+    }
+    expect(s.supplies.lamplighters).toHaveLength(1);
+    expect(s.supplies.lamplighters).not.toContain(master.id);
+    expect(master.jobId).toBe(job);
+    expect(findById(s.buildings, job)!.rt!.workers).toContain(master.id);
   });
 
   it('lets the job go when the lanterns do', () => {

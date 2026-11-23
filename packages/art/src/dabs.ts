@@ -84,9 +84,10 @@ function hexFromHsl(h: number, s: number, l: number): number {
 export function dabTint(color: number, ny: number, skyLighten: number): number {
   tmp.setHex(color).getHSL(hsl);
   const up = clamp(ny, -1, 1);
-  const l = hsl.l + skyLighten * (up > 0 ? 0.15 : 0.11) * up;
+  // P3C: the underside a little deeper and cooler (0.16, was 0.11), so a crown has a shaded belly.
+  const l = hsl.l + skyLighten * (up > 0 ? 0.15 : 0.16) * up;
   return hexFromHsl(
-    hsl.h - skyLighten * 0.03 * Math.max(0, up),
+    hsl.h - skyLighten * 0.03 * Math.max(0, up) - skyLighten * 0.02 * Math.min(0, up),
     hsl.s + skyLighten * 0.08 * up,
     up > 0 ? Math.min(l, lightCap(hsl.l)) : l,
   );
@@ -289,7 +290,10 @@ export function brushDabs(b: ShapeBuilder, blobs: readonly DabBlob[], opts: DabO
       const sx = fy * ez - fz * ey;
       const sy = fz * ex - fx * ez;
       const sz = fx * ey - fy * ex;
-      const size = opts.size * (0.8 + r[10]! * 0.45);
+      // P3C: smaller toward the crown's sides and underside, larger on its sunlit top, so the outline
+      // breaks into finer strokes and the mass reads as painted, not as a ball of equal facets.
+      const size =
+        opts.size * (0.8 + r[10]! * 0.45) * (0.7 + 0.3 * Math.min(1, Math.max(0, (ny + 0.3) / 1.1)));
       const L = size * stretch;
       // A leaf-shaped dab sits evenly on its spot; a blade (`stretch` given) keeps its long tip.
       const tipK = opts.stretch === undefined ? 0.5 : 0.62;
@@ -317,7 +321,8 @@ export function brushDabs(b: ShapeBuilder, blobs: readonly DabBlob[], opts: DabO
       );
       const tipHex = capLight(dabTint(wander, ny, opts.skyLighten), bl.color);
       tmp.setHex(tipHex).getHSL(hsl);
-      const rootHex = hexFromHsl(hsl.h, hsl.s, hsl.l * 0.9);
+      // P3C: the root a little deeper (0.86, was 0.9), so each dab reads as one stroke up close.
+      const rootHex = hexFromHsl(hsl.h, hsl.s, hsl.l * 0.86);
       b.triN(tip, b0, b1, [nx, ny, nz], tipHex, rootHex, rootHex, [fx, fy, fz]);
     }
   }

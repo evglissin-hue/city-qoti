@@ -23,6 +23,8 @@ import { serviceCoverage } from '../services/coverage';
 import type { ServiceKind } from '../services/weights';
 import { dayIndex } from '../residents/time';
 import { bumpPlaceInputs } from '../places/inputs';
+import { isMasterGood } from '../../state/masters';
+import { masterGoodsInTown } from '../masters/api';
 
 /** Charm a home may fall short by before its household counts as failing its tier (hysteresis). */
 export const CHARM_SLACK = 5;
@@ -377,12 +379,18 @@ export function tierShortages(state: WorldState, stock: readonly number[]): stri
   const out = new Set<string>();
   const pop = state.residents.length;
   const homes = state.households.length;
+  // R3B: a master's good the town does not have is nobody's shortage (no hand could make it).
+  const inTown = masterGoodsInTown(state, stock);
   for (const group of basketGroups(basket)) {
     if (group.id === 'food' || group.perDay <= 0) continue;
     const need = Math.max(4, Math.ceil(group.perDay * (group.perHousehold ? homes : pop)));
     let have = 0;
     for (const [id] of group.goods) have += stock[content.goodIndex.get(id) ?? -1] ?? 0;
-    if (have < need) for (const [id] of group.goods) out.add(id);
+    if (have >= need) continue;
+    for (const [id] of group.goods) {
+      const g = content.goodIndex.get(id) ?? -1;
+      if (!isMasterGood(g) || inTown[g]) out.add(id);
+    }
   }
   // R1: what homes waiting to upgrade take, from content (brick and timber for a townhouse).
   for (const b of state.buildings) {

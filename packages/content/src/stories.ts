@@ -11,6 +11,8 @@ import type { StoryArc } from './types';
 
 export const inventor: StoryArc = {
   id: 'inventor',
+  // R3B: a master by their arc, once it is done (counts for Master of the House, not a trade's season).
+  mastery: 'carpenter',
   character: {
     given: 'Pippa',
     family: 'Quill',
@@ -118,6 +120,8 @@ export const inventor: StoryArc = {
 
 export const merchant: StoryArc = {
   id: 'merchant',
+  // R3B: a master by their arc, once it is done (counts for Master of the House, not a trade's season).
+  mastery: 'shop',
   character: {
     given: 'Odette',
     family: 'Fenwick',

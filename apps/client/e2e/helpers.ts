@@ -1,4 +1,5 @@
 import { expect, type Page } from '@playwright/test';
+import { toolGroups } from '../src/ui/toolGroups';
 
 /** The window.__qoti debug hook (see src/app/debug.ts), typed loosely for tests. */
 export interface QotiHook {
@@ -24,7 +25,7 @@ export interface QotiHook {
   mode(): string | null;
   residentIds(): number[];
   buildingsOf(def: string): number[];
-  select(sel: { kind: string; id: number } | null): void;
+  select(sel: { kind: string; id: number | string } | null): void;
   undoSize(): number;
   // I2 (C4D)
   valleyId(): string | null;
@@ -38,10 +39,30 @@ export interface QotiHook {
   roadAt(x: number, z: number): number;
   /** R2X: the building on a tile, 0 for none. */
   occupantAt(x: number, z: number): number;
-  places(): { id: string; name: string; tile: number; tiles: number[]; members: number[]; source: string }[];
+  places(): {
+    id: string;
+    name: string;
+    tile: number;
+    tiles: number[];
+    members: number[];
+    source: string;
+    /** R3: its supplied pieces by kind (absent before R3A, or the R3 mocks). */
+    supplies?: unknown[];
+  }[];
   gaps(): { open: { id: number; tile: number; text: string }[]; closed: { id: number }[] } | null;
   focusTile(x: number, z: number, distance?: number): void;
   setLens(lens: 'hearth' | 'ledger'): void;
+  // R3 (R3D)
+  submit(cmd: unknown): number;
+  undo(): void;
+  openPanel(id: string | null): void;
+  setUi(name: string, value: unknown): void;
+  businesses(): { id: number; masterId?: number; apprentices?: number[]; graceDays?: number }[];
+  supplies(): { candles: number[]; lamplighters: { jobs: number; held: number[] } } | null;
+  /** Which ground layer shows: an inspector's own picture or a Thread's route. */
+  groundHighlight(): 'inspector' | 'thread' | null;
+  /** A cider's door pairs recorded in the real sim; null when the valley lacks a piece of it. */
+  threadScene(): { press: number; place: string; placeName: string; at: [number, number] } | null;
   // I3 (C5G)
   audio: {
     state(): string;
@@ -123,4 +144,24 @@ export async function hashesAt(
     a: (await a.evaluate((turn) => window.__qoti.hashAt(turn), t))!,
     b: (await b.evaluate((turn) => window.__qoti.hashAt(turn), t))!,
   };
+}
+
+/**
+ * P3B: takes a tool out from the bottom bar. A tool in a group (Roads, Land, Decor, Nature, Plans)
+ * is on its group's shelf, so the group's button comes first.
+ */
+export async function takeTool(page: Page, id: string): Promise<void> {
+  const own = page.getByTestId(`tool-${id}`);
+  if (!(await own.isVisible())) {
+    const group = toolGroups.find((g) => g.members.some(([tool]) => tool === id));
+    if (!group) throw new Error(`tool ${id} is in no group and not on the bar`);
+    await page.getByTestId(`tool-group-${group.id}`).click();
+  }
+  if ((await own.getAttribute('aria-pressed')) !== 'true') await own.click();
+}
+
+/** P3B: opens a book from the Books shelf. */
+export async function openBook(page: Page, id: string): Promise<void> {
+  await page.getByTestId('books').click();
+  await page.getByTestId(`book-${id}`).click();
 }
