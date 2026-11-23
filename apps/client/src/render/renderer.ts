@@ -3,9 +3,11 @@ import { calendar, MAP_SIZE, TILE_FP, type SeatId, type WeatherKind } from '@qot
 import {
   Color,
   DirectionalLight,
+  DepthTexture,
   DoubleSide,
   FloatType,
   Fog,
+  HalfFloatType,
   HemisphereLight,
   MathUtils,
   Mesh,
@@ -16,6 +18,8 @@ import {
   Raycaster,
   Scene,
   SRGBColorSpace,
+  UnsignedByteType,
+  UnsignedIntType,
   Vector2,
   Vector3,
   WebGLRenderer,
@@ -50,11 +54,13 @@ import {
   type StillKeyParts,
 } from './cache';
 import { GpuTimer } from './gpuTimer';
+import { INK_LEAVES_OUT, InkPass, inkScale } from './ink';
 import { layerRoot, MOVING_LAYER, STATIC_LAYER } from './layerTags';
 import { hazeFor, lightingAt } from './lighting';
 import { LOOK_TONE_MAPPING } from './look';
 import { createWorldMaterial } from './material';
 import { pickTileFromRay } from './picking';
+import { untilDeveloped } from './photoSave';
 import { LeanFrame, type RestLens } from './post';
 import { buildingDetailNow, closeUpNow, pixelRatios, QUALITY_PRESETS, type Quality } from './quality';
 import {
@@ -1180,15 +1186,32 @@ export class Renderer implements RenderApi {
   /** V4: photo mode is on (the governor then develops to PHOTO_SAMPLES; V4A and V4B). */
   private photoOn = false;
 
+  /**
+   * C5E: draws the picture at one and a half times the still frame's resolution and saves it.
+   * V4B: when the governor develops photo mode's still (V4A's PHOTO_SAMPLES), it waits until the
+   * samples reach the goal (`untilDeveloped`, at most `PHOTO_DEVELOP_TIMEOUT_MS`), then takes the
+   * developed picture; with no refinement (V4.0's stub, Low) it saves at once, as before.
+   */
   private async savePng(): Promise<Blob> {
     const canvas = this.three.domElement;
     const max = this.three.capabilities.maxTextureSize || 4096;
     const big = Math.max(canvas.width, canvas.height) || 1;
     this.photoBoost = Math.max(1, Math.min(1.5, (max * 0.9) / big));
     this.applyLayout();
-    // Draw the picture now, at rest, and take the canvas in the same task (before it is cleared).
     this.updateLighting();
-    this.drawLean(performance.now(), true, QUALITY_PRESETS[this.quality].stillCache);
+    const cached = QUALITY_PRESETS[this.quality].stillCache;
+    const develops = cached && refineGoal(this.governorInput()) > 0;
+    if (develops && typeof requestAnimationFrame === 'function') {
+      this.invalidate();
+      await untilDeveloped(
+        () => this.stats,
+        () => new Promise((r) => requestAnimationFrame(r)),
+        () => performance.now(),
+      );
+    }
+    // Draw the picture now, at rest, and take the canvas in the same task (before it is cleared):
+    // the developed still as it stands, or a fresh still frame where nothing develops.
+    this.drawLean(performance.now(), !develops, cached);
     const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
     this.photoBoost = 1;
     this.applyLayout();
@@ -1198,6 +1221,14 @@ export class Renderer implements RenderApi {
 
   private captureTarget: WebGLRenderTarget | null = null;
   private readonly captureCamera = new PerspectiveCamera(FOV, 1.6, 0.5, 2000);
+  /** V4B: the ink pass and its two targets, made on the first ink picture. */
+  private inkPass: InkPass | null = null;
+  private inkSource: WebGLRenderTarget | null = null;
+  private inkOut: WebGLRenderTarget | null = null;
+  /** V4B: captures run one at a time, each at a rest. */
+  private captureChain: Promise<unknown> = Promise.resolve();
+  /** V4B: pictures taken, frames waited for a rest, and the last one's cost in ms (main thread). */
+  readonly captures = { taken: 0, waitedFrames: 0, lastMs: 0 };
 
   /**
    * C5E: a small picture of the valley about `focus` (tiles), `radius` tiles across, for the
@@ -1206,20 +1237,52 @@ export class Renderer implements RenderApi {
    * The camera looks from the player's own bearing at 50 degrees. What the main view's culling has
    * put away (far chunks) may be missing from a snapshot of somewhere else.
    *
-   * V4 (`CaptureOptions`): `style: 'ink'` is V4B's ink and wash for the books, and `samples` the
-   * developed picture (V4A's refinement; photo mode and print take PHOTO_SAMPLES). A capture is
-   * taken at rest, never on a moving frame, and costs nothing while no book is open.
+   * V4 (`CaptureOptions`): `style: 'ink'` is V4B's ink and wash for the books (`ink.ts`), and
+   * `samples` the developed picture (V4X wires it through V4A's accumulation). V4B: a capture waits
+   * for the camera to rest (`untilRest`) and captures run one at a time, so a picture never lands
+   * on a moving frame; nothing asks for one while no book is open (`app/inkPictures.ts`).
    */
-  async capture(opts: CaptureOptions): Promise<Blob | null> {
-    // V4.0: `style` and `samples` are typed for V4B and V4A; until they land every capture is the
-    // plain picture in one pass, whatever was asked (an 'ink' capture too).
+  capture(opts: CaptureOptions): Promise<Blob | null> {
+    const run = this.captureChain.then(async () => {
+      await this.untilRest();
+      const t0 = performance.now();
+      const blob = opts.style === 'ink' ? await this.captureInk(opts) : await this.capturePlain(opts);
+      this.captures.taken++;
+      this.captures.lastMs = performance.now() - t0;
+      return blob;
+    });
+    this.captureChain = run.catch(() => null);
+    return run;
+  }
+
+  /**
+   * V4B: resolves on the first frame the camera has held still for three frames (and no resident
+   * is followed). Without animation frames (tests) it resolves at once.
+   */
+  private untilRest(): Promise<void> {
+    if (typeof requestAnimationFrame !== 'function') return Promise.resolve();
+    const last = new Float32Array(16);
+    let still = 0;
+    return new Promise((resolve) => {
+      const step = () => {
+        const m = this.camera.matrixWorld.elements;
+        let same = true;
+        for (let i = 0; i < 16; i++) if (Math.abs(m[i]! - last[i]!) > 1e-5) same = false;
+        last.set(m);
+        still = same && this.followId === null ? still + 1 : 0;
+        if (still >= 3) resolve();
+        else {
+          this.captures.waitedFrames++;
+          requestAnimationFrame(step);
+        }
+      };
+      requestAnimationFrame(step);
+    });
+  }
+
+  /** The capture camera about `opts.focus`, from the player's bearing at 50 degrees: its distance. */
+  private aimCapture(opts: CaptureOptions): number {
     const [w, h] = opts.size;
-    const sw = Math.max(2, Math.round(w * 2));
-    const sh = Math.max(2, Math.round(h * 2));
-    if (!this.captureTarget || this.captureTarget.width !== sw || this.captureTarget.height !== sh) {
-      this.captureTarget?.dispose();
-      this.captureTarget = new WebGLRenderTarget(sw, sh, { type: FloatType, depthBuffer: true });
-    }
     const cam = this.captureCamera;
     cam.aspect = w / h;
     cam.fov = FOV;
@@ -1241,6 +1304,20 @@ export class Renderer implements RenderApi {
     cam.far = dist * 6;
     cam.updateProjectionMatrix();
     cam.layers.mask = this.camera.layers.mask;
+    return dist;
+  }
+
+  /** C5E's plain picture, exactly as before V4. */
+  private async capturePlain(opts: CaptureOptions): Promise<Blob | null> {
+    const [w, h] = opts.size;
+    const sw = Math.max(2, Math.round(w * 2));
+    const sh = Math.max(2, Math.round(h * 2));
+    if (!this.captureTarget || this.captureTarget.width !== sw || this.captureTarget.height !== sh) {
+      this.captureTarget?.dispose();
+      this.captureTarget = new WebGLRenderTarget(sw, sh, { type: FloatType, depthBuffer: true });
+    }
+    const cam = this.captureCamera;
+    const dist = this.aimCapture(opts);
     const three = this.three;
     const prev = three.getRenderTarget();
     const fog = this.scene.fog as Fog;
@@ -1283,6 +1360,90 @@ export class Renderer implements RenderApi {
         img.data[q + 3] = 255;
       }
     }
+    g.putImageData(img, 0, 0);
+    return new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+  }
+
+  /**
+   * V4B: the ink picture. The valley is drawn once into a half float target with a depth texture
+   * (twice the size for a slot, its own size with MSAA for a print, never a 3200 x 2400 float
+   * buffer), inked on the GPU by `InkPass` into an 8-bit target the picture's size, and only those
+   * bytes are read back (7.7 MB for a 1600 x 1200 print). A print's targets are let go at once.
+   */
+  private async captureInk(opts: CaptureOptions): Promise<Blob | null> {
+    const [w, h] = opts.size.map((v) => Math.max(2, Math.round(v))) as [number, number];
+    const k = inkScale(w, h);
+    const sw = w * k;
+    const sh = h * k;
+    const three = this.three;
+    if (!this.inkSource || this.inkSource.width !== sw || this.inkSource.height !== sh) {
+      this.inkSource?.dispose();
+      const depth = new DepthTexture(sw, sh, UnsignedIntType);
+      this.inkSource = new WebGLRenderTarget(sw, sh, {
+        type: HalfFloatType,
+        depthBuffer: true,
+        depthTexture: depth,
+        samples: k === 1 ? Math.min(4, three.capabilities.maxSamples) : 0,
+      });
+    }
+    if (!this.inkOut || this.inkOut.width !== w || this.inkOut.height !== h) {
+      this.inkOut?.dispose();
+      this.inkOut = new WebGLRenderTarget(w, h, { type: UnsignedByteType, depthBuffer: false });
+    }
+    const cam = this.captureCamera;
+    const dist = this.aimCapture(opts);
+    const prev = three.getRenderTarget();
+    const fog = this.scene.fog as Fog;
+    const fogSave = { near: fog.near, far: fog.far };
+    Object.assign(fog, hazeFor(dist));
+    // The page leaves out the interface's marks and the meadow's tufts (the wash says grass).
+    const hidden = this.layers.flatMap((l, i) =>
+      INK_LEAVES_OUT.includes(l.id) && this.roots[i]!.root.visible ? [this.roots[i]!.root] : [],
+    );
+    for (const root of hidden) root.visible = false;
+    three.setRenderTarget(this.inkSource);
+    three.clear();
+    three.render(this.scene, cam);
+    three.setRenderTarget(prev);
+    for (const root of hidden) root.visible = true;
+    Object.assign(fog, fogSave);
+    this.inkPass ??= new InkPass();
+    const [fx, fz] = opts.focus;
+    const light = lightingAt(this.lightHour >= 0 ? this.lightHour : 12);
+    this.inkPass.render(
+      three,
+      {
+        color: this.inkSource.texture,
+        depth: this.inkSource.depthTexture!,
+        src: [sw, sh],
+        near: cam.near,
+        far: cam.far,
+        fov: cam.fov,
+        focusZ: dist,
+        exposure: this.lean.exposure,
+        seed: Math.floor(fx) * 31 + Math.floor(fz) * 17,
+        night: light.night,
+        warmth: light.warmth,
+      },
+      this.inkOut,
+    );
+    const px = new Uint8Array(w * h * 4);
+    three.readRenderTargetPixels(this.inkOut, 0, 0, w, h, px);
+    if (k === 1) {
+      // A print's targets are large: let them go rather than keep them for the next slot.
+      this.inkSource.dispose();
+      this.inkSource = null;
+      this.inkOut.dispose();
+      this.inkOut = null;
+    }
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const g = canvas.getContext('2d');
+    if (!g) return null;
+    const img = g.createImageData(w, h);
+    const row = w * 4;
+    for (let j = 0; j < h; j++) img.data.set(px.subarray((h - 1 - j) * row, (h - j) * row), j * row);
     g.putImageData(img, 0, 0);
     return new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
   }
@@ -1341,6 +1502,9 @@ export class Renderer implements RenderApi {
     this.still.dispose();
     this.sampleSun.dispose();
     this.skyMaterial.dispose();
+    this.inkPass?.dispose();
+    this.inkSource?.dispose();
+    this.inkOut?.dispose();
     this.three.dispose();
     this.three.domElement.remove();
     this.scene.background = new Color(0);

@@ -13,7 +13,9 @@ async function shot(page: Page, name: string) {
 }
 
 test('the Ledger reads its town from the top bar, the picker and the books', async ({ page }) => {
-  test.setTimeout(240_000);
+  // V4B: the season card at the end now takes an ink picture of the valley (about 5 s in software),
+  // and a slow CI host runs every test 1.6 to 1.9 times slower: room for both.
+  test.setTimeout(360_000);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(`/${QUERY}`);
   await waitLive(page);
