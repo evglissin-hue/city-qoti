@@ -46,6 +46,8 @@ export interface QotiHook {
     tiles: number[];
     members: number[];
     source: string;
+    /** The place's draw (PlaceView.draw): 0 for the sim's own places before an evening, above 0 in the mocks. */
+    draw: number;
     /** R3: its supplied pieces by kind (absent before R3A, or the R3 mocks). */
     supplies?: unknown[];
   }[];
