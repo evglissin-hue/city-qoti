@@ -7,9 +7,10 @@
 //   mood x weather (content festivalTuning), drawn by id and day so both laptops agree.
 import { content, festivalTuning, type FestivalTuning } from '@qoti/content';
 import { FESTIVAL, MAP_SIZE } from '../../constants';
-import type { EntityId, Rect, Resident, TickCtx, WorldState } from '../../contracts';
+import type { EntityId, FestivalPlan, Rect, Resident, TickCtx, WorldState } from '../../contracts';
 import { findById } from '../../state/entities';
 import { festivalView } from '../../view/seasons';
+import { callingFestival } from '../callings/api';
 import { dayIndex, hourOf } from '../economy/time';
 import { pay } from '../economy/money';
 import { stowNearest } from '../logistics/stores';
@@ -254,7 +255,24 @@ export function weatherPermille(state: WorldState): number {
 export function attendChance(state: WorldState, r: Resident): number {
   const mood = Math.max(0, Math.min(100, r.mood));
   const m = tuning.moodFloor + Math.trunc(((1000 - tuning.moodFloor) * mood) / 100);
-  return Math.trunc((m * weatherPermille(state)) / 1000);
+  const base = Math.trunc((m * weatherPermille(state)) / 1000);
+  // Pilgrims' Rest draws a fifth more guests (a chance over 1000 is simply certain).
+  return Math.trunc((base * (1000 + (callingFestival(state)?.guestsPermille ?? 0))) / 1000);
+}
+
+/**
+ * The names of the town's specialties on the plan's menu (R3C): a Treat with a Town Book page, put by
+ * in some quantity, is a dish of its own. One name a good, in menu order (R3D's planner shows them).
+ */
+export function specialtyDishes(state: WorldState, plan: FestivalPlan): string[] {
+  const out: string[] = [];
+  if (state.townBook.pages.length === 0) return out;
+  for (const [good, qty] of plan.reserved) {
+    if (qty <= 0) continue;
+    const page = state.townBook.pages.find((p) => p.kind === 'specialty' && p.good === good);
+    if (page) out.push(page.name);
+  }
+  return out;
 }
 
 /** A resident's draw for the day, 0 to 999 (a hash of id and day, no RNG stream). */
