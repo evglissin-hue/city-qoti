@@ -1,4 +1,4 @@
-// R3H: the hands a specialized building's level adds come last (residents/jobs.ts, slotPriority),
+// R3H: the hands a specialized building's level adds come last at rank 6 (residents/jobs.ts, slotPriority),
 // behind food work, builders and porters, so a bigger crew never takes a hand a farm or a site wants. The level 1 crew
 // keeps the ranks it had; a Fishery's added hands are food work and rank as such.
 import { content } from '@qoti/content';
@@ -14,8 +14,8 @@ describe('R3H: the hands a level adds', () => {
     const lodge = def('foresters-lodge');
     const first = lodge.levels!.crew![0]!;
     expect(slotPriority(lodge, first - 1, timberShort)).toBeLessThan(2);
-    expect(slotPriority(lodge, first, timberShort)).toBe(5);
-    expect(slotPriority(lodge, first + 1)).toBe(5);
+    expect(slotPriority(lodge, first, timberShort)).toBe(6);
+    expect(slotPriority(lodge, first + 1)).toBe(6);
     // Food work when food is plain (2) and when it is short (lower) both come first.
     const farm = def('fishery');
     expect(slotPriority(farm, 1)).toBeLessThan(slotPriority(lodge, first, timberShort));
@@ -29,10 +29,10 @@ describe('R3H: the hands a level adds', () => {
 
   it("a Stall's second vendor and a store's added porter wait behind food", () => {
     expect(slotPriority(def('market-stall'), 0)).toBe(1);
-    expect(slotPriority(def('market-stall'), 1)).toBe(5);
+    expect(slotPriority(def('market-stall'), 1)).toBe(6);
     const granary = def('granary');
-    expect(slotPriority(granary, granary.levels!.crew![0]!)).toBe(5);
+    expect(slotPriority(granary, granary.levels!.crew![0]!)).toBe(6);
     const store = def('storehouse');
-    expect(slotPriority(store, store.levels!.crew![0]!, { ...timberShort, haul: true })).toBe(5);
+    expect(slotPriority(store, store.levels!.crew![0]!, { ...timberShort, haul: true })).toBe(6);
   });
 });
