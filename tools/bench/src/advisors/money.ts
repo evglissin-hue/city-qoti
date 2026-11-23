@@ -112,9 +112,15 @@ class Money implements Advisor {
     // R1X tried a 300 floor here and oak sat lean for weeks with 100 to 299 of credit unused.
     if (coins < 120 && room >= 100) {
       p.do('take a loan', [{ t: 'loan.take', coins: Math.min(room, LOAN_COINS) }]);
-    } else if (owed > 0 && coins > 500) {
+    } else if (owed > 0 && coins > 500 + p.winterFood) {
+      // P3A: the coins the plan advisor keeps for the carrier's winter food are not spare: repaying
+      // them in autumn only borrowed them back a few days later (hazel's lanes run: three repays,
+      // ten loans, 162 decisions).
       const loan = w.loans.loans[0]!;
-      const pay = Math.min(Math.ceil(loan.balance / PENNIES_PER_COIN), Math.floor(coins - 350));
+      const pay = Math.min(
+        Math.ceil(loan.balance / PENNIES_PER_COIN),
+        Math.floor(coins - 350 - p.winterFood),
+      );
       if (pay > 0) p.do('repay a loan', [{ t: 'loan.repay', id: loan.id, coins: pay }]);
     }
   }
