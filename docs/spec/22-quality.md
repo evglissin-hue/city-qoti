@@ -153,7 +153,7 @@ In software the two nights cannot be told apart: the map was cheaper on the fina
 | Metric | Budget |
 |---|---|
 | Moving frames [V2 to V4] | no new full-screen pass; the 12 ms GPU and 300 draw budgets above stand |
-| Night with the light map [V2] | a night moving frame costs no more GPU time than the 32-light loop it replaces, on the same scene; redrawing the map under 2 ms, one instanced draw, only when a light changes |
+| Night with the light map [V2] | a night moving frame costs no more GPU time than the 32-light loop it replaces, on the same scene; redrawing the map under 2 ms, one instanced draw, only when a light changes. *R3F*: the lamplighter's round holds it: lamps reached between two frames redraw the map once, each lamp one still frame and no shadow render (`r3f-walk.mjs`: 0.20 to 0.40 ms in software, 573 discs) |
 | Painted green [V2] | trees and meadows within 0.5 M triangles in the village scene; opaque geometry only |
 | Dressing [V3] | 0.3 M triangles and 12 draws, inside the decor detail distance |
 | Endpaper map [V3] | redrawn in a worker in under 150 ms, never on the main thread; no scene draw while it shows in full |

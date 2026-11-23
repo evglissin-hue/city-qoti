@@ -6,6 +6,7 @@ import { palette } from '../palette';
 import { beam } from '../shapes';
 import { SURFACE } from '../surface';
 import { farBox, farCylinder } from './decorFar';
+import { flameBox, lampGlass, restOf } from './lamplight';
 import type { Kit } from './types';
 
 const BLOOMS = [palette.flowerA, palette.flowerB, palette.flowerC, palette.flowerD, palette.blossom];
@@ -35,8 +36,13 @@ export const birdbath: Kit = {
       },
     );
     s.surface(SURFACE.plain);
+    // R3F: resting `dry` (no well in reach), the bowl holds no water, only a stain and a leaf, and
+    // the robin has gone elsewhere.
+    const dry = restOf(opts) === 'dry';
+    const floor = dry ? palette.basinStain : palette.waterShallow;
+    if (dry) s.surface(SURFACE.stone);
     s.levels(
-      () => s.cylinder(0, 0, 0.12, 0.12, 0.3, 0.305, palette.waterShallow, 10),
+      () => s.cylinder(0, 0, 0.12, 0.12, 0.3, 0.305, floor, 10),
       () => {
         for (let i = 0; i < 8; i++) {
           const a0 = (i / 8) * Math.PI * 2;
@@ -45,12 +51,23 @@ export const birdbath: Kit = {
             [0, 0.31, 0],
             [Math.cos(a0) * 0.14, 0.31, Math.sin(a0) * 0.14],
             [Math.cos(a1) * 0.14, 0.31, Math.sin(a1) * 0.14],
-            palette.waterShallow,
+            floor,
             [0, 1, 0],
           );
         }
       },
     );
+    if (dry) {
+      s.nearOnly(() => {
+        s.cylinder(0, 0, 0.095, 0.095, 0.304, 0.307, palette.basinDry, 10);
+        s.surface(SURFACE.plain);
+        s.blob(0.03, 0.308, -0.02, 0.022, 0.006, 0.015, 0xa8703a, 0);
+      });
+      s.surface(SURFACE.leaf);
+      s.blob(-0.03, 0.03, 0.1, 0.05, 0.03, 0.04, shrub, 0);
+      s.surface(SURFACE.plain);
+      return s.build();
+    }
     // A robin on the rim.
     s.levels(
       () => {
@@ -158,7 +175,7 @@ export const ringBench: Kit = {
 export const hangingLantern: Kit = {
   id: 'hanging-lantern',
   kind: 'decor',
-  build: () => {
+  build: (opts) => {
     const s = new ShapeBuilder();
     // A shepherd's crook post with a lantern on a short chain.
     s.cylinder(0, 0, 0.05, 0.045, 0, 0.04, palette.stone, 8);
@@ -167,15 +184,17 @@ export const hangingLantern: Kit = {
     beam(s, [0.06, 0.68, 0], [0.14, 0.66, 0], 0.012, palette.metal);
     beam(s, [0.14, 0.66, 0], [0.14, 0.58, 0], 0.004, palette.metal);
     s.box(0.1, 0.565, -0.04, 0.18, 0.58, 0.04, palette.metal);
-    s.glow(2);
-    s.box(0.108, 0.48, -0.032, 0.172, 0.565, 0.032, palette.lantern);
-    s.glow(0);
+    // R3F: lit every night, unlit for the client to light (`flame: 'off'`), or resting unlit.
+    lampGlass(s, 0.108, 0.48, -0.032, 0.172, 0.565, 0.032, opts, (b, ...a) => void b.box(...a));
     s.box(0.1, 0.47, -0.04, 0.18, 0.485, 0.04, palette.metal);
     s.blob(0.03, 0.04, 0.04, 0.05, 0.03, 0.04, palette.leaf, 0);
     s.blob(0.05, 0.06, 0.05, 0.02, 0.018, 0.02, palette.flowerC, 0);
     return s.build();
   },
-  anchors: () => ({ lights: [[0.14, 0.52, 0]] }),
+  anchors: () => ({
+    lights: [[0.14, 0.52, 0]],
+    flames: [flameBox(0.108, 0.48, -0.032, 0.172, 0.565, 0.032)],
+  }),
 };
 
 export const herbPlanter: Kit = {

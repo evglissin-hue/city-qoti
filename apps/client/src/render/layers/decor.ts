@@ -1,4 +1,6 @@
-import { calendar } from '@qoti/sim';
+import { artKitId, kitById } from '@qoti/art';
+import { content } from '@qoti/content';
+import { calendar, type EntityId, type RestKind, type SuppliesView } from '@qoti/sim';
 import type { BufferGeometry } from 'three';
 import { decorGeometry, decorMatrix, isFruitDecor } from '../kitGeometry';
 import { InstanceField, SMALL_RADIUS, type FieldKind } from '../lod';
@@ -59,6 +61,65 @@ function decorKind(def: string, thin = 1, cache?: StepCache<BufferGeometry>): Fi
   return { high, low, small, height: Math.max(0.5, top) };
 }
 
+// --- R3F: resting pieces and the town's lamps ---------------------------------------------------
+
+/**
+ * R3F: how a supplied piece is drawn: as itself (null), resting (`19-evenings.md`, Supplies: a cold
+ * fire, a bare table, faded cloth, a dry basin, an unlit lamp), or, for a lamp the town lights and
+ * not resting, with its glass unlit (`off`): the lights layer lights it as the lamplighter reaches
+ * it, so the lamp's own geometry never changes through the evening.
+ */
+export type DecorLook = RestKind | 'off' | null;
+
+/** The look a piece takes tonight, from its def and its rest in the supplies view. */
+export function decorLook(defId: string, rest: RestKind | undefined): DecorLook {
+  const def = content.decorById.get(defId);
+  const supply = def?.supply;
+  if (!supply) return null;
+  // A piece rests only as its own kind does (a lamp is never "faded").
+  if (rest && rest === supply.rests) return rest;
+  return supply.kind === 'nightly' ? 'off' : null;
+}
+
+/** The field key of a def in a look: the def alone when drawn as itself. */
+export function decorKey(defId: string, look: DecorLook): string {
+  return look ? `${defId}#${look}` : defId;
+}
+
+/** Rests by piece id from a supplies view (none without one). */
+export function restsOf(view: SuppliesView | null): Map<EntityId, RestKind> {
+  return new Map((view?.resting ?? []).map((r) => [r.id, r.kind]));
+}
+
+/** A def built in a look (its kit with `rest`, or `flame: 'off'`), at a level, cached. */
+const lookCache = new Map<string, BufferGeometry>();
+function lookGeometry(defId: string, look: Exclude<DecorLook, null>, lod: 'high' | 'low'): BufferGeometry {
+  const key = `${defId}#${look}:${lod}`;
+  let g = lookCache.get(key);
+  if (!g) {
+    const def = content.decorById.get(defId);
+    const kit = def ? kitById.get(artKitId(def.art)) : undefined;
+    if (!kit) return decorGeometry(defId, lod);
+    const params = { ...(def?.art.params ?? {}), ...(look === 'off' ? { flame: 'off' } : { rest: look }) };
+    g = kit.build(lod === 'high' ? { params } : { params, lod });
+    lookCache.set(key, g);
+  }
+  return g;
+}
+
+/** A piece in a look: its levels; a town lamp never shrinks away far off (its glass is lit there). */
+function lookKind(defId: string, look: Exclude<DecorLook, null>): FieldKind {
+  const high = lookGeometry(defId, look, 'high');
+  const low = lookGeometry(defId, look, 'low');
+  if (!high.boundingSphere) high.computeBoundingSphere();
+  if (!high.boundingBox) high.computeBoundingBox();
+  const radius = high.boundingSphere?.radius ?? 1;
+  const top = high.boundingBox?.max.y ?? 1;
+  const lamp = content.decorById.get(defId)?.supply?.kind === 'nightly';
+  const small = !lamp && radius < SMALL_RADIUS && !glows(high) && !hasFarLevel(high, low);
+  return { high, low, small, height: Math.max(0.5, top) };
+}
+
 /**
  * Decor: one instanced mesh per def and level, filled from the chunks in view (V1D, lod.ts). Within
  * the preset's decor distance a piece draws at full detail, beyond it at its far level. Small props
@@ -72,8 +133,16 @@ export function decorLayer(opts: DecorLayerOptions = {}): RenderLayer {
   /** V2X: each orchard def's near geometry by thinning step, and the step on screen. */
   const fruit = new Map<string, StepCache<BufferGeometry>>();
   let onScreen = 1;
+  /** R3F: the rests the field was last built with, as a key, to rebuild on a change only. */
+  let restKey = '';
+  let seenView: SuppliesView | null | undefined;
+  const keyOf = (rests: Map<EntityId, RestKind>): string =>
+    [...rests].map(([id, k]) => `${id}:${k}`).join(',');
 
-  function kindFor(def: string): FieldKind {
+  function kindFor(key: string): FieldKind {
+    const hash = key.indexOf('#');
+    if (hash >= 0) return lookKind(key.slice(0, hash), key.slice(hash + 1) as Exclude<DecorLook, null>);
+    const def = key;
     if (!isFruitDecor(def)) return decorKind(def);
     let cache = fruit.get(def);
     if (!cache) fruit.set(def, (cache = new StepCache((t) => decorGeometry(def, 'high', t))));
@@ -83,7 +152,15 @@ export function decorLayer(opts: DecorLayerOptions = {}): RenderLayer {
   function rebuild(): void {
     if (!ctx || !field) return;
     const m = ctx.mirror;
-    field.set([...m.decor.values()].map((d) => ({ key: d.def, matrix: decorMatrix(m, d.fx, d.fz, d.rot) })));
+    seenView = m.supplies.value;
+    restKey = keyOf(restsOf(seenView));
+    const rests = restsOf(seenView);
+    field.set(
+      [...m.decor.values()].map((d) => ({
+        key: decorKey(d.def, decorLook(d.def, rests.get(d.id))),
+        matrix: decorMatrix(m, d.fx, d.fz, d.rot),
+      })),
+    );
     ctx.invalidate();
   }
 
@@ -102,6 +179,12 @@ export function decorLayer(opts: DecorLayerOptions = {}): RenderLayer {
     },
     frame() {
       if (!field || !ctx?.env) return false;
+      // R3F: a new supplies view (the settling, a priority, a well built) rebuilds the field only
+      // when the rests differ, so the lamps' nightly updates cost nothing here.
+      if (ctx.mirror.supplies.value !== seenView) {
+        seenView = ctx.mirror.supplies.value;
+        if (keyOf(restsOf(seenView)) !== restKey) rebuild();
+      }
       field.setDetail(ctx.env.detailDistance);
       // V2X: the orchard's thinning, a static-layer event that happens when the step changes.
       const step = fruitStep(ctx.env.shown.season, ctx.env.shown.day, floor);
