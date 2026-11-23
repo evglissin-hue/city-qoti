@@ -11,11 +11,11 @@ import { mergeFlat } from './vehicles';
 /** The pennants' cloth: the palette's sunny yellow, which reads on grass, stone, thatch, tile and slate. */
 export const LEVEL_PENNANT = palette.flowerB;
 /** The post's height, a little over the low roofs; the top pennant hangs from just under it. */
-export const POLE_HEIGHT = 2.05;
+export const POLE_HEIGHT = 2.5;
 /** A pennant's length out from the post and its height; the gap between two. */
-export const PENNANT_LEN = 0.56;
-export const PENNANT_H = 0.27;
-export const PENNANT_GAP = 0.06;
+export const PENNANT_LEN = 0.7;
+export const PENNANT_H = 0.34;
+export const PENNANT_GAP = 0.07;
 /** The post's half width. */
 export const POLE_HALF = 0.03;
 
