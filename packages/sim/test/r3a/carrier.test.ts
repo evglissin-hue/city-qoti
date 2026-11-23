@@ -9,12 +9,14 @@ import { carrierDay } from '../../src/systems/carrier';
 import { placesFloor } from '../../src/systems/carrier/places';
 import { someoneSells } from '../../src/systems/carrier/terms';
 import { SHELF_GOODS } from '../../src/systems/market/balances';
+import { placeIndex } from '../../src/systems/places';
 import { bumpPlaceInputs } from '../../src/systems/places/inputs';
 import { placesWant } from '../../src/systems/supplies/want';
 import { settle } from '../../src/systems/supplies/settle';
 import { tickAt } from '../../src/systems/supplies/time';
 import { createTickCtx } from '../../src/turn';
 import { balancesView } from '../../src/view/balances';
+import { placeSupplies, suppliesView } from '../../src/view/supplies';
 import { villageFixture } from '../fixtures/village';
 import { decor } from '../hearth/helpers';
 import { run } from '../helpers';
@@ -124,6 +126,30 @@ describe('the carrier buys candles for places', () => {
     expect(stored(CANDLES)).toBe(0);
     // Spent: the next night draws nothing under the floor.
     expect(s.supplies.carried?.units[CANDLES]).toBe(0);
+  });
+
+  it('never borrows for places: a town in debt buys none, and its lanterns rest where the card says so', () => {
+    const { s, lanterns, visit, settleDay } = setup();
+    lanterns(4);
+    const bench = decor(s, 'bench', 53, 41);
+    bumpPlaceInputs(s);
+    run(s, { t: 'carrier.setRule', family: 'wares', rule: 'essentials', sell: false, places: true });
+    // Inside the County Bank's credit line: places rest before the town borrows for them.
+    s.economy.treasury = -50_000;
+    const tab = s.carrier.tab;
+    visit(2);
+    expect(bought(s, CANDLES)).toBe(0);
+    expect(s.carrier.tab).toBe(tab);
+    expect(s.supplies.carried?.units[CANDLES] ?? 0).toBe(0);
+    settleDay(2);
+    expect(s.supplies.lamps).toHaveLength(0);
+    // What the player reads: the place's lanterns resting on its card, and every lamp unlit tonight.
+    const place = placeIndex(s).places.find((p) => p.members.includes(bench))!;
+    const lamps = placeSupplies(s, place)!.find((x) => x.kind === 'nightly')!;
+    expect(lamps.pieces).toBeGreaterThan(0);
+    expect(lamps.resting).toBe(lamps.pieces);
+    expect(lamps.wants).toBeGreaterThan(0);
+    expect(suppliesView(s).resting.filter((r) => r.kind === 'unlit')).toHaveLength(4);
   });
 
   it('puts nothing on the tab: a treasury at zero buys nothing for places', () => {
