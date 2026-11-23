@@ -157,7 +157,7 @@ test.describe.serial('one seat, one page', () => {
     expect(await state(page)).not.toBeNull();
   });
 
-  test('guards: a tool in hand, a card open', async () => {
+  test('guards: a tool in hand, a card open, photo mode', async () => {
     await fresh(page);
     // A tool in hand.
     await page.evaluate(() =>
@@ -181,8 +181,18 @@ test.describe.serial('one seat, one page', () => {
     await page.waitForTimeout(600);
     expect(await state(page)).toBeNull();
     expect(await due(page)).toBe(false);
+    // Photo mode (V4B) in the same step as the card goes away: the camera is the player's to frame.
+    await page.evaluate(() => {
+      const q = window.__qoti as unknown as { setUi(n: string, v: unknown): void };
+      q.setUi('photo', true);
+      q.setUi('settingsOpen', false);
+    });
+    await skip(page, 90_000);
+    await page.waitForTimeout(600);
+    expect(await state(page)).toBeNull();
+    expect(await due(page)).toBe(false);
     await page.evaluate(() =>
-      (window.__qoti as unknown as { setUi(n: string, v: unknown): void }).setUi('settingsOpen', false),
+      (window.__qoti as unknown as { setUi(n: string, v: unknown): void }).setUi('photo', false),
     );
     // Cleared guards: it does start (proves the guards were what held it back).
     await skip(page, 1_000);

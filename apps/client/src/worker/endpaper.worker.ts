@@ -7,7 +7,7 @@
 import alegreyaItalic from '@fontsource/alegreya/files/alegreya-latin-400-italic.woff2?url';
 import alegreyaBold from '@fontsource/alegreya/files/alegreya-latin-700-normal.woff2?url';
 import type { EndpaperReply, EndpaperRequest } from '../render/endpaper';
-import { drawMap, type DrawOpts } from './endpaperDraw';
+import { drawMap, nightPixels, nightSize, type DrawOpts } from './endpaperDraw';
 
 interface WorkerScope {
   onmessage: ((e: MessageEvent<EndpaperRequest>) => void) | null;
@@ -45,6 +45,16 @@ export function drawEndpaper(req: EndpaperRequest, opts: DrawOpts = {}): ImageBi
   if (!g) return null;
   drawMap(g, req.input, req.size, opts);
   return canvas.transferToImageBitmap();
+}
+
+/**
+ * V4B: the night layer (lamplight pools) for a request, as a bitmap made straight from its pixels:
+ * no canvas, so it never waits on the map's drawing. Null where `createImageBitmap` is missing.
+ */
+export async function drawEndpaperNight(req: EndpaperRequest): Promise<ImageBitmap | null> {
+  if (typeof createImageBitmap === 'undefined' || typeof ImageData === 'undefined') return null;
+  const n = nightSize(req.size);
+  return createImageBitmap(new ImageData(nightPixels(req.input, n), n, n));
 }
 
 const warmed = new Set<string>();
@@ -87,6 +97,13 @@ scope.onmessage = async (e) => {
   warm(req);
   const t0 = performance.now();
   const bitmap = drawEndpaper(req);
-  const reply: EndpaperReply = { type: 'drawn', id: req.id, bitmap, ms: performance.now() - t0 };
-  scope.postMessage(reply, bitmap ? [bitmap] : []);
+  // V4B: the night layer beside it, inside the same budget (`ms` counts both).
+  const t1 = performance.now();
+  const night = bitmap ? await drawEndpaperNight(req) : null;
+  const t2 = performance.now();
+  const reply: EndpaperReply = { type: 'drawn', id: req.id, bitmap, ms: t2 - t0, night, nightMs: t2 - t1 };
+  scope.postMessage(
+    reply,
+    [bitmap, night].filter((b): b is ImageBitmap => b !== null),
+  );
 };
