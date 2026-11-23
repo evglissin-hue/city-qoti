@@ -1,5 +1,8 @@
-# Every pull request and every push to main: install, typecheck, lint, unit tests, build,
-# end-to-end (Chromium) and bench. The bench fails on sim and worldgen budgets.
+# Every pull request and every push to main. Two kinds of job:
+#   check: install, typecheck, lint, unit tests, build and bench. The bench fails on sim and
+#   worldgen budgets.
+#   e2e (n of 3): the end-to-end suite (Chromium) in three parallel shards.
+# A pull request is green when check and all three e2e jobs pass.
 name: CI
 
 on:
@@ -18,13 +21,8 @@ jobs:
   check:
     # Pinned: ubuntu-latest began moving to 26.04, where Playwright's --with-deps cannot find its font packages (fonts-unifont, fonts-freefont-ttf) and the Install Chromium step fails.
     runs-on: ubuntu-24.04
-    # I2 added two-browser specs (plans, requests, moving online): the e2e step alone runs about
-    # 20 minutes on a runner, after 8 minutes installing Chromium.
-    # R1X: with R1's specs and V2.0's Measure this laptop (about ten minutes in software) the e2e
-    # step runs about 55 minutes and the unit tests 8, so 60 cut the run off in Measure, before
-    # the bench.
-    # R3 and V4: runs with the wave's specs reach 90 minutes on a slow runner and were cut off.
-    timeout-minutes: 120
+    # The unit tests run 8 to 13 minutes and the bench 2 to 3, depending on the runner.
+    timeout-minutes: 45
     env:
       WRANGLER_SEND_METRICS: 'false'
     steps:
@@ -50,24 +48,8 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Install Chromium
-        run: npx playwright install --with-deps chromium
-
-      - name: End to end
-        run: npm run e2e
-
       - name: Bench
         run: npm run bench
-
-      - name: Upload Playwright report
-        if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v5
-        with:
-          name: playwright-report
-          path: |
-            apps/client/playwright-report
-            apps/client/test-results
-          retention-days: 14
 
       - name: Upload bench report
         if: ${{ !cancelled() }}
@@ -76,4 +58,44 @@ jobs:
           name: bench-report
           path: bench-report.json
           if-no-files-found: ignore
+          retention-days: 14
+
+  e2e:
+    name: e2e (${{ matrix.shard }} of 3)
+    runs-on: ubuntu-24.04
+    # R3 and V4: one serial run of the suite took 50 minutes on a fast runner and 90 to 100 on a
+    # slow one (Measure this laptop alone 11 to 27), which cut runs off and pushed slow shots past
+    # their timeouts. Three shards keep each job well inside the limit on any runner.
+    timeout-minutes: 75
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    env:
+      WRANGLER_SEND_METRICS: 'false'
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: End to end
+        run: npm run e2e -- --shard=${{ matrix.shard }}/3
+
+      - name: Upload Playwright report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v5
+        with:
+          name: playwright-report-${{ matrix.shard }}
+          path: |
+            apps/client/playwright-report
+            apps/client/test-results
           retention-days: 14

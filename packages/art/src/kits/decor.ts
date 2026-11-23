@@ -5,6 +5,7 @@ import { mixHex, seeded, ShapeBuilder, vary } from '../geometry';
 import { palette } from '../palette';
 import { SURFACE } from '../surface';
 import { farBox, farCylinder } from './decorFar';
+import { flameBox, lampGlass } from './lamplight';
 import { CORE_SHADE, limb, toward, trunkInto } from './trees';
 import type { Kit, KitBuildOptions } from './types';
 
@@ -380,12 +381,9 @@ export const lantern: Kit = {
       () => farCylinder(s, 0, 0, 0.032, 0.025, 0, 0.5, palette.metal, 4, Math.PI / 4, false),
     );
     s.surface(SURFACE.plain);
-    s.glow(2);
-    s.levels(
-      () => s.box(-0.042, 0.51, -0.042, 0.042, 0.6, 0.042, palette.lantern),
-      () => farBox(s, -0.042, 0.51, -0.042, 0.042, 0.6, 0.042, palette.lantern, 'bt'),
-    );
-    s.glow(0);
+    // R3F: the glass lit every night (today's), unlit for a client that lights it as the
+    // lamplighter reaches it (`flame: 'off'`), or smoked and dark resting unlit.
+    lampGlass(s, -0.042, 0.51, -0.042, 0.042, 0.6, 0.042, opts, (b, ...a) => farBox(b, ...a, 'bt'));
     s.surface(SURFACE.wroughtIron);
     s.levels(
       () => s.cylinder(0, 0, 0.075, 0, 0.6, 0.67, palette.metal, 4, Math.PI / 4),
@@ -395,7 +393,7 @@ export const lantern: Kit = {
     s.blob(0, 0.68, 0, 0.012, 0.012, 0.012, palette.mustard, 0);
     return s.build();
   },
-  anchors: () => ({ lights: [[0, 0.555, 0]] }),
+  anchors: () => ({ lights: [[0, 0.555, 0]], flames: [flameBox(-0.042, 0.51, -0.042, 0.042, 0.6, 0.042)] }),
 };
 
 export const lowWall: Kit = {

@@ -78,6 +78,11 @@ export {
   extraGeometry,
   HAT_KINDS,
   isSpecies,
+  POLE_CARRY,
+  POLE_GRIP,
+  POLE_LIFT,
+  POLE_REACH,
+  POLE_TIP,
   residentGeometry,
   residentLook,
   SPECIES_ART,
@@ -164,3 +169,15 @@ export {
 } from './surface';
 export { BONFIRE_FLAME, circusGeometry, FESTIVAL_COLORS, festoonPosts, STALL_COUNTER } from './kits/festival';
 export { fitModules, moduleAnchors } from './kits/modules';
+export {
+  BRAZIER_FIRE,
+  clothOf,
+  FADE,
+  faded,
+  LAMP_LIT_GLOW,
+  LAMP_LIT_GROW,
+  lampFlameGeometry,
+  restOf,
+  type FlameBox,
+  type PieceRest,
+} from './kits/lamplight';

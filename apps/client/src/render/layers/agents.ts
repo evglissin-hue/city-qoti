@@ -13,6 +13,11 @@ import {
   EXTRA_KINDS,
   extraGeometry,
   MOTION,
+  POLE_CARRY,
+  POLE_GRIP,
+  POLE_LIFT,
+  POLE_REACH,
+  POLE_TIP,
   residentGeometry,
   residentLook,
   SPECIES_IDS,
@@ -181,6 +186,29 @@ interface Track {
   sx: number;
   sz: number;
   stag: number;
+  /** R3F: the lamplighter's pole, 0 carried to 1 raised to a lamp, eased. */
+  reach: number;
+}
+
+/** R3F: the most lamplighters' lights drawn at once. */
+const TIPS_MAX = 32;
+/** R3F: how fast the pole rises to a lamp and comes down (per second, eased). */
+const POLE_EASE = 7;
+
+/** R3F: whether the lamplighter's pole carries its light at an hour (his round, through the night). */
+export function poleLit(hour: number): boolean {
+  return hour >= 17 || hour < 7.5;
+}
+
+/**
+ * R3F: the lamplighter's pole in his figure's frame for a reach (0 carried, tipped forward as he
+ * walks; 1 raised to the lamp): the grip rises a little and the pole stands nearer upright.
+ */
+export function polePose(reach: number, out = new Matrix4()): Matrix4 {
+  const r = Math.min(1, Math.max(0, reach));
+  out.makeRotationX(POLE_CARRY + (POLE_REACH - POLE_CARRY) * r);
+  out.setPosition(POLE_GRIP[0], POLE_GRIP[1] + POLE_LIFT * r, POLE_GRIP[2]);
+  return out;
 }
 
 /** A growable InstancedMesh with the resident instance attributes. */
@@ -343,6 +371,14 @@ export function agentsLayer(): AgentsLayer {
   });
   let breath: InstancedMesh | null = null;
   let breathCount = 0;
+  // R3F: the light at the tip of each lamplighter's pole (unlit, so it reads as a flame by day and
+  // by night alike, and blooms after dark).
+  const tipGeometry = new IcosahedronGeometry(0.021, 1);
+  const tipMaterial = new MeshBasicMaterial({ color: new Color(0xffc870).multiplyScalar(1.5) });
+  let tips: InstancedMesh | null = null;
+  let tipCount = 0;
+  const poleLocal = new Matrix4();
+  const tipAt = new Vector3();
   const breathLocal = new Matrix4();
   const breathAt = new Vector3();
   const breathQ = new Quaternion();
@@ -531,6 +567,32 @@ export function agentsLayer(): AgentsLayer {
     breathCount++;
   }
 
+  /**
+   * R3F: the lamplighter's pole for a figure (its matrix `fm`): carried tipped forward as he walks
+   * his round, raised to the lamp while he lights one (`AgentAnim.lightLamp`), with its small light
+   * at the tip from dusk. One extra part in the resident pools, and one tiny unlit mesh for the
+   * lights.
+   */
+  function pushPole(fm: Matrix4, t: Track, lighting: boolean, dt: number, ky: number): void {
+    if (!ctx) return;
+    t.reach += ((lighting ? 1 : 0) - t.reach) * (1 - Math.exp(-dt * POLE_EASE));
+    polePose(t.reach, poleLocal).premultiply(fm);
+    pool('extra:pole', () => extraGeometry('pole')).push(poleLocal, WHITE, WHITE, WHITE, 0, 0, 0);
+    if (!poleLit(ctx.env?.shown.hour ?? 12) || tipCount >= TIPS_MAX) return;
+    if (!tips) {
+      tips = new InstancedMesh(tipGeometry, tipMaterial, TIPS_MAX);
+      tips.instanceMatrix.setUsage(DynamicDrawUsage);
+      tips.frustumCulled = false;
+      tips.castShadow = false;
+      tips.userData.noCast = true;
+      ctx.scene.add(tips);
+    }
+    tipAt.set(POLE_TIP[0], POLE_TIP[1], POLE_TIP[2]).applyMatrix4(poleLocal);
+    breathLocal.compose(tipAt, breathQ.identity(), breathS.setScalar(ky));
+    breathLocal.toArray(tips.instanceMatrix.array as Float32Array, tipCount * 16);
+    tipCount++;
+  }
+
   function pushVisible(id: number, x: number, y: number, z: number, k: number): void {
     if ((visibleCount + 1) * 5 > visible.length) {
       const v = new Float32Array(visible.length * 2);
@@ -717,6 +779,7 @@ export function agentsLayer(): AgentsLayer {
     for (const pl of bundles.values()) pl.n = 0;
     shadowCount = 0;
     breathCount = 0;
+    tipCount = 0;
     visibleCount = 0;
     drawn.full = drawn.simple = drawn.dot = 0;
     bubbles?.begin(clock);
@@ -783,6 +846,7 @@ export function agentsLayer(): AgentsLayer {
           sx: 0,
           sz: 0,
           stag: 0,
+          reach: 0,
         };
         tracks.set(id, t);
       }
@@ -1039,6 +1103,8 @@ export function agentsLayer(): AgentsLayer {
         if (slingers.has(id))
           pool('extra:sling', () => extraGeometry('sling')).push(m, look.sling, WHITE, WHITE, 0, 0, 0);
       } else drawn.simple++;
+      // R3F: the lamplighter carries his pole near and far, so his light reads from the default view.
+      if (flags & AgentFlags.lamplighter) pushPole(m, t, rawAnim === AgentAnim.lightLamp, dt, ky);
       if (carry > 0) {
         local.makeTranslation(0, 0.1, 0.085);
         local.premultiply(m);
@@ -1068,6 +1134,11 @@ export function agentsLayer(): AgentsLayer {
       breath.count = breathCount;
       breath.instanceMatrix.needsUpdate = true;
     }
+    if (tips) {
+      tips.count = tipCount;
+      tips.visible = tipCount > 0;
+      tips.instanceMatrix.needsUpdate = true;
+    }
     if (shadows) {
       shadows.count = shadowCount;
       shadows.instanceMatrix.clearUpdateRanges();
@@ -1094,6 +1165,8 @@ export function agentsLayer(): AgentsLayer {
     id: 'agents',
     motion: 'moving',
     drawn,
+    // R3F: a lamplighter's light after dark passes the bloom's threshold, so it keeps its halo at rest.
+    glowing: () => tipCount > 0 && (ctx?.env?.night.value ?? 0) > 0.3,
     init(c) {
       ctx = c;
       if (c.env) bindResidentMaterial(material, kitUniforms(c.env), kitLamp(c.env));
@@ -1168,6 +1241,12 @@ export function agentsLayer(): AgentsLayer {
       }
       breathGeometry.dispose();
       breathMaterial.dispose();
+      if (tips) {
+        ctx?.scene.remove(tips);
+        tips.dispose();
+      }
+      tipGeometry.dispose();
+      tipMaterial.dispose();
       shadowTex?.dispose();
       material.dispose();
     },
