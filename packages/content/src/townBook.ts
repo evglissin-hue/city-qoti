@@ -1,4 +1,4 @@
-import type { CustomDef, SpecialtyDef, TownBookTuning } from './types';
+import type { ChronicleTemplate, CustomDef, SpecialtyDef, TownBookTuning } from './types';
 
 // The Town Book (docs/spec/19-evenings.md, The Town Book), written in R3.0. Two kinds of page: a
 // specialty (a Treat sold at a place of one pattern, evening after evening) and a custom (a habit
@@ -246,7 +246,7 @@ export const buntingSeason: CustomDef = {
   supply: 'season',
   name: 'the Bunting Season',
   leaning: 'gardens',
-  text: 'Every season, before anyone says a word, the bunting goes up. {place} is dressed for a party that has not been announced yet.',
+  text: 'Every season, before anyone says a word, the bunting goes up, and {place} is dressed for a party that has not been announced yet.',
   hint: 'Keep the festival cloth in good order, season after season, and the town may start to expect it.',
 };
 
@@ -256,7 +256,7 @@ export const eveningWalk: CustomDef = {
   pattern: 'lantern-walk',
   name: 'the Evening Walk',
   leaning: 'pilgrimage',
-  text: '{day} evening on the lantern walk has become a thing folk do. Nobody planned it. Everyone dresses a little better for it.',
+  text: 'On {day}, a turn along the lantern walk has become a thing folk do. Nobody planned it. Everyone dresses a little better for it.',
   hint: 'A lit path, a particular evening, and the same folk turning up again and again.',
 };
 
@@ -266,7 +266,7 @@ export const greenEvenings: CustomDef = {
   pattern: 'village-green',
   name: 'Evenings on the Green',
   leaning: 'gardens',
-  text: 'Every {day} the green fills up with rugs and baskets and opinions. It is called a picnic, and it is taken seriously.',
+  text: 'On {day}, the green fills up with rugs and baskets and opinions. It is called a picnic, and it is taken seriously.',
   hint: 'An open lawn with a full evening crowd, on the same day, again and again.',
 };
 
@@ -296,7 +296,7 @@ export const marketNight: CustomDef = {
   pattern: 'market-cross',
   name: 'Market Night',
   leaning: 'industry',
-  text: '{day} is market night at the cross, and it was never decided. The stalls simply arrived one week and neglected to leave.',
+  text: 'On {day}, the cross turns into a market, and it was never decided. The stalls simply arrived one week and neglected to leave.',
   hint: 'A busy crossing, a crowd of the same size on the same day, week after week.',
 };
 
@@ -316,7 +316,7 @@ export const pondEvening: CustomDef = {
   pattern: 'pond-garden',
   name: 'the Pond Evening',
   leaning: 'gardens',
-  text: '{day} is the pond evening. The ducks are not consulted and have started to hold opinions about it.',
+  text: 'On {day}, the pond is where everyone ends up. The ducks were not consulted and have started to hold opinions about it.',
   hint: 'A planted pond with a seat beside it, and a regular crowd on one evening of the week.',
 };
 
@@ -336,7 +336,7 @@ export const squareNight: CustomDef = {
   pattern: 'small-square',
   name: 'Square Night',
   leaning: 'industry',
-  text: '{day} night, the square. Folk arrive for no reason in particular and leave with a reason, usually a pastry.',
+  text: 'On {day}, the square fills up for no reason in particular. Folk leave with a reason, usually a pastry.',
   hint: 'A paved square, an unplanned crowd, and the same night coming round again.',
 };
 
@@ -346,7 +346,7 @@ export const tavernNight: CustomDef = {
   host: 'tavern',
   name: 'Tavern Night',
   leaning: 'industry',
-  text: '{day} is tavern night. The tavern did not ask for this, and has ordered more chairs.',
+  text: 'On {day}, the tavern fills to the rafters. It did not ask for this, and has ordered more chairs.',
   hint: 'A tavern that fills on the same night of the week, season after season.',
 };
 
@@ -368,4 +368,40 @@ export const winterFires: CustomDef = {
   leaning: 'pilgrimage',
   text: 'Come the cold months, the fires are lit every evening and the town gathers round. The firewood pile is watched like a pot.',
   hint: 'Keep the fires fed with firewood through the cold months, evening after evening.',
+};
+
+// --- Words the sim fills in -----------------------------------------------------------------------
+
+/**
+ * The days of a season in the town's voice (one per day of the season, the first to the sixth), filled
+ * into a custom's text as {day}. Days of a season have no names, so a custom falls on "the third
+ * evening of each season".
+ */
+export const townBookPhrases = {
+  days: [
+    'the first evening of each season',
+    'the second evening of each season',
+    'the third evening of each season',
+    'the fourth evening of each season',
+    'the fifth evening of each season',
+    'the sixth evening of each season',
+  ],
+  /** A custom with no fixed day (never written by the sim; a safe fallback for {day}). */
+  anyDay: 'one evening or another',
+  /** {place} when a page's place has no row to name it. */
+  anyPlace: 'the town',
+  /** The letter for a page ({page}, {place}, {text}). */
+  page: 'The Town Book has a new page, and the ink is barely dry: "{page}", at {place}. {text}',
+  /** A specialty's name when its own will not do (a repeat, or no street or family to fill): {good}, {place}. */
+  at: '{good} at {place}',
+};
+
+/** The Chronicle's line for a page found ({page}, {place}, {text}, {credit}). */
+export const townBookPage: ChronicleTemplate = {
+  kind: 'town-book-page',
+  text: [
+    'A new page in the Town Book: {page}, at {place}. {text} Credit to {credit}.',
+    'The Town Book has a page for {page} now, at {place}. {text} Credit to {credit}.',
+    'Into the Town Book goes {page}, at {place}. {text} Credit to {credit}.',
+  ],
 };
