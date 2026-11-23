@@ -145,8 +145,10 @@ test.describe.serial('one seat, one page', () => {
   });
 
   test('88 s alone does not start one, two more seconds do', async () => {
-    // `fresh` presses a key: the idle count starts over, then a margin is left.
     await fresh(page);
+    // `fresh` lets 1.5 s of real time pass after its key, and real time counts as idle too: a key
+    // right here starts the count over, then a margin is left.
+    await page.keyboard.press('Shift');
     await skip(page, 88_000);
     await page.waitForTimeout(600);
     expect(await state(page)).toBeNull();
