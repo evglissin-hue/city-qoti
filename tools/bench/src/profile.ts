@@ -9,9 +9,9 @@ export const PROFILES: readonly Profile[] = ['tuned', 'newcomer'];
 /**
  * Whether `autoplay` reads `AutoplayOptions.newcomer` yet. P3A adds that on `main`; until it merges,
  * `autoplay` ignores the option and a newcomer run plays as the tuned player. The master flips this
- * to true when P3A lands, and the report headers stop saying "pending".
+ * to true when P3A lands (R3X did, on merging main), and the report headers stop saying "pending".
  */
-export const NEWCOMER_LIVE = false;
+export const NEWCOMER_LIVE = true;
 
 /** The autoplay options for a profile. */
 export function profileOptions(p: Profile): AutoplayOptions {
