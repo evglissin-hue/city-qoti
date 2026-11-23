@@ -147,7 +147,7 @@ if (card) {
 } else console.log('no season card in this valley');
 
 // 5. The Chronicle with an ink snapshot (the flow C5F built, drawn as a new entry would be).
-const picked = await page.evaluate(async (c) => {
+const picked = await page.evaluate(async () => {
   const q = window.__qoti;
   const r = q.renderer();
   const ui = q.ui();
@@ -166,7 +166,7 @@ const picked = await page.evaluate(async (c) => {
   ui.snapshots.value = next;
   q.openPanel('chronicle');
   return pick.length;
-}, info.center);
+});
 if (picked === 0) console.log('no Chronicle entry carries its own snapshot in this valley: no pictures');
 else await page.waitForSelector('.gazette-picture img', { timeout: 240000 });
 await page.waitForTimeout(800);
