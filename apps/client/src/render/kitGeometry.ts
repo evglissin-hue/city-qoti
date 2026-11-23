@@ -5,6 +5,7 @@ import {
   isRowKit,
   kitById,
   mergeFlat,
+  withLevelPole,
   fitModules,
   ShapeBuilder,
   upgradeScaffold,
@@ -180,6 +181,8 @@ export function buildingParams(b: BuildingView): Record<string, number | string 
   if (trade) Object.assign(p, businessParams(artKitId(trade.look), trade.makes, b.level, trade.look.params));
   // R3H: a specialized building above level 1 draws its level (level 1 keeps its keys and geometry).
   if (def?.levels && b.level !== undefined && b.level > 1) p.level = b.level;
+  // R3X: and carries its level pole, one pennant a level (level 1 draws one).
+  if (def?.levels) p.pole = Math.min(3, Math.max(1, b.level ?? 1));
   if (def?.tags?.includes('plot')) p.soil = plotSoil(b);
   if (rowAt && def && isRowKit(artKitId(def.art))) Object.assign(p, rowAt(b));
   if (wallAt && def && WALL_KITS.has(artKitId(def.art))) Object.assign(p, wallAt(b));
@@ -276,6 +279,12 @@ export function buildingVariantGeometry(b: BuildingView, lod: 'high' | 'low' = '
   }
   const opts = { ...buildingKitOptions(b), lod };
   let g = kit.build(opts);
+  // R3X: the level pole stands beside it (the kit's own geometry is left as it was).
+  if (def.levels) {
+    const poled = withLevelPole(g, def.size, def.entrance, Number(opts.params.pole ?? 1), lod);
+    g.dispose();
+    g = poled;
+  }
   // C5E: modules fitted to the kit as built (the wall kits draw their own).
   if (b.modules?.length && !WALL_KITS.has(artKitId(def.art))) {
     const fitted = fitModules(g, opts);
