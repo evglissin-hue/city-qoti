@@ -7,8 +7,8 @@
 // - firewood: from autumn, when Fuel stands under the winter mark and the fires want to draw, one more
 //   forester's lodge (the land advisor already keeps lodges for timber; this only adds one for the fires);
 // - the carrier for places: `carrier.setRule` with `places` for Fuel and Wares, on while the treasury
-//   is comfortably above its reserve and the town owes nothing and a family's pieces rest or would,
-//   off when the town owes or the treasury falls; the family's rule and sell stay as they stand, and a
+//   is comfortably above its reserve and a family's pieces rest or would (R3X: also while the town owes,
+//   over the cushion with steady income), off when the treasury falls or lean times near; the family's rule and sell stay as they stand, and a
 //   family flips at most once a day;
 // - a master's business kept fit for level 3: its front tile cobbled to a street when the levels pass
 //   wants one there (the crew has no lever of the Ledger's: a short crew is noted, nothing more).
@@ -20,6 +20,8 @@ import { content } from '@qoti/content';
 import {
   calendar,
   entranceTiles,
+  expenses,
+  income,
   habitatAt,
   levelOf,
   loansOwed,
@@ -48,6 +50,16 @@ export const PLACES_ON_COINS = REPAY_RESERVE + 150;
 /** Coins under which the carrier stops buying for places. */
 export const PLACES_OFF_COINS = REPAY_RESERVE;
 /**
+ * R3X: while the town owes the County Bank (a Village always does: it borrows to grow), the places switch
+ * comes on over the treasury's cushion of 150 coins when the last three days' net income was not
+ * negative, and goes off under 120 (where the money advisor borrows) or in lean times. The 500 above
+ * is never reached in a Village, and the lamps were lit on 18 to 25 of 70 evenings.
+ */
+export const OWING_ON_COINS = 150;
+export const OWING_OFF_COINS = 120;
+/** Days of net income looked back on. */
+const NET_DAYS = 3;
+/**
  * Residents before the candle chain (hives, then a chandler) is pinned: a young town's farms and
  * workshops feed it (oak stalled when a farm was retooled on day 19; birch lost a third of its
  * Craftsfolk to a hive and a chandler pinned at 60 to 68 residents).
@@ -73,6 +85,8 @@ class Supplies implements Advisor {
     return this.p.w;
   }
 
+  /** Net income (pennies) of the last days, by run day, newest last. */
+  private readonly nets: { day: number; net: number }[] = [];
   /** The day (run day) each family's places switch last flipped. */
   private readonly flipped = new Map<string, number>();
   /** Businesses tried for hives, and the chandlers pinned (ids). */
@@ -184,14 +198,27 @@ class Supplies implements Advisor {
     const w = this.w;
     const p = this.p;
     const owes = loansOwed(w) > 0;
+    // R3X: yesterday's net, once a day; flush means none of the last three days lost coins.
+    if (this.nets[this.nets.length - 1]?.day !== p.runDay) {
+      const y = w.economy.yesterday;
+      this.nets.push({ day: p.runDay, net: income(y) - expenses(y) });
+      if (this.nets.length > NET_DAYS) this.nets.shift();
+    }
+    const steady = this.nets.length >= NET_DAYS && this.nets.every((n) => n.net >= 0);
     for (const family of [FUEL, WARES] as const) {
       const f = w.carrier.families[family === FUEL ? 1 : 3];
       if (!f) continue;
       // At most one flip a day per family.
       if ((this.flipped.get(family) ?? -1) >= p.runDay) continue;
       const on = !!f.places;
-      const goOn = !on && !owes && p.coins() >= PLACES_ON_COINS && this.wanted(family);
-      const goOff = on && (owes || p.coins() < PLACES_OFF_COINS);
+      const coins = p.coins();
+      const lean = w.economy.leanTimes;
+      const goOn =
+        !on &&
+        !lean &&
+        this.wanted(family) &&
+        (owes ? coins > OWING_ON_COINS && steady : coins >= PLACES_ON_COINS);
+      const goOff = on && (lean || coins < (owes ? OWING_OFF_COINS : PLACES_OFF_COINS));
       if (!goOn && !goOff) continue;
       const places = goOn;
       if (
