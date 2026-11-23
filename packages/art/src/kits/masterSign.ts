@@ -39,7 +39,7 @@ interface Emblem {
   draw: (e: Em) => void;
 }
 
-const CREAM = 0xeadcb8;
+const CREAM = 0xe0cfa0;
 const WOOD = 0x9a6b43;
 const IRON = 0x4a4640;
 const GREEN = 0x5c8a3a;
@@ -73,11 +73,11 @@ const EMBLEMS: Readonly<Record<string, Emblem>> = {
   },
   // A candle on a dish, flame lit.
   chandler: {
-    main: 0xf3ead2,
+    main: 0xfbf6e8,
     draw: (e) => {
       e.rect(-0.7, -1.2, 0.7, -0.95, 0x8a6a3a);
-      e.rect(-0.4, -0.95, 0.4, 0.5, 0xf3ead2);
-      e.tri([-0.4, 0.5], [-0.1, 0.5], [-0.4, 0.0], 0xe3d6b4);
+      e.rect(-0.4, -0.95, 0.4, 0.5, 0xfbf6e8);
+      e.tri([-0.4, 0.5], [-0.1, 0.5], [-0.4, 0.0], 0xd9cba6);
       e.rect(-0.03, 0.5, 0.03, 0.66, IRON);
       e.tri([-0.27, 0.62], [0.27, 0.62], [0, 1.4], 0xe9a63a);
       e.tri([-0.13, 0.66], [0.13, 0.66], [0, 1.05], 0xf7d77a);
@@ -214,8 +214,8 @@ const EMBLEMS: Readonly<Record<string, Emblem>> = {
       e.rect(-0.1, -1.2, 0.1, 1.0, 0x6e4a2e);
       e.rect(-0.65, -1.35, 0.65, -1.15, 0x6e4a2e);
       e.rect(-1.55, 0.85, 1.55, 1.05, IRON);
-      e.tri([-1.2, 0.9], [-1.78, -0.35], [-0.62, -0.35], 0xf3e2a0);
-      e.tri([1.2, 0.9], [0.62, -0.35], [1.78, -0.35], 0xf3e2a0);
+      e.tri([-1.2, 0.9], [-1.78, -0.35], [-0.62, -0.35], 0xf8efd0);
+      e.tri([1.2, 0.9], [0.62, -0.35], [1.78, -0.35], 0xf8efd0);
       e.quad([-1.85, -0.35], [-0.55, -0.35], [-0.75, -0.65], [-1.65, -0.65], GOLD);
       e.quad([0.55, -0.35], [1.85, -0.35], [1.65, -0.65], [0.75, -0.65], GOLD);
     },
@@ -233,14 +233,14 @@ const EMBLEMS: Readonly<Record<string, Emblem>> = {
   },
   // Four sails on a hub.
   windmill: {
-    main: 0xefe3cc,
+    main: 0xf7f1e2,
     draw: (e) => {
       e.rect(-0.06, -1.3, 0.06, 1.3, 0x6e4a2e);
       e.rect(-1.75, -0.06, 1.75, 0.06, 0x6e4a2e);
-      e.rect(0.06, 0.3, 0.55, 1.25, 0xefe3cc);
-      e.rect(0.3, -0.55, 1.65, -0.06, 0xefe3cc);
-      e.rect(-0.55, -1.25, -0.06, -0.3, 0xefe3cc);
-      e.rect(-1.65, 0.06, -0.3, 0.55, 0xefe3cc);
+      e.rect(0.06, 0.3, 0.55, 1.25, 0xf7f1e2);
+      e.rect(0.3, -0.55, 1.65, -0.06, 0xf7f1e2);
+      e.rect(-0.55, -1.25, -0.06, -0.3, 0xf7f1e2);
+      e.rect(-1.65, 0.06, -0.3, 0.55, 0xf7f1e2);
       e.fan(0, 0, 0.28, 0.28, 6, 0x5b4232);
     },
   },

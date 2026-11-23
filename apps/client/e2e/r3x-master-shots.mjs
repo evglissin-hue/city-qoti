@@ -7,7 +7,8 @@
 // client dev server (QOTI_CLIENT_PORT, default 5247):
 //   QOTI_CLIENT_PORT=5247 QOTI_RELAY_PORT=8857 npm run dev -w @qoti/client
 //   node apps/client/e2e/r3x-master-shots.mjs [outDir]
-// Writes r3x-master-sign-day.png, -night.png, -close.png and r3x-master-decor.png (deviceScaleFactor 1).
+// The default framing is the west end of the workshop row (a lodge, a weaver and a windmill with masters
+// beside a carpenter without). Writes r3x-master-sign-day.png, -night.png, -close.png and r3x-master-decor.png (deviceScaleFactor 1).
 // Env: QOTI_CHROMIUM (default /opt/pw-browsers/chromium), QOTI_ONLY ('sign' or 'decor').
 import { chromium } from '@playwright/test';
 
@@ -59,7 +60,6 @@ const masters = await page.evaluate(() => {
   });
 });
 console.log('masters', masters.length);
-console.log(JSON.stringify(masters));
 
 async function shot(name, hour, x, z, dist, turn = 0, tilt = 0) {
   await page.evaluate(([h]) => window.__qoti.setHour(h), [hour]);
@@ -76,18 +76,18 @@ async function free(on) {
 }
 
 if (!only || only === 'sign') {
-  const at = process.env.QOTI_AT?.split(',').map(Number) ?? [68, 50];
-  const dist = Number(process.env.QOTI_DIST ?? 24);
+  const at = process.env.QOTI_AT?.split(',').map(Number) ?? [49.5, 59.5];
+  const dist = Number(process.env.QOTI_DIST ?? 15);
   await shot('r3x-master-sign-day', 11, at[0], at[1], dist);
   await shot('r3x-master-sign-night', 21.5, at[0], at[1], dist);
   await free(true);
-  const close = process.env.QOTI_CLOSE_AT?.split(',').map(Number) ?? at;
+  const close = process.env.QOTI_CLOSE_AT?.split(',').map(Number) ?? [50.1, 59.3];
   await shot(
     'r3x-master-sign-close',
     11,
     close[0],
     close[1],
-    Number(process.env.QOTI_CLOSE ?? 4),
+    Number(process.env.QOTI_CLOSE ?? 2.6),
     Number(process.env.QOTI_TURN ?? 0),
     Number(process.env.QOTI_TILT ?? 0),
   );
@@ -141,7 +141,7 @@ if (!only || only === 'decor') {
       [x, z],
     );
     await free(true);
-    await shot('r3x-master-decor', 11, x + 3, z + 1.6, Number(process.env.QOTI_DECOR ?? 5));
+    await shot('r3x-master-decor', 11, x + 2.4, z + 1, Number(process.env.QOTI_DECOR ?? 6.5));
     await free(false);
   }
 }

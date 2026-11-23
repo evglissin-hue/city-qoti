@@ -132,7 +132,7 @@ export const SIGN_SIZE = {
 /** The kit is drawn at 0.8 of these (a board of 0.26 by 0.19) and scaled up by this. */
 export const SIGN_SCALE = 1.25;
 /** How far a sign keeps from a lit window's middle, across and up (tiles). */
-export const WINDOW_CLEAR = { x: 0.3, y: 0.32 } as const;
+export const WINDOW_CLEAR = { x: 0.3, y: 0.36 } as const;
 /** How far behind the door anchor a sign's wall may stand, tiles. */
 export const WALL_BEHIND_DOOR = 1.1;
 /** The lowest its lower edge may hang (tiles above the plot's ground) and the highest its top. */
