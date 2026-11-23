@@ -16,8 +16,7 @@ permissions:
 
 jobs:
   check:
-    # Pinned: ubuntu-latest began moving to 26.04, where Playwright's --with-deps cannot find its
-    # font packages (fonts-unifont, fonts-freefont-ttf) and the Install Chromium step fails.
+    # Pinned: ubuntu-latest began moving to 26.04, where Playwright's --with-deps cannot find its font packages (fonts-unifont, fonts-freefont-ttf) and the Install Chromium step fails.
     runs-on: ubuntu-24.04
     # I2 added two-browser specs (plans, requests, moving online): the e2e step alone runs about
     # 20 minutes on a runner, after 8 minutes installing Chromium.
