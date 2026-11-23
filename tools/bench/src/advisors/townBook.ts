@@ -36,6 +36,8 @@ import type { Advisor, AdvisorDef } from './types';
 const MIN_COINS = 60;
 /** Coins above which the carrier may buy for places for a Town Book supply custom. */
 const CARRIER_COINS = PLACES_OFF_COINS + 60;
+/** Pieces the pair add to one place at most (a seat, a flower bed, a lantern). */
+const PIECES_MAX = 3;
 /** Days before a place's priority is touched again. */
 const PRIORITY_DAYS = 4;
 /** Days between two attempts at the same thing (a refusal is not retried at once). */
@@ -75,6 +77,8 @@ class TownBook implements Advisor {
   private readonly pinned = new Set<number>();
   /** The run day of the last Town Book action (one a day). */
   private acted = -1;
+  /** Pieces added at each place (a place may have this many from the pair at most). */
+  private readonly added = new Map<string, number>();
   /** Whether the purse allows a spend today. */
   private spare = false;
 
@@ -186,6 +190,7 @@ class TownBook implements Advisor {
 
   /** A piece of the first kind the place lacks, beside it (one visit, one piece). */
   private raiseDraw(pl: PlaceView): boolean {
+    if ((this.added.get(pl.id) ?? 0) >= PIECES_MAX) return false;
     const have = this.pieceDefs(pl);
     for (const k of KIND_PIECES) {
       if (have.some(k.has)) continue;
@@ -219,6 +224,7 @@ class TownBook implements Advisor {
       return false;
     }
     const rot = (Math.floor(best[0] / TILE_FP) * 31 + Math.floor(best[1] / TILE_FP)) % 64;
+    this.added.set(pl.id, (this.added.get(pl.id) ?? 0) + 1);
     return this.act(
       `piece:${pl.id}:${def}`,
       `${def} at ${pl.name} ${why}`,
