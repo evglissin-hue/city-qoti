@@ -19,6 +19,7 @@ import {
   familyIndex,
   hasInnovation,
   isFrozen,
+  jobsOf,
   meetsRequires,
   overdraftLimit,
   PENNIES_PER_COIN,
@@ -521,14 +522,19 @@ class Land implements Advisor {
   /**
    * Storehouses: two as soon as the town has twenty residents, then one per twenty (their porters
    * carry the town), and another raised to the front whenever three workplaces sit with their
-   * output full.
+   * output full while every storehouse has its porters (R3X: with porter seats open, the hands are
+   * what is short, and another storehouse is only more seats; willow's targets run sent 153
+   * decisions against 150 on such storehouses).
    */
   private storehouses(pop: number): void {
     const w = this.w;
     const backed = w.buildings.filter((b) => (b.rt?.status ?? 0) & BuildingStatus.outputFull).length;
     const rising = w.buildings.some((b) => b.def === 'storehouse' && b.stage === 'construction');
+    const portersOpen = w.buildings.some(
+      (b) => b.def === 'storehouse' && b.stage === 'built' && b.rt && b.rt.workers.length < jobsOf(b),
+    );
     const few = pop >= 20 && count(w, 'storehouse') < Math.max(2, 1 + Math.floor(pop / 20));
-    if (!few && !(backed >= 3 && !rising)) return;
+    if (!few && !(backed >= 3 && !rising && !portersOpen)) return;
     const o = { urgent: !rankAtLeast(w, 'village'), pressing: backed >= 3 };
     // R1X: toward the lots no porter reaches, when there are some: at a spot there that fits, else
     // one a short path would give a road at its door.
