@@ -16,6 +16,7 @@ import { plan } from './plan';
 import { shops } from './shops';
 import { supplies } from './supplies';
 import { together } from './together';
+import { townBook } from './townBook';
 import type { AdvisorDef } from './types';
 import { village } from './village';
 import { watch } from './watch';
@@ -38,6 +39,7 @@ export const advisors: readonly AdvisorDef[] = [
   shops,
   supplies,
   together,
+  townBook,
   village,
   watch,
 ];

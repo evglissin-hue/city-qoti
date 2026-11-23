@@ -30,6 +30,8 @@ describe('the advisors', () => {
       'places',
       // R3E: the Hearth keeps places alive, after the places are composed
       'lamps',
+      // R3X: the pair read the Town Book, after the places and lamps
+      'townBook',
       // I3 (C5C)
       'nature',
       'together',
