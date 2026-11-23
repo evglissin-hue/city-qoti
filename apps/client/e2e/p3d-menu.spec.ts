@@ -33,16 +33,6 @@ test('the menu is usable at once, before any backdrop is ready', async ({ page }
   await expect(page.getByTestId('your-name')).toHaveCount(0);
 });
 
-test('both layouts open the same menu', async ({ page }) => {
-  for (const layout of ['a', 'b']) {
-    await page.goto(`/?quality=low&titleLayout=${layout}`);
-    await expect(page.locator('main.title-front')).toHaveAttribute('data-layout', layout);
-    await expect(page.getByTestId('new-solo')).toBeVisible();
-    await page.getByTestId('new-solo').click();
-    await expect(page.getByTestId('found-valley')).toBeVisible();
-  }
-});
-
 test('the second step has a way back, and Escape too; nothing is created and fields keep their words', async ({
   page,
 }) => {

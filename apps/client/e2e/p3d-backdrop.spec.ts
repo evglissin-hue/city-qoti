@@ -10,6 +10,7 @@ const MENU_READY = '[data-testid=new-solo]';
 /** Whatever the menu needs to start a solo valley (the menu may take more than one click). */
 async function startSolo(page: Page): Promise<void> {
   await page.getByTestId('new-solo').click();
+  await page.getByTestId('found-valley').click();
 }
 
 interface Stats {

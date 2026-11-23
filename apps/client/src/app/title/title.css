@@ -1,55 +1,67 @@
 /* P3D: the front door. A menu of choices over the living valley; the form is the second step.
-   Two candidate layouts (?titleLayout=a|b): A is a tall paper page on the left, B is a ribbon in
-   the sky and a low paper shelf at the bottom. Both use the game's paper, type and buttons. */
+   One paper page on the left, as tall as its content and centered in the window, in the game's
+   own paper, type and buttons. The town stays clear to its right. */
 
 .title-screen.title-front {
+  --tf-m: clamp(12px, 2.6vh, 30px);
   position: relative;
-  display: block;
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
   height: 100%;
+  padding-left: clamp(12px, 2.2vw, 32px);
   overflow: hidden;
   background: transparent;
   --tf-glow: transparent;
+  --tf-card: rgba(255, 251, 241, 0.72);
+  --tf-card-hover: rgba(255, 253, 246, 0.95);
+  --tf-choice: rgba(253, 248, 236, 0.9);
+  /* Muted words on the page need AA on the paper (the game's own muted ink is a touch lighter). */
+  --ink-soft: rgba(74, 54, 38, 0.84);
 }
 
-/* Paper by lamplight (the colors of ui/seasons.css), warmed by a glow. --grain is rebuilt here
-   because a custom property that reads other ones is resolved where it is declared. */
+/* Paper by lamplight: warmer and a touch dimmer than the day paper, with a soft glow around the
+   page. --grain is rebuilt here because a custom property that reads other ones is resolved where
+   it is declared. */
 .title-front.lamplight {
-  --paper: #ecdbbd;
-  --paper-light: #f3e5c9;
-  --paper-deep: #e0cba6;
+  --paper: #e6d1ab;
+  --paper-light: #eedcb8;
+  --paper-deep: #d9c095;
   --grain:
     radial-gradient(circle at 20% 30%, rgba(140, 100, 60, 0.05) 0 1px, transparent 1.5px),
     radial-gradient(circle at 70% 80%, rgba(140, 100, 60, 0.045) 0 1px, transparent 1.5px),
+    radial-gradient(ellipse at 50% 0%, rgba(255, 196, 110, 0.22), transparent 62%),
     linear-gradient(170deg, var(--paper-light), var(--paper) 55%, var(--paper-deep));
-  --tf-glow: rgba(255, 186, 98, 0.34);
+  --tf-glow: rgba(255, 178, 84, 0.42);
+  --tf-card: rgba(255, 238, 206, 0.5);
+  --tf-card-hover: rgba(255, 244, 222, 0.78);
+  --tf-choice: rgba(250, 235, 203, 0.78);
+  --ink-soft: rgba(60, 42, 28, 0.86);
 }
 
 /* ---------- the surface ---------- */
 
 .tf-surface {
-  position: absolute;
+  position: relative;
   z-index: 1;
+  box-sizing: border-box;
+  flex: none;
   display: flex;
   flex-direction: column;
   min-height: 0;
-}
-
-.tf-a .tf-surface {
-  left: clamp(12px, 2.2vw, 32px);
-  top: clamp(12px, 2.6vh, 30px);
-  bottom: clamp(12px, 2.6vh, 30px);
-  width: min(432px, calc(100vw - 24px));
+  width: min(432px, 100%);
+  max-height: calc(100% - 2 * var(--tf-m));
   padding: clamp(14px, 2.6vh, 26px) 26px clamp(12px, 2vh, 20px);
   background: var(--grain);
   border: 2px solid var(--ink-line);
   border-radius: 20px;
   box-shadow:
     var(--shadow),
-    0 0 44px var(--tf-glow);
+    0 0 52px var(--tf-glow);
   animation: tf-in 420ms ease-out;
 }
 
-.tf-a .tf-surface::before {
+.tf-surface::before {
   content: '';
   position: absolute;
   inset: 6px;
@@ -62,6 +74,13 @@
   from {
     opacity: 0;
     transform: translateY(10px) scale(0.985);
+  }
+}
+
+@keyframes tf-step-in {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
   }
 }
 
@@ -117,9 +136,13 @@
   color: var(--ink-soft);
 }
 
+.tf-head .tagline,
+.tf-head .welcome {
+  text-wrap: balance;
+}
+
 .tf-head .welcome {
   margin: 4px 0 0;
-  max-width: 30ch;
   font-style: italic;
   font-size: 0.95rem;
   line-height: 1.3;
@@ -143,7 +166,7 @@
   gap: 12px;
 }
 
-.tf-a .tf-body {
+.tf-body {
   margin-top: clamp(10px, 2vh, 18px);
   overflow-y: auto;
   overflow-x: hidden;
@@ -153,6 +176,10 @@
   margin-right: -5px;
   scrollbar-width: thin;
   scrollbar-color: rgba(90, 66, 49, 0.35) transparent;
+}
+
+.tf-body > * {
+  animation: tf-step-in 260ms ease-out;
 }
 
 .tf-menu {
@@ -177,19 +204,22 @@
   padding: 13px 16px 14px;
   border: 1.5px solid var(--line);
   border-radius: 14px;
-  background: rgba(255, 251, 241, 0.72);
+  background: var(--tf-card);
   box-shadow: 0 2px 0 rgba(90, 66, 49, 0.1);
 }
 
-/* Join: the invitation, in the river's blue. */
+/* Join: the invitation, in the game's own ochre, as heavy as the Continue card. */
 .tf-join {
-  border: 1.5px dashed var(--river);
-  background: rgba(95, 147, 179, 0.1);
+  border: 2px solid var(--ochre-deep);
+  background: radial-gradient(ellipse at 12% 0%, rgba(196, 138, 63, 0.26), transparent 62%), var(--tf-card);
+  box-shadow:
+    0 3px 0 rgba(168, 112, 44, 0.3),
+    0 8px 18px rgba(60, 40, 20, 0.1);
   gap: 8px;
 }
 
 .tf-join .tf-kicker {
-  color: #3f6f8c;
+  color: #7a4f17;
 }
 
 .tf-lead {
@@ -206,10 +236,13 @@
 
 .tf-arrive {
   margin: 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 8px;
-  align-items: baseline;
+  line-height: 1.35;
+  text-wrap: balance;
+}
+
+.tf-arrive .tf-link {
+  font-size: inherit;
+  padding: 0 1px;
 }
 
 /* Continue: the most recent valley, one click. */
@@ -233,7 +266,7 @@
   border-color: var(--sage-deep);
   border-width: 2px;
   background:
-    radial-gradient(ellipse at 12% 0%, rgba(143, 173, 123, 0.28), transparent 60%), rgba(255, 251, 241, 0.86);
+    radial-gradient(ellipse at 12% 0%, rgba(143, 173, 123, 0.28), transparent 60%), var(--tf-card-hover);
   box-shadow:
     0 3px 0 rgba(95, 127, 80, 0.3),
     0 8px 18px rgba(60, 40, 20, 0.1);
@@ -241,7 +274,20 @@
 
 .tf-continue-card:hover:not(:disabled) {
   background:
-    radial-gradient(ellipse at 12% 0%, rgba(143, 173, 123, 0.34), transparent 60%), rgba(255, 253, 246, 0.95);
+    radial-gradient(ellipse at 12% 0%, rgba(143, 173, 123, 0.4), transparent 60%), var(--tf-card-hover);
+  transform: translateY(-1px);
+  box-shadow:
+    0 4px 0 rgba(95, 127, 80, 0.32),
+    0 10px 20px rgba(60, 40, 20, 0.14);
+}
+
+.tf-continue-card:hover:not(:disabled) .tf-continue-go {
+  background: linear-gradient(180deg, #9bb887, #5f7f50);
+}
+
+.tf-continue-card:focus-visible {
+  outline: 3px solid var(--river);
+  outline-offset: 3px;
 }
 
 .tf-valley-name {
@@ -307,7 +353,7 @@
   padding: 11px 16px 12px;
   text-align: left;
   border-radius: 14px;
-  background: rgba(253, 248, 236, 0.9);
+  background: var(--tf-choice);
 }
 
 .tf-choice strong {
@@ -416,6 +462,11 @@ button.tf-link:hover:not(:disabled),
   gap: 6px;
 }
 
+.tf-paste-row button {
+  flex: none;
+  white-space: nowrap;
+}
+
 .tf-paste-error {
   margin: 0;
   font-size: 0.92rem;
@@ -446,7 +497,7 @@ button.tf-link:hover:not(:disabled),
 .tf-join .tf-you {
   margin-top: 2px;
   padding-top: 10px;
-  border-top: 1.5px dashed rgba(63, 111, 140, 0.35);
+  border-top: 1.5px dashed rgba(168, 112, 44, 0.4);
 }
 
 .tf-check {
@@ -454,6 +505,7 @@ button.tf-link:hover:not(:disabled),
   gap: 9px;
   align-items: flex-start;
   font-size: 0.95rem;
+  font-weight: 600;
   line-height: 1.3;
   cursor: pointer;
 }
@@ -463,6 +515,17 @@ button.tf-link:hover:not(:disabled),
   flex: none;
   margin: 3px 0 0;
   accent-color: var(--sage-deep);
+}
+
+.tf-check-text {
+  display: grid;
+  gap: 1px;
+}
+
+.tf-check-hint {
+  font-size: 0.85rem;
+  font-weight: 400;
+  line-height: 1.3;
 }
 
 /* ---------- steps ---------- */
@@ -577,7 +640,7 @@ button.tf-link:hover:not(:disabled),
 .tf-step-actions {
   flex: none;
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: 10px;
   margin-top: 2px;
 }
@@ -608,28 +671,97 @@ button.tf-link:hover:not(:disabled),
 }
 
 .tf-list .continue-row {
-  display: flex;
-  gap: 6px;
+  position: relative;
+  display: block;
 }
 
 .tf-row-open {
-  flex: 1;
-  min-width: 0;
   display: grid;
-  gap: 1px;
+  gap: 5px;
+  width: 100%;
+  box-sizing: border-box;
   text-align: left;
-  padding: 8px 12px;
+  padding: 10px 44px 10px 14px;
+  border-radius: 14px;
+  background: var(--tf-card);
 }
 
-.tf-row-open strong {
+.tf-row-open:hover:not(:disabled) {
+  background: var(--tf-card-hover);
+  border-color: var(--sage-deep);
+}
+
+.tf-row-name {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-family: 'Alegreya', Georgia, serif;
-  font-size: 1.15rem;
+  font-size: 1.3rem;
+  font-weight: 800;
+  line-height: 1.1;
 }
 
+.tf-row-open .tf-chip {
+  font-size: 0.8rem;
+  padding-block: 0;
+}
+
+.tf-row-open .tf-played {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 10px;
+  font-size: 0.84rem;
+}
+
+.tf-seed {
+  margin-left: auto;
+  font-size: 0.8rem;
+  letter-spacing: 0.02em;
+  opacity: 0.85;
+}
+
+/* The remove control: a small inked cross, quiet until the row is looked at, but always there. */
 .tf-list .forget {
-  flex: none;
-  padding: 0 12px;
-  color: rgba(90, 66, 49, 0.6);
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border-radius: 999px;
+  border-color: transparent;
+  background: none;
+  box-shadow: none;
+  color: var(--ink);
+  opacity: 0.38;
+  transition: opacity 120ms ease-out;
+}
+
+.tf-list .continue-row:hover .forget,
+.tf-list .continue-row:focus-within .forget,
+.tf-list .forget:hover {
+  opacity: 1;
+}
+
+.tf-list .forget:hover:not(:disabled) {
+  background: rgba(168, 60, 44, 0.12);
+  color: #8a3326;
+  transform: translateY(-50%);
+}
+
+.tf-list .forget:active:not(:disabled) {
+  transform: translateY(-50%);
+}
+
+@media (hover: none) {
+  .tf-list .forget {
+    opacity: 0.7;
+  }
 }
 
 .tf-list .continue-old {
@@ -638,8 +770,8 @@ button.tf-link:hover:not(:disabled),
   padding: 9px 12px;
   border: 1.5px dashed rgba(90, 66, 49, 0.3);
   border-radius: 10px;
-  opacity: 0.8;
-  filter: grayscale(0.5);
+  opacity: 0.88;
+  filter: grayscale(0.4);
 }
 
 .tf-list .forget-confirm {
@@ -654,7 +786,12 @@ button.tf-link:hover:not(:disabled),
 
 .forget-actions {
   display: flex;
-  gap: 6px;
+  gap: 8px;
+}
+
+.tf-plain {
+  background: rgba(253, 248, 236, 0.9);
+  color: var(--ink);
 }
 
 .tf-imported-line {
@@ -674,222 +811,17 @@ button.tf-link:hover:not(:disabled),
   z-index: 5;
 }
 
-/* ---------- B: the sky title ---------- */
-
-.tf-b .tf-surface {
-  inset: 0;
-  align-items: center;
-  padding: clamp(12px, 3vh, 30px) 16px clamp(10px, 2.4vh, 24px);
-  pointer-events: none;
-}
-
-.tf-b .tf-head,
-.tf-b .tf-body {
-  pointer-events: auto;
-}
-
-.tf-b .tf-head {
-  padding: 10px clamp(28px, 4vw, 52px) 14px;
-  background: var(--grain);
-  border: 2px solid var(--ink-line);
-  border-radius: 22px;
-  box-shadow:
-    var(--shadow),
-    0 0 44px var(--tf-glow);
-  animation: tf-in 420ms ease-out;
-}
-
-.tf-b .tf-wordmark {
-  grid-auto-flow: column;
-  align-items: center;
-  gap: 14px;
-}
-
-.tf-b .tf-mark {
-  margin: 0;
-}
-
-.tf-b .tf-wordmark h1 {
-  font-size: clamp(2.8rem, 7vh, 3.9rem);
-}
-
-.tf-b .tf-head.is-compact {
-  padding: 6px 26px 8px;
-  border-radius: 18px;
-}
-
-.tf-b .tf-body {
-  flex: 0 1 auto;
-  width: min(1060px, 100%);
-  margin-top: auto;
-  align-items: stretch;
-  gap: 10px;
-}
-
-.tf-b[data-step]:not([data-step='menu']) .tf-body {
-  margin-block: auto;
-  width: min(540px, 100%);
-}
-
-.tf-b .tf-menu {
-  flex-direction: row;
-  align-items: stretch;
-  gap: 12px;
-  padding: 14px;
-  background: var(--grain);
-  border: 2px solid var(--ink-line);
-  border-radius: 20px;
-  box-shadow:
-    var(--shadow),
-    0 0 44px var(--tf-glow);
-  animation: tf-in 420ms ease-out;
-  position: relative;
-}
-
-.tf-b .tf-menu::before {
-  content: '';
-  position: absolute;
-  inset: 5px;
-  border: 1.5px dashed rgba(90, 66, 49, 0.25);
-  border-radius: 15px;
-  pointer-events: none;
-}
-
-.tf-b .tf-menu > * {
-  flex: 1 1 0;
-  min-width: 0;
-}
-
-.tf-b .tf-menu > .tf-continue {
-  flex: 1.8 1 0;
-  align-content: stretch;
-}
-
-.tf-b .tf-continue-card {
-  height: 100%;
-  align-content: start;
-}
-
-.tf-b .tf-new {
-  display: contents;
-}
-
-.tf-b .tf-choice {
-  flex: 1 1 0;
-  min-width: 0;
-  align-content: center;
-}
-
-.tf-b .tf-more-alone {
-  flex: none;
-  align-self: center;
-}
-
-.tf-b .tf-quiet {
-  align-self: center;
-  margin-top: 0;
-  padding: 5px 20px;
-  border: 1.5px solid var(--line);
-  border-radius: 999px;
-  background: var(--grain);
-  box-shadow: 0 2px 0 rgba(90, 66, 49, 0.14);
-}
-
-.tf-b .tf-quiet:has(.tf-paste) {
-  border-radius: 16px;
-  width: min(520px, 100%);
-}
-
-.tf-b .tf-menu-error {
-  align-self: center;
-  padding: 4px 14px;
-  border-radius: 10px;
-  background: var(--paper-light);
-}
-
-.tf-b .tf-step {
-  padding: 20px 24px 14px;
-  background: var(--grain);
-  border: 2px solid var(--ink-line);
-  border-radius: 20px;
-  box-shadow:
-    var(--shadow),
-    0 0 44px var(--tf-glow);
-  max-height: 100%;
-  animation: tf-in 300ms ease-out;
-}
-
 /* ---------- a narrow window ---------- */
 
 @media (max-width: 640px) {
-  .tf-a .tf-surface {
-    left: 8px;
-    right: 8px;
-    top: 8px;
-    bottom: 8px;
-    width: auto;
+  .title-screen.title-front {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+
+  .tf-surface {
+    width: 100%;
     padding: 14px 16px 12px;
-  }
-
-  .tf-head .welcome {
-    max-width: none;
-  }
-
-  .tf-b .tf-surface {
-    justify-content: flex-start;
-    overflow-y: auto;
-    pointer-events: auto;
-    padding: 10px 10px 14px;
-    gap: 10px;
-  }
-
-  .tf-b .tf-wordmark {
-    gap: 8px;
-  }
-
-  .tf-b .tf-wordmark h1 {
-    font-size: 2.4rem;
-  }
-
-  .tf-b .tf-mark svg {
-    height: 40px;
-  }
-
-  .tf-b .tf-head {
-    width: 100%;
-    padding: 8px 14px 10px;
-  }
-
-  .tf-b .tf-body {
-    flex: none;
-    width: 100%;
-    margin-top: 0;
-  }
-
-  .tf-b[data-step]:not([data-step='menu']) .tf-body {
-    margin-block: 0;
-    width: 100%;
-  }
-
-  .tf-b .tf-menu {
-    flex-direction: column;
-  }
-
-  .tf-b .tf-menu > * {
-    flex: none;
-  }
-
-  .tf-b .tf-new {
-    display: grid;
-  }
-
-  .tf-b .tf-step {
-    max-height: none;
-  }
-
-  .tf-b .tf-step > .tf-form,
-  .tf-b .tf-step > .tf-list {
-    overflow: visible;
   }
 }
 
@@ -912,10 +844,13 @@ button.tf-link:hover:not(:disabled),
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .tf-a .tf-surface,
-  .tf-b .tf-head,
-  .tf-b .tf-menu,
-  .tf-b .tf-step {
+  .tf-surface,
+  .tf-body > * {
     animation: none;
   }
+}
+
+:root.reduced-motion .tf-surface,
+:root.reduced-motion .tf-body > * {
+  animation: none;
 }

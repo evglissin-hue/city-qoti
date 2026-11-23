@@ -28,17 +28,9 @@ import { Wordmark } from './title/Wordmark';
 import './title/title.css';
 
 type Step = 'menu' | 'new' | 'valleys' | 'imported';
-export type TitleLayout = 'a' | 'b';
 
-/** `?titleLayout=a|b`: the two candidate layouts (temporary; the loser goes). */
-export function titleLayout(): TitleLayout {
-  return new URLSearchParams(location.search).get('titleLayout') === 'b' ? 'b' : 'a';
-}
-
-const FRAMING: Record<TitleLayout, Framing> = {
-  a: { x: 0.17, y: 0 },
-  b: { x: 0, y: 0.06 },
-};
+/** The page sits on the left, so the town is framed a little right of center and stays clear. */
+const FRAMING: Framing = { x: 0.17, y: 0 };
 
 export function Title({
   onStart,
@@ -48,7 +40,6 @@ export function Title({
   /** P1: arrived from the chapter card, so the seed field starts on a fresh seed, in view. */
   fresh?: boolean;
 }) {
-  const layout = useMemo(() => titleLayout(), []);
   const light = useMemo(() => titleLight(), []);
   const welcome = useMemo(() => welcomeLine(), []);
   const [step, setStep] = useState<Step>(fresh ? 'new' : 'menu');
@@ -203,12 +194,11 @@ export function Title({
   const compact = step !== 'menu';
   return (
     <main
-      class={`title-screen title-front tf-${layout}${light === 'dusk' ? ' lamplight' : ''}`}
-      data-layout={layout}
+      class={`title-screen title-front${light === 'dusk' ? ' lamplight' : ''}`}
       data-light={light}
       data-step={step}
     >
-      <TitleBackdrop light={light} framing={FRAMING[layout]} />
+      <TitleBackdrop light={light} framing={FRAMING} />
       <div class="tf-surface">
         <header class={`tf-head${compact ? ' is-compact' : ''}`}>
           <Wordmark />

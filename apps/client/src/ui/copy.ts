@@ -67,7 +67,7 @@ export const copy = {
     foundSolo: 'Found the valley',
     back: 'Back',
     joinKicker: 'An invitation',
-    arriveAs: (name: string) => `You will arrive as ${name}`,
+    arriveAs: (name: string) => `You will arrive as ${name}.`,
     arriveUnnamed: 'Add a name, so your partner knows who just walked in.',
     change: 'Change',
     changeDone: 'Done',

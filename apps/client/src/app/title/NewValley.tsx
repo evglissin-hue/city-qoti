@@ -91,7 +91,6 @@ export function NewValley({
         </button>
       </div>
       <div class="tf-form">
-        <p class="tf-section">{copy.title.you}</p>
         <YouFields profile={profile} onChange={onProfile} />
         <label class="tf-field">
           <span>{copy.title.townName}</span>
@@ -111,8 +110,9 @@ export function NewValley({
             data-testid="creative"
             onChange={(e) => onForm({ creative: (e.target as HTMLInputElement).checked })}
           />
-          <span>
-            {copy.title.creative} <span class="muted">({copy.title.creativeHint})</span>
+          <span class="tf-check-text">
+            {copy.title.creative}
+            <span class="tf-check-hint muted">{copy.title.creativeHint}</span>
           </span>
         </label>
         {!creative && (
@@ -123,8 +123,9 @@ export function NewValley({
               data-testid="guide-new"
               onChange={(e) => onForm({ guide: (e.target as HTMLInputElement).checked })}
             />
-            <span>
-              {guideCopy.show} <span class="muted">({guideCopy.showHint})</span>
+            <span class="tf-check-text">
+              {guideCopy.show}
+              <span class="tf-check-hint muted">{guideCopy.showHint}</span>
             </span>
           </label>
         )}
