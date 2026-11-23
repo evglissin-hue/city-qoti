@@ -1,9 +1,11 @@
 import { DirectionalLight, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
 import {
+  discDirection,
   halfFor,
   MAX_HALF,
   MIN_HALF,
+  SampleSun,
   ShadowCache,
   snapToTexels,
   SUN_EPSILON,
@@ -107,5 +109,53 @@ describe('cached sun shadows (V1D)', () => {
     const dir = light.position.clone().sub(light.target.position).normalize();
     expect(dir.distanceTo(SUN)).toBeLessThan(1e-6);
     expect(light.target.position.distanceTo(new Vector3(100, 0, 80))).toBeLessThan(0.2);
+  });
+});
+
+describe('V4A: the sun inside its disc, with a shadow map of its own', () => {
+  it('turns the sun by the disc point, up to the radius at its rim', () => {
+    const r = 2 * (Math.PI / 180);
+    expect(discDirection(SUN, [0, 0], r).angleTo(SUN)).toBeCloseTo(0, 9);
+    for (const p of [
+      [1, 0],
+      [0, -1],
+      [0.6, 0.8],
+    ] as const) {
+      const d = discDirection(SUN, p, r);
+      expect(d.length()).toBeCloseTo(1, 9);
+      expect(d.angleTo(SUN)).toBeCloseTo(r, 6);
+    }
+    expect(discDirection(SUN, [0.5, 0], r).angleTo(SUN)).toBeCloseTo(Math.atan(0.5 * Math.tan(r)), 6);
+    // Straight overhead still has a disc.
+    expect(discDirection(new Vector3(0, 1, 0), [1, 0], r).angleTo(new Vector3(0, 1, 0))).toBeCloseTo(r, 6);
+  });
+
+  it('swaps in a map of its own for the sample and puts the cached one and the light back', () => {
+    const cache = new ShadowCache();
+    const light = new DirectionalLight();
+    light.shadow.mapSize.set(2048, 2048);
+    const sun = new SampleSun();
+    // Nothing to follow before the first render.
+    expect(sun.begin(light, cache, SUN)).toBe(false);
+    step(cache, light, view(40, 40, 60, SUN, 2048));
+    const plain = light.shadow;
+    const pos = light.position.clone();
+    const target = light.target.position.clone();
+    const renders = cache.renders;
+    const dir = discDirection(SUN, [1, 0], 0.05);
+    expect(sun.begin(light, cache, dir)).toBe(true);
+    expect(light.shadow).not.toBe(plain);
+    expect(light.shadow.mapSize.x).toBe(2048);
+    expect(light.shadow.bias).toBe(plain.bias);
+    // The light shines from the sample's direction, about the same frustum.
+    const shining = light.position.clone().sub(light.target.position).normalize();
+    expect(shining.angleTo(dir)).toBeCloseTo(0, 6);
+    expect(light.shadow.camera.right).toBe(cache.halfWidth);
+    expect(cache.renders).toBe(renders);
+    sun.end(light);
+    expect(light.shadow).toBe(plain);
+    expect(light.position.equals(pos)).toBe(true);
+    expect(light.target.position.equals(target)).toBe(true);
+    sun.dispose();
   });
 });

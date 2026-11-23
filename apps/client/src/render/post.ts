@@ -23,6 +23,7 @@ import {
   WebGLRenderTarget,
   type Material,
   type PixelFormat,
+  type Texture,
   type TextureDataType,
   type WebGLRenderer,
 } from 'three';
@@ -63,6 +64,42 @@ export function fullScreenTriangle(): BufferGeometry {
  * to the classic chain's two passes.
  */
 export const TILT_MIX = 0.85;
+
+/**
+ * V4A: where the tilt-shift's mask starts and where it reaches full strength, in screen height from
+ * the middle (look.ts `lookTiltMix`: smoothstep(0.1, 0.52, |0.5 - uv.y|)).
+ */
+export const TILT_FROM = 0.1;
+export const TILT_TO = 0.52;
+
+/**
+ * V4A, the lens at rest: the tilt-shift's mask from the still frame's depth instead of the screen
+ * height, at quarter resolution. A pixel's depth is turned into the screen height a point of the
+ * ground plane at that depth would have (`tanPitch` the view's tilt below level, `tanHalfFov` half
+ * the vertical field, `focus` the distance to the ground point in the middle along the view axis),
+ * so the ground blurs exactly as the screen-height mask blurs it, and whatever stands up from it
+ * blurs by its own depth: a tower near the top of the screen is nearer than the ground behind it
+ * and stays sharper, as through a real lens. Moving layers take the mask at the depth behind them.
+ */
+const LENS_MASK_FRAGMENT = /* glsl */ `
+  uniform sampler2D tDepth;
+  uniform vec2 uTexel;
+  uniform float uNear;
+  uniform float uFar;
+  uniform float uFocus;
+  uniform float uSlope;
+  varying vec2 vUv;
+  float maskAt(vec2 uv) {
+    float d = texture2D(tDepth, uv).x;
+    float z = uNear * uFar / (uFar - d * (uFar - uNear));
+    return smoothstep(${TILT_FROM.toFixed(2)}, ${TILT_TO.toFixed(2)}, abs(uSlope * (1.0 - uFocus / z)));
+  }
+  void main() {
+    float m = maskAt(vUv + uTexel * vec2(-1.0, -1.0)) + maskAt(vUv + uTexel * vec2(1.0, -1.0))
+      + maskAt(vUv + uTexel * vec2(-1.0, 1.0)) + maskAt(vUv + uTexel * vec2(1.0, 1.0));
+    gl_FragColor = vec4(m * 0.25, 0.0, 0.0, 1.0);
+  }
+`;
 
 /**
  * Downsample: four bilinear fetches a quarter of a target texel from its center, which average
@@ -146,6 +183,8 @@ const FINAL_FRAGMENT = /* glsl */ `
   uniform float uBlurOn;
   uniform float uBloomOn;
   uniform float uBloomGain;
+  uniform sampler2D tLens;
+  uniform float uLensRamp;
   ${LOOK_GLSL}
   ${ENDPAPER_GLSL}
   varying vec2 vUv;
@@ -153,7 +192,10 @@ const FINAL_FRAGMENT = /* glsl */ `
     vec3 c = texture2D(tScene, vUv).rgb;
     if (uBlurOn > 0.5) {
       vec3 b = texture2D(tBlur, vUv).rgb;
-      c = mix(c, b, lookTiltMix(vUv, uTilt));
+      float m = lookTiltMix(vUv, uTilt);
+      // V4A: at rest the mask comes from the still frame's depth (the lens), eased in as it develops.
+      if (uLensRamp > 0.0) m = mix(m, texture2D(tLens, vUv).r * clamp(uTilt, 0.0, 1.0), uLensRamp);
+      c = mix(c, b, m);
     }
     if (uBloomOn > 0.5) {
       vec3 glow = texture2D(tBloom, vUv).rgb * uBloomGain;
@@ -258,6 +300,27 @@ export interface RestBloomSource {
    * frames and reused between, so the glow keeps its halo at a third of the cost.
    */
   glowing?: boolean;
+  /**
+   * V4A: the lens at rest (`RestLens`): the tilt-shift's mask from the still frame's depth, eased
+   * in by `ramp` as the picture develops. Absent (or at a ramp of 0) the screen-height mask, as
+   * before V4.
+   */
+  lens?: RestLens;
+}
+
+/** V4A: what the lens at rest reads (`LENS_MASK_FRAGMENT`). */
+export interface RestLens {
+  /** The still frame's depth (`StillCache.depth`). */
+  depth: Texture;
+  /** 0 keeps the screen-height mask, 1 is the depth's; between, a blend (the picture developing). */
+  ramp: number;
+  /** The camera's near and far planes, the focus distance along the view axis (world units). */
+  near: number;
+  far: number;
+  focus: number;
+  /** The view's tilt below level (tan) and half the vertical field of view (tan). */
+  tanPitch: number;
+  tanHalfFov: number;
 }
 
 /**
@@ -306,6 +369,20 @@ export class LeanFrame {
   private tilt = 0;
   /** C5E: photo mode's depth of field, 0 to 1 (a floor under the tilt-shift's strength). */
   private dof = 0;
+  /** V4A: the lens's mask at quarter resolution, its material, and what it was built for. */
+  private qm: WebGLRenderTarget | null = null;
+  private readonly lensMask: ShaderMaterial;
+  private lensStamp = '';
+
+  /** V4A: photo mode's depth of field (0 to 1), the lens's aperture at rest. */
+  get depthOfField(): number {
+    return this.dof;
+  }
+
+  /** V4A: the tilt-shift's strength as the final pass takes it (its mask times this, up to 1). */
+  get tiltStrength(): number {
+    return this.tilt * TILT_MIX;
+  }
 
   setDepthOfField(amount: number): void {
     this.dof = amount;
@@ -366,7 +443,17 @@ export class LeanFrame {
       uBlurOn: { value: 0 },
       uBloomOn: { value: 0 },
       uBloomGain: { value: BLOOM_GAIN },
+      tLens: { value: null },
+      uLensRamp: { value: 0 },
       ...this.look,
+    });
+    this.lensMask = pass('LeanLensMask', LENS_MASK_FRAGMENT, {
+      tDepth: { value: null },
+      uTexel: { value: new Vector2() },
+      uNear: { value: 0.5 },
+      uFar: { value: 2000 },
+      uFocus: { value: 60 },
+      uSlope: { value: 1 },
     });
     this.setSeason('spring');
     this.setNight(0);
@@ -414,6 +501,10 @@ export class LeanFrame {
       this.qb = colorTarget(qw, qh, this.format);
       this.qc = colorTarget(qw, qh, this.format);
       this.qd = colorTarget(qw, qh, this.format);
+      this.qm?.dispose();
+      this.qm = colorTarget(qw, qh, this.format);
+      this.lensStamp = '';
+      this.lensMask.uniforms.uTexel!.value.set(0.25 / qw, 0.25 / qh);
       this.blur.uniforms.uTexel!.value.set(1 / qw, 1 / qh);
       this.down.uniforms.uTexel!.value.set(0.25 / qw, 0.25 / qh);
       // The blur is sized in quarter texels of the still target, so it stays the same size on
@@ -569,6 +660,23 @@ export class LeanFrame {
       }
       f.tBloom!.value = this.qc!.texture;
     }
+    // V4A: the lens at rest, its mask built once per still frame from the kept depth.
+    const lens = blurs && this.qm && rest?.lens && rest.lens.ramp > 0 ? rest.lens : null;
+    if (lens) {
+      const m = this.lensMask.uniforms;
+      const stamp = `${rest!.key}|${this.revision}|${lens.focus}|${lens.tanPitch}`;
+      if (stamp !== this.lensStamp) {
+        m.tDepth!.value = lens.depth;
+        m.uNear!.value = lens.near;
+        m.uFar!.value = lens.far;
+        m.uFocus!.value = lens.focus;
+        m.uSlope!.value = lens.tanPitch / (2 * Math.max(1e-3, lens.tanHalfFov));
+        this.pass(this.lensMask, this.qm);
+        this.lensStamp = stamp;
+      }
+      f.tLens!.value = this.qm!.texture;
+    }
+    f.uLensRamp!.value = lens ? Math.min(1, lens.ramp) : 0;
     f.tScene!.value = src.texture;
     f.uBlurOn!.value = blurs ? 1 : 0;
     f.uBloomOn!.value = blooms ? 1 : 0;
@@ -579,9 +687,10 @@ export class LeanFrame {
   dispose(): void {
     this.disposeMoving();
     this.still?.dispose();
-    for (const t of [this.qa, this.qb, this.qc, this.qd]) t?.dispose();
-    this.still = this.qa = this.qb = this.qc = this.qd = null;
+    for (const t of [this.qa, this.qb, this.qc, this.qd, this.qm]) t?.dispose();
+    this.still = this.qa = this.qb = this.qc = this.qd = this.qm = null;
     this.layout = null;
+    this.lensMask.dispose();
     this.down.dispose();
     this.brightPass.dispose();
     this.blur.dispose();

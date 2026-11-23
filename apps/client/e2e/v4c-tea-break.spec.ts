@@ -274,6 +274,76 @@ test.describe('one seat', () => {
   });
 });
 
+type Frame = { mode: string; samples: number; goal: number; change: string | null };
+
+/** Each drawn frame's mode and samples for `frames` drawn frames, or until the picture has settled. */
+const frames = (page: Page, count: number, untilSettled: boolean) =>
+  page.evaluate(
+    async ([count, untilSettled]) => {
+      const q = window.__qoti as unknown as {
+        stats(): {
+          mode: string;
+          samples: number;
+          sampleGoal: number;
+          stillChange: string | null;
+          drawn: number;
+        };
+      };
+      const out: Frame[] = [];
+      let drawn = q.stats().drawn;
+      const t0 = performance.now();
+      while (out.length < count && performance.now() - t0 < 240_000) {
+        await new Promise((res) => requestAnimationFrame(res));
+        const s = q.stats();
+        if (s.drawn === drawn) continue;
+        drawn = s.drawn;
+        out.push({ mode: s.mode, samples: s.samples, goal: s.sampleGoal, change: s.stillChange });
+        if (untilSettled && s.mode === 'idle' && s.sampleGoal > 0 && s.samples >= s.sampleGoal) break;
+      }
+      return out;
+    },
+    [count, untilSettled] as const,
+  );
+
+test("V4A's developing picture: a tea break never folds a sample, and the view put back develops from the first", async ({
+  page,
+}) => {
+  test.setTimeout(600_000);
+  // V4A's own setting (v4a-refine.spec.ts): High, refinement on whatever the software renderer's
+  // timings, a small fixed canvas so it keeps up.
+  await page.setViewportSize({ width: 640, height: 400 });
+  await open(page, '?debug&quality=high&noguide&teabreak&fixture=grown&refine=all&fixedres');
+  await page.keyboard.press('Shift');
+  // At rest the picture develops and settles.
+  const rest = await frames(page, 5_000, true);
+  const settled = rest[rest.length - 1]!;
+  expect(settled.mode).toBe('idle');
+  expect(settled.goal).toBeGreaterThan(0);
+  expect(settled.samples).toBe(settled.goal);
+
+  // A tea break: every frame a plain moving frame, no sample folded in.
+  await startBreak(page);
+  const during = await frames(page, 60, false);
+  expect(during.length).toBe(60);
+  expect(during.filter((f) => f.mode !== 'moving' || f.samples !== 0)).toEqual([]);
+
+  // The player's touch puts the view back: the development starts over from the first sample, never
+  // from the samples of the picture before (the moving frames dropped it; the view put back is the
+  // same as that picture's, so V4A names the change by what the town did meanwhile), and settles again.
+  await page.keyboard.press('Shift');
+  expect(await state(page)).toBeNull();
+  const back = await frames(page, 5_000, true);
+  const first = back.findIndex((f) => f.mode !== 'moving');
+  expect(first).toBeGreaterThanOrEqual(0);
+  expect(back[first]!.samples).toBeLessThanOrEqual(1);
+  const after = back.slice(first);
+  for (let i = 1; i < after.length; i++)
+    expect(after[i]!.samples).toBeGreaterThanOrEqual(after[i - 1]!.samples);
+  const end = back[back.length - 1]!;
+  expect(end.mode).toBe('idle');
+  expect(end.samples).toBe(end.goal);
+});
+
 async function twoSeats(browser: Browser, onA: (a: Page) => void) {
   const a = await (await browser.newContext()).newPage();
   onA(a);
