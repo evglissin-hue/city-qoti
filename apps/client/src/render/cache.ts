@@ -316,12 +316,6 @@ interface AoPass {
   /** The denoised AO (rgb), which the pass blends over the picture at `blendIntensity`. */
   readonly pdRenderTarget: WebGLRenderTarget;
   blendIntensity: number;
-  /** V4A: the depth (and, absent normals, the normals) it reads, instead of a scene pass of its own. */
-  setGBuffer(depthTexture?: Texture, normalTexture?: Texture): void;
-  readonly gtaoMaterial: ShaderMaterial;
-  readonly pdMaterial: ShaderMaterial;
-  /** Its own normal and depth target, unused once it reads the still frame's depth. */
-  readonly normalRenderTarget?: WebGLRenderTarget;
 }
 
 /** GTAOPass, once its module has loaded (shared by every cache), and the load in flight. */
@@ -526,7 +520,6 @@ export class StillCache {
     let color = src;
     const ao = this.aoFor(w, h, frame);
     if (ao && this.aoTarget) {
-      this.aoReads(ao, src.depthTexture);
       ao.render(renderer, this.aoTarget, src, 0, false);
       color = this.aoTarget;
     }
@@ -691,26 +684,12 @@ export class StillCache {
   }
 
   /**
-   * V4A (V3's far-camera list): the AO reads the still frame's own resolved depth and rebuilds its
-   * normals from it, instead of drawing the whole scene again (every layer, moving ones too) into a
-   * normal pass of its own each still frame: Ultra's second still pass is gone. The kit is faceted,
-   * so normals from depth are the faces' own.
+   * The AO pass at this size, once its code has loaded (stills before that go without). V4A kept
+   * its own normal pass, drawn once a still frame and never a sample: fed the still frame's depth
+   * instead (`setGBuffer`, normals rebuilt from depth), it saves about 120 draws on Ultra but sees
+   * every blade of the meadow carpet, which its own pass draws flat (the override material skips
+   * the blades' vertex shader), and stipples every lawn with dark specks.
    */
-  private aoReads(ao: AoPass, depth: Texture | null): void {
-    if (!depth || depth === this.aoDepth) return;
-    const first = this.aoDepth === null;
-    ao.setGBuffer(depth);
-    if (first) {
-      ao.gtaoMaterial.needsUpdate = true;
-      ao.pdMaterial.needsUpdate = true;
-      ao.normalRenderTarget?.dispose();
-    }
-    this.aoDepth = depth;
-  }
-
-  private aoDepth: Texture | null = null;
-
-  /** The AO pass at this size, once its code has loaded (stills before that go without). */
   private aoFor(w: number, h: number, frame: LeanFrame): AoPass | null {
     if (!this.ao) {
       // Off this preset: free the pass and its targets (made again if Ultra comes back).
@@ -718,7 +697,6 @@ export class StillCache {
       this.aoTarget?.dispose();
       this.aoPass = null;
       this.aoTarget = null;
-      this.aoDepth = null;
       return null;
     }
     if (!this.aoPass) {
@@ -753,7 +731,6 @@ export class StillCache {
         return null;
       }
       this.aoPass = make(this.scene, this.camera, w, h);
-      this.aoDepth = null;
     }
     if (!this.aoTarget || this.aoTarget.width !== w || this.aoTarget.height !== h) {
       this.aoTarget?.dispose();
