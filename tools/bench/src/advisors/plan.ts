@@ -18,19 +18,24 @@ import {
   familyIndex,
   larder,
   meetsRequires,
+  rankAtLeast,
   TICKS_PER_DAY,
   type DealOffer,
   type SeasonPlanInput,
   type WorldState,
 } from '@qoti/sim';
 import { content } from '@qoti/content';
-import type { Planner } from '../planner';
+import { importPrice, type Planner } from '../planner';
 import { count, FOODS } from '../town';
 import { BAR_ZONES } from '../village';
 import type { Advisor, AdvisorDef, Visit } from './types';
 
 /** Days of food a resident the menu leaves, and wanted in the larder, before winter. */
 export const WINTER_FOOD_DAYS = 8;
+/** Days of Food the carrier's reserve is set to, once, at Village rank (the default is three). */
+const HELD_FOOD_DAYS = 6;
+/** Coins in the treasury a town wants before it sets it. */
+const PUT_BY_COINS = 250;
 /** The Food mark a town that lives on imports sets (the default reserve is 8). */
 export const IMPORTED_FOOD_MARK = 10;
 
@@ -104,7 +109,8 @@ class Plan implements Advisor {
       bar = w.demand.bars[i]!;
       first = zone;
     });
-    if (first !== plan.buildFirst) answer.buildFirst = first;
+    // A card left on its last zone when nothing is lit is no chore sent (seven answers in seventy days, not nine).
+    if (first !== null && first !== plan.buildFirst) answer.buildFirst = first;
     if (Object.keys(answer).length > 0)
       p.do('answer the season card', [{ t: 'season.setPlan', plan: answer }]);
   }
@@ -121,8 +127,26 @@ class Plan implements Advisor {
       p.foodReserveDays = this.base;
       this.base = null;
     }
+    // The carrier's own Food reserve is set once, as a player sets it (the Ledger's lever): the cart
+    // then buys toward it all year, and Farmland reads it as the days of cover to grow toward, so
+    // the fields are not all the larder the frost finds (the cart alone buys toward the winter mark
+    // from autumn day 4 and Farmland reads four days, and a town that met winter with five days in
+    // store ran out at the thaw: hazel, day 48, 100 for 105). Only at Village rank, from late
+    // spring (the menu's put-by) and with coins to spare, so a young town keeps its building money.
+    const food = w.carrier.families[0]!;
+    if (putBy && rankAtLeast(w, 'village') && food.reserve < HELD_FOOD_DAYS && p.coins() >= PUT_BY_COINS)
+      p.do('keep a larder in the cart', [
+        { t: 'carrier.setReserve', family: 'food', reserve: HELD_FOOD_DAYS },
+      ]);
     const pop = w.residents.length;
     const mark = w.seasonPlan.food ?? w.seasonPlan.reserve;
+    // The coins the carrier will need for the winter's food: what the mark asks beyond the larder, at
+    // the carrier's price, from the summer's fourth day until the thaw.
+    const eaten = FOODS.reduce((n, g) => n + (w.economy.yesterday.consumed[g] ?? 0), 0);
+    const short =
+      (season === 1 && day >= 4) || season >= 2 ? Math.max(0, mark * Math.max(eaten, pop) - larder(w)) : 0;
+    const price = FOODS.reduce((n, g) => n + importPrice(w, g), 0) / Math.max(1, FOODS.length);
+    p.winterFood = Math.ceil(short * price);
     p.larderShort = (season === 1 || season === 2) && pop > 0 && pop * mark > larder(w);
   }
 }

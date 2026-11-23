@@ -116,14 +116,18 @@ describe('wheat windows', () => {
   });
 });
 
+/** The stone the windmill costs, read from content. */
+const windmillStone = () =>
+  content.buildingById.get('windmill')!.cost!.goods!.find(([g]) => g === 'stone')![1];
+
 describe('stone', () => {
   // P1 dead-end hunt: 30 as before, not 40. The cheaper windmill and bakery answer "stone scarce at
   // the windmill" (two more homes, a farmhouse and the windmill now take 26); 40 moved every
   // valley's first days, and willow's guide closed on its food step.
   it('starts at 30, and the windmill asks for less', () => {
     expect(START_GOODS.find(([g]) => g === 'stone')?.[1]).toBe(30);
-    const stone = (id: string) => content.buildingById.get(id)!.cost!.goods!.find(([g]) => g === 'stone')![1];
-    expect(stone('windmill')).toBe(8);
+    expect(windmillStone()).toBeLessThan(8);
+    expect(windmillStone()).toBeLessThan(START_GOODS.find(([g]) => g === 'stone')![1]);
   });
 
   it("puts the quarry's first hand ahead while stone is low and a site needs it", () => {
@@ -139,7 +143,7 @@ describe('stone', () => {
     expect(shortages(f.state).stoneRush).toBe(false);
     const d = content.buildingById.get('windmill')!;
     const site = insertBuilding(f.state, null, d, 90, 90, 0, 0, { site: true });
-    expect(site.rt!.construction!.needs[good('stone')]).toBe(8);
+    expect(site.rt!.construction!.needs[good('stone')]).toBe(windmillStone());
     expect(shortages(f.state).stoneRush).toBe(true);
     store.rt!.store[good('stone')] = STONE_RUSH + 5;
     expect(shortages(f.state).stoneRush).toBe(false);
@@ -152,7 +156,7 @@ describe('the carrier as an importer', () => {
   const note = (events: SimEvent[]) =>
     events.find((e): e is Extract<SimEvent, { e: 'notify' }> => e.e === 'notify' && e.kind === 'carrier');
   const stone = (s: WorldState) => townStock(s)[good('stone')]!;
-  /** The hamlet with 2 stone in store and a windmill site waiting for 8. */
+  /** The hamlet with 2 stone in store and a windmill site waiting for its stone. */
   function stoneShort() {
     const f = hamletFixture();
     building(f.state, f.b.storehouse).rt!.store[good('stone')] = 2;
@@ -172,12 +176,14 @@ describe('the carrier as an importer', () => {
     const before = moneySnapshot(f.state);
     const treasury = f.state.economy.treasury;
     const events = untilHour(f.state, 11);
-    expect(stone(f.state)).toBe(2 + 6);
+    expect(stone(f.state)).toBe(windmillStone());
     const money = f.state.economy.today.money;
     const spent = money[cat('imports')]!;
     expect(spent).toBeGreaterThan(0);
     expect(f.state.economy.treasury).toBe(treasury - spent + money[cat('exports')]!);
-    expect(note(events)?.text).toMatch(/^The carrier left (.* )?6 stone.* at the gate and took .* for it\./);
+    expect(note(events)?.text).toMatch(
+      new RegExp(`^The carrier left (.* )?${windmillStone() - 2} stone.* at the gate and took .* for it\\.`),
+    );
     expectMoneyInvariant(before, f.state);
   });
 

@@ -1,5 +1,6 @@
 // The playability audit (the dead-end hunt, docs/spec/31-parallel-development.md): the autoplayer
-// plays several seeds through a full year (24 days) and one seed on through the Village chapter,
+// plays several seeds through a full year (24 days), each again as a newcomer pair (P3A, newcomer.ts),
+// and one seed on through the Village chapter,
 // and everything that would stop a player is collected: the health watch's issues (site-stalled,
 // site-cut-off, builders-idle, resident-stuck, no-builders, festival-no-show and, for the zones-first
 // Ledger: business-short, a business or specialized building a whole day short of an input the
@@ -13,7 +14,8 @@
 // could close, a day), place-unreachable (a place no home door can walk to, a day), treats-unsold (an
 // outlet with Treats on its shelf and a place in reach whose visitors bought none for a season of
 // evenings), tier-unreachable (an evenings gate no town can build) and garden-grown (a garden lot
-// something grew on); all quiet on the stand-ins, so `EXPLAINED` stays empty;
+// something grew on); P3A, hands-spiral (food short and food jobs open two middays running while
+// hands work past the first elsewhere, or sites pile up with the Homes bar silent); all quiet on the stand-ins; `EXPLAINED` holds the one newcomer-profile limit (treats-unsold);
 // site-rule-broken, a specialized building whose woods, open ground or road went; wish-dead-end,
 // guide-dead-end and story-dead-end, a goal nothing can meet) and, per wish template, how many were
 // offered, granted and let go (and how many let go while impossible). R1.0: standing orders are
@@ -36,7 +38,7 @@ import {
 } from '@qoti/sim';
 import { writeFileSync } from 'node:fs';
 import { autoplay, type AutoplayOptions } from './autoplay';
-import { stuckCommands, STUCK_DAYS, type StuckCommand } from './decisions';
+import { heldActions, stuckCommands, STUCK_DAYS, type StuckCommand } from './decisions';
 
 export const DEFAULT_SEEDS = ['willow', 'hazel', 'oak', 'birch'];
 export const YEAR_DAYS = 24;
@@ -50,11 +52,34 @@ export const NEVER_GRANTED_AFTER = 3;
  * prints them as explained instead of failing the run. R1X emptied it as the wave landed: a flag
  * that outlives its stand-in is a dead end again.
  */
-export const EXPLAINED: readonly { kind: HealthIssue['kind']; match: RegExp; why: string }[] = [];
+export const EXPLAINED: readonly {
+  kind: HealthIssue['kind'];
+  match: RegExp;
+  /** The runs (`seed/label`) the entry covers; with none, every run. */
+  run?: RegExp;
+  why: string;
+}[] = [
+  {
+    kind: 'treats-unsold',
+    match:
+      /^market-stall #\d+ has had Treats on the shelf and visitors at \d+ places in reach for \d+ evenings and sold none$/,
+    run: /\/newcomer$/,
+    why:
+      'a limit of the newcomer pair, not a stuck shelf (P3A; hazel/newcomer, traced through tradePass): ' +
+      'the few households out each evening either owed under one Treat (a line accrues 30 to 40 hundredths a day, ' +
+      'so a household buys about every third evening), had bought tonight at an earlier stop, or, from Village rank ' +
+      'when Treats are paid, held 200 to 292 pennies against a cheapest Treat of 300 (187 of 187 refusals at the stall ' +
+      'were the purse); with no places or decor for five evenings (NEWCOMER_LATE) the town is thin. The tuned runs, ' +
+      'with places from the first evening, flag nothing in this audit.',
+  },
+];
 
 /** Why a flag is a known stand-in's, or null when it is a dead end. */
-export function explained(i: Pick<HealthIssue, 'kind' | 'text'>): string | null {
-  return EXPLAINED.find((e) => e.kind === i.kind && e.match.test(i.text))?.why ?? null;
+export function explained(i: Pick<HealthIssue, 'kind' | 'text'>, run = ''): string | null {
+  return (
+    EXPLAINED.find((e) => e.kind === i.kind && e.match.test(i.text) && (!e.run || e.run.test(run)))?.why ??
+    null
+  );
 }
 
 export interface WishStat {
@@ -216,7 +241,7 @@ function playOne(seed: string, days: number, label: string, opts: AutoplayOption
     rank: last.rank,
     wishes: ledger.result(),
     issues: run.health,
-    stuck: stuckCommands(run.decisions),
+    stuck: [...stuckCommands(run.decisions), ...heldActions(run.actions)],
     hearthStalled: hearthSites.stalled,
   };
 }
@@ -233,9 +258,11 @@ export function audit(
   const runs: AuditRun[] = [];
   const plan: [string, number, string][] = seeds.map((s) => [s, days, 'year']);
   if (villageDays > 0) plan.push([villageSeed, villageDays, 'village']);
+  // P3A: and every seed as a newcomer pair plays it (newcomer.ts), where the hands spiral lives.
+  for (const s of seeds) plan.push([s, days, 'newcomer']);
   for (const [seed, d, label] of plan) {
     const t0 = performance.now();
-    const r = playOne(seed, d, label, {});
+    const r = playOne(seed, d, label, label === 'newcomer' ? { newcomer: true } : {});
     runs.push(r);
     log(
       `${seed.padEnd(7)} ${label.padEnd(7)} ${String(d).padStart(2)} days  ${String(r.residents).padStart(3)} residents  ${r.rank.padEnd(8)} ` +
@@ -271,9 +298,9 @@ export function audit(
       text: `wish ${s.template} was offered ${s.offered} times and never granted (${s.expired} let go, ${s.expiredUnachievable} while impossible)`,
     }));
   const all = runs.flatMap((r) => r.issues.map((i) => ({ ...i, run: `${r.seed}/${r.label}` })));
-  const flags = all.filter((i) => !explained(i));
+  const flags = all.filter((i) => !explained(i, i.run));
   const known = all.flatMap((i) => {
-    const why = explained(i);
+    const why = explained(i, i.run);
     return why ? [{ ...i, why }] : [];
   });
   const stuck = runs.flatMap((r) => r.stuck.map((s) => ({ ...s, run: `${r.seed}/${r.label}` })));

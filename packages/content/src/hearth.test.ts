@@ -88,6 +88,8 @@ describe('the Chronicle', () => {
     'guide-done': ['surveyor'],
     // P1 (callings)
     calling: ['calling', 'credit'],
+    // P3A
+    'business-grew': ['business', 'level', 'hands'],
   };
 
   it('has at least three variants per kind, using only the params its callers pass', () => {

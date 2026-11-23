@@ -34,10 +34,12 @@ import {
   visitHome,
 } from './round';
 import { buyAtOutlet, needsShopping, someoneShopping, startShopping, unpack } from './shopping';
+import { pantryFood } from './needs';
 import {
   Block,
   type BlockId,
   HOUR,
+  MORNING_START,
   at,
   blockOf,
   dayIndex,
@@ -150,6 +152,21 @@ export function think(state: WorldState, ctx: TickCtx, rng: Rng, r: Resident): v
     shop(state, ctx, r, h, homeDoor);
     return;
   }
+  // P3A: an empty larder is fetched for before bed and at dawn, whatever the round planned. A
+  // worker on their own, home from work at 17:00 with an Early Bird's bedtime, had the round's
+  // errand planned for after it and went without for six days with the granary full (willow).
+  // The dawn errand does not wait for the resident's hour turn: a shelf an hour's walk off, left for
+  // at 06:40, put the food on the table after the 08:00 breakfast (willow's households).
+  // It is for the meal itself: a pantry short of one unit a mouth, not only an empty one.
+  if (
+    goal === 'home' &&
+    (turned || (block === Block.morning && clock < MORNING_START + THINK_EVERY)) &&
+    r.stage !== 'child' &&
+    pantryFood(h) < h.members.length &&
+    !someoneShopping(state, h) &&
+    startShopping(state, r, h)
+  )
+    return;
   switch (goal) {
     case 'sleep':
     case 'home':

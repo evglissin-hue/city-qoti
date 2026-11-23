@@ -50,6 +50,9 @@ const WRITTEN: Record<string, string> = {
   'bath-house': 'Hot water and gossip, in that order',
   'bell-tower': 'Rings everyone home when trouble comes',
   shed: 'Keeps a few odds and ends out of the rain',
+  // P3A: the garden bed gives, it does not "look lived in" (docs/spec/12-hearth.md, The Pattern Book).
+  'garden-bed': 'A raised bed by a door. Supper gets more interesting; it does not get bigger',
+  'stone-bridge': 'A landmark by the water, built to be seen',
 };
 
 /** "the baker" or "the baker and the carpenter": trades a building enables, by name. */
@@ -64,9 +67,25 @@ function tradeList(ids: readonly string[]): string {
  * its trade does; a business building without one is still finding its trade.
  */
 export function buildingPurpose(def: BuildingDef, trade?: string): string {
+  return purposeParts(def, trade).text;
+}
+
+/**
+ * P3A: the purpose without the site rule, or null when the data says nothing and only a stock line
+ * would be left. The inspector builds its "what it does" line on this.
+ */
+export function purposeCore(def: BuildingDef): string | null {
+  const { core, stock } = purposeParts(def);
+  return stock ? null : core;
+}
+
+function purposeParts(def: BuildingDef, trade?: string): { text: string; core: string; stock: boolean } {
   const parts: string[] = [];
   const tradeDef = trade ? content.tradeById.get(trade) : undefined;
-  if (tradeDef) return `${tradeDef.blurb.replace(/\.$/, '')}.`;
+  if (tradeDef) {
+    const text = `${tradeDef.blurb.replace(/\.$/, '')}.`;
+    return { text, core: text, stock: false };
+  }
   const written = WRITTEN[def.id];
   if (written) parts.push(written);
   if (def.housing) {
@@ -105,12 +124,21 @@ export function buildingPurpose(def: BuildingDef, trade?: string): string {
   if (parts.length === 0 && content.trades.some((t) => t.building === def.id))
     parts.push(`A ${def.name.toLowerCase()} still finding its trade`);
   if (parts.length === 0 && def.category === 'production') parts.push('A workplace still finding its work');
-  if (parts.length === 0 && def.defense) parts.push('Helps keep the valley safe');
-  if (parts.length === 0) parts.push('Makes the place look lived in');
+  let stock = false;
+  if (parts.length === 0 && def.defense) {
+    parts.push('Helps keep the valley safe');
+    stock = true;
+  }
+  if (parts.length === 0) {
+    parts.push('Makes the place look lived in');
+    stock = true;
+  }
+  const core = `${parts.join('. ')}.`;
   const where = placementLine(def);
   if (where) parts.push(where);
-  if (def.tags?.includes('soil')) parts.push('Grows anywhere, best on rich, dark soil');
-  return `${parts.join('. ')}.`;
+  if (def.tags?.includes('soil') && !def.tags.includes('garden-bed'))
+    parts.push('Grows anywhere, best on rich, dark soil');
+  return { text: `${parts.join('. ')}.`, core, stock };
 }
 
 /** The purpose line by building id (and a business's trade), or null for an unknown id. */

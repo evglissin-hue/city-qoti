@@ -91,8 +91,8 @@ export {
 export { evaluate, type Binding } from './conditions';
 export { achievable, placeableNow } from './systems/hearth/wishes/achievable';
 export { gapAchievable } from './systems/gaps/achievable';
-export { gardenFlavors } from './systems/hearth/garden';
-export { HealthWatch, type HealthIssue, type HealthKind } from './view/health';
+export { GARDEN_BED_REACH, gardenBedReaches, gardenFlavors } from './systems/hearth/garden';
+export { handsSpiral, HealthWatch, type HealthIssue, type HealthKind } from './view/health';
 
 export { base64ToBytes, bytesToBase64 } from './state/base64';
 export { createValley, createWorld, defaultSettings } from './state/create';
@@ -101,8 +101,13 @@ export { insertBuilding } from './state/place';
 export { START_GOODS } from './systems/economy/start';
 export { settleHousehold } from './systems/residents/lifecycle';
 export { economyDial, type EconomyDial } from './systems/economy/dial';
+export { KEEPER_DAYS_L3, LEVEL_DOWN_DAYS, LEVEL_UP_DAYS, SHOP_CUSTOMERS } from './systems/levels';
 export { fieldCost, placementCost, roadCost } from './systems/economy/api';
 export { nearestOutletWithFood, outletFood, takeFromOutlet } from './systems/economy/outlets';
+// P3A (meals): the pantry and the shelf, read by the bench's meal trace.
+export { foodIndexes, pantryFood } from './systems/residents/needs';
+export { outletFree } from './systems/market/api';
+export { onTheSlate } from './systems/market/baskets';
 export { doorTile } from './systems/movement/api';
 export {
   CROP_RIPE,
