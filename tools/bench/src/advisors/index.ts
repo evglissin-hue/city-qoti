@@ -7,12 +7,14 @@ import { festivals } from './festivals';
 import { guide } from './guide';
 import { hamlet } from './hamlet';
 import { hearth } from './hearth';
+import { lamps } from './lamps';
 import { land } from './land';
 import { money } from './money';
 import { nature } from './nature';
 import { places } from './places';
 import { plan } from './plan';
 import { shops } from './shops';
+import { supplies } from './supplies';
 import { together } from './together';
 import type { AdvisorDef } from './types';
 import { village } from './village';
@@ -27,12 +29,14 @@ export const advisors: readonly AdvisorDef[] = [
   guide,
   hamlet,
   hearth,
+  lamps,
   land,
   money,
   nature,
   places,
   plan,
   shops,
+  supplies,
   together,
   village,
   watch,

@@ -13,7 +13,9 @@ async function shot(page: Page, name: string) {
 }
 
 test('the Ledger reads its town from the top bar, the picker and the books', async ({ page }) => {
-  test.setTimeout(240_000);
+  // R3E: 360 s, as V4B (#72) gives it. It takes about 175 s on a fast host, and a slow CI host runs
+  // 1.6 to 1.9 times slower (it timed out at 240 s in e2e 2 of 3 on 66c954c); the steps are unchanged.
+  test.setTimeout(360_000);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(`/${QUERY}`);
   await waitLive(page);

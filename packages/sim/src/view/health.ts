@@ -29,6 +29,7 @@ import { entranceTiles, footprintSize } from '../rules/footprint';
 import { doorFront, reachesTile, townReach } from '../rules/reach';
 import { gateTiles } from '../rules/wall';
 import { canPlantTree } from '../rules/tree';
+import { isMasterGood } from '../state/masters';
 import { worldIndex } from '../state/worldIndex';
 import { townReachesDoor } from '../state/reach';
 import { placeState } from '../state/evenings';
@@ -51,6 +52,7 @@ import { MAX_BUILDERS_PER_SITE } from '../systems/construction';
 import { available } from '../systems/logistics/tasks';
 import { allowedWork } from '../systems/production/status';
 import { supplyGapClosable } from '../systems/supplies/api';
+import { pageUnproducible, supplyUnsuppliable, unproducibleContentPages } from './healthR3';
 import { townStock } from './hamlet';
 
 export type HealthKind =
@@ -141,7 +143,23 @@ export type HealthKind =
    * keeps. Checked once a day at 23:00, before the day end resets the counters; resting days hold
    * the count.
    */
-  | 'level-stuck';
+  | 'level-stuck'
+  /**
+   * R3E: a supplied piece in town (a lantern, a fire, a cloth, a cafe table, a fountain) whose supply
+   * can never come: its good has no maker the town can build and no neighbor sells it, or no outlet
+   * or well def exists for it. From `content.supplies.fromRank`; once per piece def.
+   */
+  | 'supply-unsuppliable'
+  /**
+   * R3E: a master's good in stock somewhere for a whole day while no outlet in town could shelve its
+   * family (a pie with no outlet that takes Treats). It waits for no outlet at all, not for stock.
+   */
+  | 'master-good-unsold'
+  /**
+   * R3E: a Town Book hint, or any content specialty or custom, that content cannot produce: a pattern,
+   * host or supply that does not exist, a flavor that is not a Treat, or one no maker can make. Once per page.
+   */
+  | 'page-unproducible';
 
 export interface HealthIssue {
   kind: HealthKind;
@@ -266,6 +284,10 @@ export class HealthWatch {
   private unsoldDay = -1;
   /** R2E: tiers (and `lot:<id>` rows) already reported, so each is said once. */
   private readonly reported = new Set<string>();
+  /** R3E: master good → tick it was first seen in stock with no outlet to shelve it; and the hour and day of the last looks. */
+  private readonly unshelvedSince = new Map<number, number>();
+  private masterHour = -1;
+  private r3Day = -1;
 
   check(state: WorldState): HealthIssue[] {
     if (!isStandard(state)) return [];
@@ -633,6 +655,74 @@ export class HealthWatch {
     this.checkTreatsUnsold(state, out);
     this.checkTiers(state, out);
     this.checkGardens(state, out);
+    this.checkSuppliesR3(state, out);
+    this.checkMasterGoodsR3(state, out);
+    this.checkPagesR3(state, out);
+  }
+
+  /** supply-unsuppliable (R3E): once a day from the supplies' rank, each supplied piece def standing in town is looked at once. */
+  private checkSuppliesR3(state: WorldState, out: HealthIssue[]): void {
+    const day = dayIndex(state.tick);
+    if (day === this.r3Day) return;
+    this.r3Day = day;
+    if (!rankAtLeast(state, content.supplies.fromRank)) return;
+    for (const piece of state.decor) {
+      const key = `supply:${piece.def}`;
+      if (this.reported.has(key)) continue;
+      const def = content.decorById.get(piece.def);
+      if (!def?.supply) continue;
+      this.reported.add(key);
+      const why = supplyUnsuppliable(def);
+      if (why) out.push({ kind: 'supply-unsuppliable', id: piece.id, text: why });
+    }
+  }
+
+  /** master-good-unsold (R3E): a master's good in stock a whole day while no outlet could shelve its family (read hourly). */
+  private checkMasterGoodsR3(state: WorldState, out: HealthIssue[]): void {
+    const hour = Math.floor(state.tick / TICKS_PER_HOUR);
+    if (hour === this.masterHour) return;
+    this.masterHour = hour;
+    const now = state.tick;
+    const stocked = new Set<number>();
+    const shelved = new Set<string>();
+    for (const b of state.buildings) {
+      if (b.stage !== 'built' || !b.rt) continue;
+      for (const g of MASTER_GOODS) if ((b.rt.store[g] ?? 0) > 0 || (b.rt.output[g] ?? 0) > 0) stocked.add(g);
+      for (const f of outletFamilies(b)) shelved.add(f);
+    }
+    for (const g of MASTER_GOODS) {
+      const family = content.goods[g]?.family;
+      if (!stocked.has(g) || !family || shelved.has(family)) {
+        this.unshelvedSince.delete(g);
+        continue;
+      }
+      const since = this.unshelvedSince.get(g) ?? now;
+      this.unshelvedSince.set(g, since);
+      if (now - since >= DAY_TICKS)
+        out.push({
+          kind: 'master-good-unsold',
+          id: g,
+          text: `${content.goods[g]!.id} is made and no outlet in town takes ${family}: it has nowhere to be sold`,
+        });
+    }
+  }
+
+  /** page-unproducible (R3E): content pages once at the first look, hints as they appear. */
+  private checkPagesR3(state: WorldState, out: HealthIssue[]): void {
+    if (!this.reported.has('pages')) {
+      this.reported.add('pages');
+      for (const [id, why] of unproducibleContentPages()) {
+        this.reported.add(`page:${id}`);
+        out.push({ kind: 'page-unproducible', id: 0, text: why });
+      }
+    }
+    for (const id of state.townBook.hints) {
+      const key = `page:${id}`;
+      if (this.reported.has(key)) continue;
+      this.reported.add(key);
+      const why = pageUnproducible(id);
+      if (why) out.push({ kind: 'page-unproducible', id: 0, text: `the Town Book hints at ${id}: ${why}` });
+    }
   }
 
   /** gap-dead-end and gap-unmeetable: an open gap with nothing that could close it for a whole day (read once an hour). */
@@ -894,6 +984,20 @@ export class HealthWatch {
       }
     }
   }
+}
+
+/** R3E: the master goods' indexes, in good order (found once). */
+const MASTER_GOODS: readonly number[] = content.goods.flatMap((_, i) => (isMasterGood(i) ? [i] : []));
+
+/** R3E: the families a built outlet puts on its shelf (the tavern pours Treats; a stall or shop by its trade's level). */
+function outletFamilies(b: Building): readonly string[] {
+  const tags = content.buildingById.get(b.def)?.tags;
+  if (!tags || b.stage !== 'built') return [];
+  if (tags.includes('tavern')) return ['treats'];
+  if (!tags.includes('outlet') || !tags.includes('market')) return [];
+  const trade = content.tradeById.get(b.trade ?? (tags.includes('shop') ? 'shop' : ''));
+  if (!trade?.sells) return ['food', 'fuel', 'materials', 'wares', 'treats'];
+  return trade.sells[Math.max(1, Math.min(trade.sells.length, b.level ?? 1)) - 1]!;
 }
 
 function idleBuilders(state: WorldState): number {

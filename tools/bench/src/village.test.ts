@@ -15,7 +15,9 @@ import { frontageAscii, streetRect } from './village';
 
 const VILLAGE_DAY = 12;
 
-describe('a Village grows its high street', { timeout: 180_000 }, () => {
+// R3E: 300 s a test. With R3B's masters hazel's run takes 64 s here and over 180 s on the CI
+// runner (it timed out at 180 s on 7cdef17); the assertions are unchanged.
+describe('a Village grows its high street', { timeout: 300_000 }, () => {
   for (const seed of ['willow', 'hazel']) {
     // R1F: back on with the land advisor.
     it(`grows homes and shops on ${seed}'s zoned frontage in fifteen days`, () => {
