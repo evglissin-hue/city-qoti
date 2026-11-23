@@ -116,8 +116,9 @@ describe('the stand-in comments', () => {
       });
     }
     expect(files.length).toBeGreaterThan(100);
-    // The scan sees the markers while the wave's stand-ins remain (each cycle removes its own: R3.0
-    // left more than 20, R3B and R3C together leave 17). R3X, with none left, drops this line.
-    expect(n).toBeGreaterThan(0);
+    // The scan saw the markers while the wave's stand-ins remained (each cycle removed its own: R3.0
+    // left more than 20, R3B and R3C together left 17). R3H removed the last, so none is left: R3X's
+    // first step (`grep -rn "R3 stand-in"`) comes back empty, and one coming back is unfinished work.
+    expect(n).toBe(0);
   });
 });
