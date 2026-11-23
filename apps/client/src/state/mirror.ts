@@ -73,7 +73,6 @@ import {
   type Rect,
   type RejectReason,
   type SeatView,
-  type SuppliesView,
   type ValleySettings,
   type ViewSnapshot,
   type WorldMeta,
@@ -283,8 +282,6 @@ export class Mirror implements MapReader {
   readonly streetsRevision = signal(0);
   /** The two footfall layers, replaced whole on footfall.updated (never patched). */
   readonly footfall = signal<FootfallView | null>(null);
-  /** R3: tonight's lamps, resting pieces and candle-lit homes (supplies.updated), replaced whole. */
-  readonly supplies = signal<SuppliesView | null>(null);
   private placeTiles: { rev: number; at: Map<number, PlaceId>; members: Map<EntityId, PlaceId> } | null =
     null;
   private streetTiles: { rev: number; at: Map<number, EntityId> } | null = null;
@@ -395,7 +392,6 @@ export class Mirror implements MapReader {
     this.gaps.value = view.gaps ?? null;
     this.evening.value = view.evening ?? null;
     this.footfall.value = view.footfall ?? null;
-    this.supplies.value = view.supplies ?? null;
     this.agents = { prev: EMPTY_FRAME, prevAt: 0, latest: EMPTY_FRAME, latestAt: 0, t: view.lastTurn };
     this.revision.value++;
     this.hamletRevision.value++;
@@ -745,10 +741,6 @@ export class Mirror implements MapReader {
         case 'footfall.updated':
           this.footfall.value = e.f;
           change.footfall = true;
-          break;
-        // R3 (R3F reads it; R3D's panels read their own views)
-        case 'supplies.updated':
-          this.supplies.value = e.s;
           break;
       }
     }
