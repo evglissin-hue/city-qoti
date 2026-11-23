@@ -91,6 +91,18 @@ One row per cycle. A cycle is one agent session working from one brief on one br
 | R3G The storybook | R3 | parallel | `cycle-r3g-storybook.md` | R3.0 | PR open ([evglissin-hue/city-qoti#71](https://github.com/evglissin-hue/city-qoti/pull/71)) from `cycle/r3g-storybook` into `cycle/r3x-integration`: "Print the storybook" on the Chapter card and the book on P3B's Books shelf; a chapter printed for the browser's dialog at A4 or US Letter (the endpaper map on the cover, the Chronicle as a two-column gazette with its pictures, the Pattern Book and Town Book pages with their slots, the folk by household); pictures through `ui/pictures.ts`, then the valley's own snapshots; shots `r3g-*` |
 | R3H Specialized buildings grow | R3 | parallel | `cycle-r3h-specialized-levels.md` | R3.0 | PR open ([evglissin-hue/city-qoti#70](https://github.com/evglissin-hue/city-qoti/pull/70)) from `cycle/r3h-specialized-levels` into `cycle/r3x-integration`: ten specialized buildings climb and slide on good days of their own, the readers of a level, the looks of each level, the level line, the feed and the audit's `level-stuck`; screenshots `r3h-*` |
 | R3X R3 integration and tuning | R3 | integration | `cycle-r3x-integration.md` | R3A to R3H | waiting; merges the wave on `cycle/r3x-integration`, one PR into `main` |
+| I4.0 Town contracts | I4 wave one | serial | `cycle-i4-0-contracts.md` | R3X | brief drafted (R3X); wave notes `i4-wave-notes.md` (the split into two waves waits on the owner) |
+| I4A The Town Charter, its trial, Merchants and the era | I4 wave one | parallel | `cycle-i4a-town-charter.md` | I4.0 | brief drafted (R3X) |
+| I4B Steam works, coal and smoke | I4 wave one | parallel | `cycle-i4b-steam-works.md` | I4.0 | brief drafted (R3X) |
+| I4C Districts, policies and styles | I4 wave one | parallel | `cycle-i4c-districts.md` | I4.0 | brief drafted (R3X) |
+| I4D Trade contracts and Port Amberly | I4 wave one | parallel | `cycle-i4d-trade-contracts-port.md` | I4.0 | brief drafted (R3X) |
+| I4E The Town's evenings | I4 wave one | parallel | `cycle-i4e-town-evenings.md` | I4.0 | brief drafted (R3X) |
+| I4F The eight patterns and the feats | I4 wave one | parallel | `cycle-i4f-patterns-feats.md` | I4.0 | brief drafted (R3X) |
+| I4G The Town's interface | I4 wave one | parallel | `cycle-i4g-interface.md` | I4.0 | brief drafted (R3X) |
+| I4H The bench | I4 wave one | parallel | `cycle-i4h-bench.md` | I4.0 | brief drafted (R3X) |
+| V5A The Steam kit on buildings | I4 wave one (V5) | parallel | `cycle-v5a-steam-buildings.md` | I4.0 | brief drafted (R3X) |
+| V5B The era's light, smoke, pieces and moment | I4 wave one (V5) | parallel | `cycle-v5b-steam-light.md` | I4.0 | brief drafted (R3X) |
+| I4X I4 wave one integration and tuning | I4 wave one | integration | `cycle-i4x-integration.md` | I4A to I4H, V5A, V5B | brief drafted (R3X) |
 
 Status values: waiting (dependencies not merged), ready, in progress (add the session link), PR open (add the PR link), merged.
 
