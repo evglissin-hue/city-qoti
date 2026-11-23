@@ -313,7 +313,26 @@ test("V4A's developing picture: a tea break never folds a sample, and the view p
   // timings, a small fixed canvas so it keeps up.
   await page.setViewportSize({ width: 640, height: 400 });
   await open(page, '?debug&quality=high&noguide&teabreak&fixture=grown&refine=all&fixedres');
+  // And as V4A's spec sets it: the valley paused at a pinned hour, the camera at the town's middle,
+  // so nothing in the town redraws the still frame while a rest is measured (on a slow runner a
+  // running valley never lets the picture settle). A tea break still has the day's footfall to circle.
+  await page.evaluate(() => {
+    const q = window.__qoti as unknown as {
+      submit(c: unknown): void;
+      setHour(h: number): void;
+      grownInfo(): { center: [number, number] };
+      look(x: number, z: number, distance: number, turn?: number, tilt?: number): void;
+    };
+    q.submit({ t: 'time.setSpeed', speed: 0 });
+    q.setHour(11);
+    const info = q.grownInfo();
+    q.look(info.center[0], info.center[1], 70, 0, 0);
+  });
+  await page.waitForTimeout(10_000);
   await page.keyboard.press('Shift');
+  // Real time counts as idle too, and a slow runner can take over 90 s to settle: ten minutes' margin
+  // on the tea break's clock, so no real tea break starts while the rest is measured.
+  await skip(page, -600_000);
   // At rest the picture develops and settles.
   const rest = await frames(page, 5_000, true);
   const settled = rest[rest.length - 1]!;
@@ -321,7 +340,9 @@ test("V4A's developing picture: a tea break never folds a sample, and the view p
   expect(settled.goal).toBeGreaterThan(0);
   expect(settled.samples).toBe(settled.goal);
 
-  // A tea break: every frame a plain moving frame, no sample folded in.
+  // A tea break: every frame a plain moving frame, no sample folded in. (A key first: the count starts
+  // over on the clock as it now stands, so the skip of 90 s starts one.)
+  await page.keyboard.press('Shift');
   await startBreak(page);
   const during = await frames(page, 60, false);
   expect(during.length).toBe(60);
@@ -331,6 +352,8 @@ test("V4A's developing picture: a tea break never folds a sample, and the view p
   // from the samples of the picture before (the moving frames dropped it; the view put back is the
   // same as that picture's, so V4A names the change by what the town did meanwhile), and settles again.
   await page.keyboard.press('Shift');
+  // The same margin while it settles again (the camera rests REST_MS before its first still frame).
+  await skip(page, -600_000);
   expect(await state(page)).toBeNull();
   const back = await frames(page, 5_000, true);
   const first = back.findIndex((f) => f.mode !== 'moving');
