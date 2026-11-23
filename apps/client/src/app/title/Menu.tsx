@@ -67,7 +67,9 @@ export function Menu({
               {copy.title.join}
             </button>
             <p class="tf-arrive muted">
-              {profile.name.trim() ? copy.title.arriveAs(profile.name.trim()) : copy.title.arriveUnnamed}{' '}
+              <span>
+                {profile.name.trim() ? copy.title.arriveAs(profile.name.trim()) : copy.title.arriveUnnamed}
+              </span>
               <button
                 type="button"
                 class="tf-link"

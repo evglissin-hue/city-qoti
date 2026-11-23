@@ -237,6 +237,13 @@
 .tf-arrive {
   margin: 0;
   line-height: 1.35;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.tf-arrive > span {
+  flex: 1;
   text-wrap: pretty;
 }
 
