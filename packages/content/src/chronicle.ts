@@ -13,7 +13,8 @@ import type { ChronicleTemplate } from './types';
 //   achievement         {achievement} {description} {credit}
 //   wishes-digest       {wishes} {examples}         ("three wishes", "a bench by the river for Clover and ...")
 //   season-summary      {season} {year} {people} {coins} {pages} {wishes} {books}
-//                       ("nine residents", "one page", "no wishes")
+//                       ("nine residents", "one coin", "one page", "no wishes")
+//   business-grew       {business} {level} {hands}  ({hands} is "1 hand" or "3 hands")
 //   specialized-grew    {building} {level} {more}   (R3H)
 //   specialized-shrank  {building} {level} {why}    (R3H)
 //
@@ -58,9 +59,9 @@ export const founding: ChronicleTemplate = {
 export const businessGrew: ChronicleTemplate = {
   kind: 'business-grew',
   text: [
-    'Business is good at {business}: level {level} now, with room for {hands} hands and a bigger sign to say so.',
-    'Word in the lane is that {business} has grown. Level {level}, room for {hands} hands, and the paint is still wet.',
-    'More custom than counter at {business}, so it grew: level {level}, with room for {hands} hands.',
+    'Business is good at {business}: level {level} now, with room for {hands} and a bigger sign to say so.',
+    'Word in the lane is that {business} has grown. Level {level}, room for {hands}, and the paint is still wet.',
+    'More custom than counter at {business}, so it grew: level {level}, with room for {hands}.',
   ],
 };
 
@@ -99,9 +100,9 @@ export const patternDiscovered: ChronicleTemplate = {
 export const seasonSummary: ChronicleTemplate = {
   kind: 'season-summary',
   text: [
-    '{season} of year {year} is behind us: {people}, {coins} coins in the treasury, {wishes} granted so far and {pages} in the Pattern Book. {books}',
-    'Looking back on {season}, year {year}: {town} counts {people}, the treasury holds {coins} coins and the Pattern Book has {pages}. {books}',
-    'So ends {season} of year {year}. The count stands at {people} and {coins} coins, with {wishes} granted to date. {books}',
+    '{season} of year {year} is behind us: {people}, {coins} in the treasury, {wishes} granted so far and {pages} in the Pattern Book. {books}',
+    'Looking back on {season}, year {year}: {town} counts {people}, the treasury holds {coins} and the Pattern Book has {pages}. {books}',
+    'So ends {season} of year {year}. The count stands at {people} and {coins}, with {wishes} granted to date. {books}',
   ],
   notable: true,
 };

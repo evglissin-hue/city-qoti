@@ -253,10 +253,23 @@ export function budgetView(state: WorldState): BudgetView {
   };
 }
 
-/** Fills {name}, {place} and {species} in a template variant. */
+/**
+ * Fills {name}, {place} and {species} in a template variant. A value that lands right after a
+ * sentence end gets its first letter capitalized ("the founders" becomes
+ * "The founders" after "First edition. ").
+ */
 export function fillText(text: string, params: readonly [string, string][]): string {
   let out = text;
-  for (const [k, v] of params) out = out.split(`{${k}}`).join(v);
+  for (const [k, v] of params) {
+    const parts = out.split(`{${k}}`);
+    if (parts.length === 1) continue;
+    let acc = parts[0]!;
+    for (let i = 1; i < parts.length; i++) {
+      const atStart = /[.!?] $/.test(acc);
+      acc += (atStart ? v.charAt(0).toUpperCase() + v.slice(1) : v) + parts[i]!;
+    }
+    out = acc;
+  }
   return out;
 }
 
