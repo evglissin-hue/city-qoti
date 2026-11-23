@@ -109,7 +109,9 @@ class Money implements Advisor {
     // starts under the savings, while the treasury has its cushion and the credit line's end is far.
     const purse = medianSettlerPurse(w) / PENNIES_PER_COIN;
     const spare = purse >= 2 * craftsSavings();
-    const thin = purse < craftsSavings() && coins > 150 && creditRoom(w) >= 300;
+    // Never out of the coins the plan advisor keeps for the carrier's winter food (P3A): easing in
+    // autumn on them left hazel's larder at 35 Food for 119 residents in its second winter.
+    const thin = purse < craftsSavings() && coins > 150 + p.winterFood && creditRoom(w) >= 300;
     if (
       spare &&
       ((net < 0 && coins < 300 && basket >= 65) || (coins < 100 && basket >= 75) || (deep && basket >= 60))
