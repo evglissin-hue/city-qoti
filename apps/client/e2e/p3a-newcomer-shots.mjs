@@ -24,6 +24,7 @@ const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, dev
 page.on('pageerror', (e) => console.log('pageerror:', e.message));
 await page.goto(`${base}/?debug&quality=low`);
 await page.getByTestId('new-online').click();
+await page.getByTestId('found-valley').click();
 await page.waitForFunction(() => window.__qoti?.status() === 'live', null, { timeout: 240000 });
 const sleep = (ms) => page.waitForTimeout(ms);
 const clock = async () => {
