@@ -15,6 +15,7 @@ import {
   ORBIT_SPEED,
   type TeaBreakGuards,
   type TeaBreakPlan,
+  waitingOnPlayer,
 } from '../input/teaBreak';
 import { measureState } from '../ui/panels/Measure';
 import { loadSettings } from '../ui/settings';
@@ -70,7 +71,7 @@ export class TeaBreakHost {
   readonly guards: TeaBreakGuards = {
     enabled: () => !this.automated && loadSettings().teaBreak,
     toolInHand: () => (this.session.tools?.active.value ?? 'inspect') !== 'inspect',
-    cardOpen: () => this.openCards().length > 0,
+    cardOpen: () => this.openCards().length > 0 || this.waiting().length > 0,
     busy: () =>
       this.session.phase.value !== 'ready' ||
       !this.session.renderer ||
@@ -104,8 +105,14 @@ export class TeaBreakHost {
       ['festivalDraft', ui.festivalDraft.value !== null],
       ['postureDraft', ui.postureDraft.value !== null],
       ['measure', measureState.value.k !== 'closed'],
+      ['emoteOpen', ui.emoteOpen.value],
     ];
     return open.filter(([, on]) => on).map(([name]) => name);
+  }
+
+  /** What is on screen waiting for the player's answer (a raid, captives, a dialog); see `waitingOnPlayer`. */
+  waiting(): string[] {
+    return waitingOnPlayer(this.session);
   }
 
   /**
@@ -156,6 +163,7 @@ export class TeaBreakHost {
         cardOpen: this.guards.cardOpen(),
         busy: this.guards.busy(),
         open: this.openCards(),
+        waiting: this.waiting(),
       }),
     };
   }
@@ -192,6 +200,7 @@ export class TeaBreakHost {
     const plan = chooseTeaBreak(this.session.mirror, { near: look, noFollow: still });
     if (!plan) return;
     this.running = { plan, still, saved: rig.saveView(), since: now, lostAt: null };
+    this.session.ui.teaBreak.value = true;
     this.begin(plan);
   }
 
@@ -242,6 +251,12 @@ export class TeaBreakHost {
    * someone or somewhere else. A still look (reduced motion) stays put.
    */
   private mind(now: number): void {
+    // Something asking the player for an answer (a raid begins, a dialog opens): the view goes back
+    // at once, so the question is asked of the view the player left.
+    if (this.waiting().length > 0) {
+      this.end();
+      return;
+    }
     const run = this.running!;
     if (run.still) return;
     const plan = run.plan;
@@ -273,6 +288,7 @@ export class TeaBreakHost {
   end(): void {
     const run = this.running;
     this.running = null;
+    this.session.ui.teaBreak.value = false;
     const r = this.session.renderer;
     if (!run || !r) return;
     if (run.plan.kind === 'follow') r.follow(null);
@@ -287,6 +303,7 @@ export class TeaBreakHost {
     for (const fn of this.cleanup) fn();
     this.cleanup.length = 0;
     this.running = null;
+    this.session.ui.teaBreak.value = false;
   }
 }
 

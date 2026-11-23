@@ -21,7 +21,8 @@ export interface TeaBreakGuards {
   toolInHand(): boolean;
   /**
    * A card, book, letter or dialog is open: the inspector's selection, a book panel, the season
-   * card, a raid or festival card, the evening edition, a letter, the settings (UiState's signals).
+   * card, a raid or festival card, the evening edition, a letter, the settings (UiState's signals);
+   * and (V4C) anything waiting on the player's answer (`waitingOnPlayer`), which also ends a running one.
    */
   cardOpen(): boolean;
   /** Anything else that owns the camera: photo mode, Measure this laptop, following a resident by hand. */
@@ -34,6 +35,29 @@ export type TeaBreakPlan =
   | { kind: 'follow'; residentId: number }
   /** Circle the day's busiest place, `distance` tiles out. */
   | { kind: 'orbit'; x: number; z: number; distance: number };
+
+/** What `waitingOnPlayer` reads: the Mirror's threat views and UiState's dialog. */
+export interface DecisionSource {
+  mirror: Pick<Mirror, 'raid' | 'threat'>;
+  ui: { dialog: { readonly value: unknown } };
+}
+
+/**
+ * V4C: whatever is on screen asking the player for an answer right now, by what it is rather than by
+ * card: a raid under way (its bar: the bell, the lanterns, the gates), captured raiders waiting for
+ * `bandit.decide` (the captive choice), and a dialog waiting for yes or no. A tea break never starts
+ * over one and ends the moment one appears. Lines in the feed that wait for days (a commission on
+ * offer, a partner's request) are not here: the feed keeps them, and they ask for doing, not a reply.
+ */
+export function waitingOnPlayer(s: DecisionSource): string[] {
+  const out: string[] = [];
+  const raid = s.mirror.raid.value;
+  if (raid) out.push('raid');
+  if ((raid?.captures.length ?? 0) > 0 || (s.mirror.threat.value?.captives?.length ?? 0) > 0)
+    out.push('captives');
+  if (s.ui.dialog.value !== null) out.push('dialog');
+  return out;
+}
 
 /** Counts the time since the last input. Pure: the caller passes the clock and the guards. */
 export class IdleTimer {

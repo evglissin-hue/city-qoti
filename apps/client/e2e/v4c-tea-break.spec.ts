@@ -189,10 +189,54 @@ test.describe.serial('one seat, one page', () => {
     expect(await state(page)).not.toBeNull();
     await page.keyboard.press('Shift');
   });
+
+  test('a question that appears mid tea break ends it and puts the view back', async () => {
+    await fresh(page);
+    const saved = await view(page);
+    await startBreak(page);
+    // A dialog waiting for yes or no (as a partner's removal asks first): a decision on screen.
+    await page.evaluate(() =>
+      (window.__qoti as unknown as { setUi(n: string, v: unknown): void }).setUi('dialog', {
+        kind: 'confirm',
+        text: 'Take the bench away?',
+        ok: 'Yes',
+        cancel: 'No',
+        resolve: () => {},
+      }),
+    );
+    await expect.poll(() => state(page), { timeout: 5_000 }).toBeNull();
+    const after = await view(page);
+    expect(after.goal).toEqual(saved.goal);
+    expect(after.pos).toEqual(saved.pos);
+    // And none starts while it waits.
+    await skip(page, 90_000);
+    await page.waitForTimeout(600);
+    expect(await state(page)).toBeNull();
+    await page.evaluate(() =>
+      (window.__qoti as unknown as { setUi(n: string, v: unknown): void }).setUi('dialog', null),
+    );
+  });
 });
 
 test.describe('one seat', () => {
   test.setTimeout(300_000);
+  test('a raid under way: its bar asks for the bell, the lanterns or the gates, so no tea break', async ({
+    page,
+  }) => {
+    await open(page, '?debug&quality=low&noguide&teabreak&fixture=raid');
+    await expect(page.getByTestId('raid-bar')).toBeVisible();
+    const waiting = await page.evaluate(
+      () =>
+        (window as unknown as { __qotiTeaBreak: { guards(): { waiting: string[] } } }).__qotiTeaBreak.guards()
+          .waiting,
+    );
+    expect(waiting).toContain('raid');
+    await skip(page, 200_000);
+    await page.waitForTimeout(600);
+    expect(await due(page)).toBe(false);
+    expect(await state(page)).toBeNull();
+  });
+
   test('the setting off keeps it off after a reload', async ({ page }) => {
     await open(page);
     await page.evaluate(() => {

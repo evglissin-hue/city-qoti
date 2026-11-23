@@ -6,8 +6,10 @@ import {
   ORBIT_DISTANCE,
   onRoundHour,
   TEA_BREAK_AFTER_MS,
+  type DecisionSource,
   type TeaBreakGuards,
   type TeaBreakMirror,
+  waitingOnPlayer,
 } from './teaBreak';
 
 const guards = (o: Partial<Record<keyof TeaBreakGuards, boolean>> = {}): TeaBreakGuards => ({
@@ -257,5 +259,46 @@ describe('V4C: nothing to watch, and the round hours', () => {
     expect(onRoundHour({ hour: 17, minute: 30 })).toBe(true);
     expect(onRoundHour({ hour: 20, minute: 59 })).toBe(true);
     expect(onRoundHour({ hour: 21, minute: 0 })).toBe(false);
+  });
+});
+
+describe('V4C: what waits on the player', () => {
+  const raidView = (captures: number[] = []) => ({
+    id: 9,
+    side: 'north' as const,
+    band: 'small' as const,
+    raiders: 4,
+    fled: 0,
+    captured: captures.length,
+    bell: false,
+    lanterns: false,
+    captures,
+  });
+  const source = (o: { raid?: unknown; captives?: number[]; dialog?: unknown } = {}): DecisionSource =>
+    ({
+      mirror: {
+        raid: { value: o.raid ?? null },
+        threat: { value: o.captives ? { captives: o.captives } : null },
+      },
+      ui: { dialog: { value: o.dialog ?? null } },
+    }) as unknown as DecisionSource;
+
+  it('a quiet valley waits on nobody', () => {
+    expect(waitingOnPlayer(source())).toEqual([]);
+  });
+
+  it('a raid under way asks for the bell, the lanterns or the gates', () => {
+    expect(waitingOnPlayer(source({ raid: raidView() }))).toEqual(['raid']);
+  });
+
+  it('captured raiders wait for a decision, in the raid or kept after dawn', () => {
+    expect(waitingOnPlayer(source({ raid: raidView([31]) }))).toEqual(['raid', 'captives']);
+    expect(waitingOnPlayer(source({ captives: [31, 32] }))).toEqual(['captives']);
+    expect(waitingOnPlayer(source({ captives: [] }))).toEqual([]);
+  });
+
+  it('a dialog waits for yes or no', () => {
+    const dialog = { kind: 'confirm', text: 'Take the bench away?', ok: 'Yes', cancel: 'No', resolve() {} };
+    expect(waitingOnPlayer(source({ dialog }))).toEqual(['dialog']);
   });
 });
