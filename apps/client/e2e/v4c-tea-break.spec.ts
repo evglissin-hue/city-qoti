@@ -421,12 +421,23 @@ async function twoSeats(browser: Browser, onA: (a: Page) => void) {
 
 test('two seats: one seat on a tea break sends nothing and moves nobody else', async ({ browser }) => {
   test.setTimeout(400_000);
-  const sent: string[] = [];
+  // A's socket, both ways and in order: what A sends, and what the relay sends A (a request for a
+  // snapshot comes this way).
+  const wire: { out: boolean; k: string }[] = [];
+  const kindOf = (payload: string | Buffer) => {
+    try {
+      return (JSON.parse(String(payload)) as { k: string }).k;
+    } catch {
+      return 'binary';
+    }
+  };
   const watch = (ws: {
     url(): string;
-    on(e: 'framesent', cb: (f: { payload: string | Buffer }) => void): void;
+    on(e: 'framesent' | 'framereceived', cb: (f: { payload: string | Buffer }) => void): void;
   }) => {
-    if (ws.url().includes('/api/')) ws.on('framesent', (f) => sent.push(String(f.payload)));
+    if (!ws.url().includes('/api/')) return;
+    ws.on('framesent', (f) => wire.push({ out: true, k: kindOf(f.payload) }));
+    ws.on('framereceived', (f) => wire.push({ out: false, k: kindOf(f.payload) }));
   };
   // Playwright reports a socket only when it opens, so A's page is watched from its first load.
   const { a, b } = await twoSeats(browser, (a) => a.on('websocket', watch));
@@ -445,16 +456,26 @@ test('two seats: one seat on a tea break sends nothing and moves nobody else', a
     const bView = await view(b);
     const aSubmit = await a.evaluate(() => window.__qoti.lastSubmitAt());
     // The watcher is on A's socket: going online sent frames through it.
-    expect(sent.length).toBeGreaterThan(0);
-    sent.length = 0;
+    expect(wire.some((f) => f.out)).toBe(true);
+    const from = wire.length;
     await startBreak(a);
     // Thirty frames of A's tea break drawn, for anything it might send to show up on the wire.
     expect((await frames(a, 30, false)).length).toBe(30);
     expect(await state(a)).not.toBeNull();
-    // Nothing the tea break did reached the wire: no command and no presence. The only frames a seat
-    // sends on its own are the lockstep hash reports (k: 'hash'); those are the sim's, not the tea break's.
-    const kinds = sent.map((s) => (JSON.parse(s) as { k: string }).k);
-    expect(kinds.filter((k) => k !== 'hash')).toEqual([]);
+    // Nothing the tea break did reached the wire: no command and no presence. What a seat sends on its
+    // own is the sim's lockstep hash report (k: 'hash'), and a snapshot when the relay asks for one
+    // (k: 'needSnapshot', every so many turns); every snapshot sent here answers a request before it.
+    let asked = wire.slice(0, from).filter((f) => !f.out && f.k === 'needSnapshot').length;
+    // (A's pause during setup sends a snapshot nobody asked for: never below none outstanding.)
+    asked = Math.max(0, asked - wire.slice(0, from).filter((f) => f.out && f.k === 'snapshot').length);
+    const unasked: string[] = [];
+    for (const f of wire.slice(from)) {
+      if (!f.out) {
+        if (f.k === 'needSnapshot') asked++;
+      } else if (f.k === 'snapshot' && asked > 0) asked--;
+      else if (f.k !== 'hash') unasked.push(f.k);
+    }
+    expect(unasked).toEqual([]);
     expect(await a.evaluate(() => window.__qoti.lastSubmitAt())).toBe(aSubmit);
     expect(await view(b)).toEqual(bView);
     expect(await state(b)).toBeNull();
