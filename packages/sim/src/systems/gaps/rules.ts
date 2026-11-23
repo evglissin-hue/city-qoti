@@ -125,7 +125,7 @@ function advance(
     pass.changed = true;
     return;
   }
-  // R2X (the class behind the audit's gap-dead-end): a gap nothing could close any more (the lots
+  // P3A (the class behind the audit's gap-dead-end): a gap nothing could close any more (the lots
   // around the shop filled in after it opened) is not left open, a tag with no remedy. It reopens by
   // itself when ground frees up. A gap that is closing tonight closes with its credit as usual. The
   // two seat kinds only: a place's missing outlet is looked for by walking every building def over
