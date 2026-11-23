@@ -64,6 +64,26 @@ async function closeCards(page: Page, keep: string[] = []): Promise<void> {
   }, keep);
 }
 
+/**
+ * Waits until the camera has stopped: the same position over five animation frames (no fixed sleep,
+ * however slowly the runner draws).
+ */
+async function cameraAtRest(page: Page): Promise<void> {
+  await page.evaluate(async () => {
+    const r = (window.__qoti as unknown as { renderer(): Rend }).renderer();
+    let last = '';
+    let same = 0;
+    const t0 = performance.now();
+    while (same < 5 && performance.now() - t0 < 120_000) {
+      await new Promise((res) => requestAnimationFrame(res));
+      const p = r.camera.position;
+      const key = `${p.x},${p.y},${p.z}`;
+      same = key === last ? same + 1 : 0;
+      last = key;
+    }
+  });
+}
+
 async function open(page: Page, query = QUERY): Promise<void> {
   await page.route('**/api/**', (route) => route.abort());
   await page.goto(`/${query}`);
@@ -73,8 +93,8 @@ async function open(page: Page, query = QUERY): Promise<void> {
     .toBe(true);
   // The grown fixture opens with a festival card up, which is itself a guard: put it away.
   await closeCards(page);
-  // Let the first frames settle so the camera is at rest before the view is recorded.
-  await page.waitForTimeout(1500);
+  // The camera at rest before the view is recorded.
+  await cameraAtRest(page);
 }
 
 /** Starts a tea break by skipping 90 s; waits until it runs and the camera has moved. */
@@ -89,7 +109,7 @@ async function startBreak(page: Page) {
 async function fresh(page: Page): Promise<void> {
   await page.keyboard.press('Shift');
   await closeCards(page);
-  await page.waitForTimeout(1500);
+  await cameraAtRest(page);
   expect(await state(page)).toBeNull();
 }
 
@@ -134,24 +154,26 @@ test.describe.serial('one seat, one page', () => {
     await fresh(page);
     const saved = await view(page);
     await startBreak(page);
+    // Held until the view has panned (however slowly the runner draws), then let go.
     await page.keyboard.down('w');
-    await page.waitForTimeout(600);
+    const moved = (v: View) => Math.hypot(v.x - saved.goal.x, v.z - saved.goal.z);
+    await expect.poll(async () => moved((await view(page)).goal)).toBeGreaterThan(0);
     await page.keyboard.up('w');
     expect(await state(page)).toBeNull();
     const after = await view(page);
     // Panned from the saved spot: the goal moved only a little off it, not off to the watched place.
-    expect(Math.hypot(after.goal.x - saved.goal.x, after.goal.z - saved.goal.z)).toBeLessThan(30);
+    expect(moved(after.goal)).toBeLessThan(30);
     expect(after.goal.distance).toBe(saved.goal.distance);
     expect(after.goal.yaw).toBe(saved.goal.yaw);
   });
 
   test('88 s alone does not start one, two more seconds do', async () => {
     await fresh(page);
-    // `fresh` lets 1.5 s of real time pass after its key, and real time counts as idle too: a key
+    // `fresh` waits for the camera to rest after its key, and real time counts as idle too: a key
     // right here starts the count over, then a margin is left.
     await page.keyboard.press('Shift');
     await skip(page, 88_000);
-    await page.waitForTimeout(600);
+    await call(page, 'check');
     expect(await state(page)).toBeNull();
     await skip(page, 2_000);
     expect(await state(page)).not.toBeNull();
@@ -165,7 +187,7 @@ test.describe.serial('one seat, one page', () => {
     );
     expect(await due(page)).toBe(false);
     await skip(page, 90_000);
-    await page.waitForTimeout(600);
+    await call(page, 'check');
     expect(await state(page)).toBeNull();
     // A card open (the settings card), opened in the same step as the tool goes away: the idle time
     // skipped is still there, so with neither guard up the host would start a tea break at its next check.
@@ -178,7 +200,7 @@ test.describe.serial('one seat, one page', () => {
       q.selectTool('inspect');
     });
     await skip(page, 90_000);
-    await page.waitForTimeout(600);
+    await call(page, 'check');
     expect(await state(page)).toBeNull();
     expect(await due(page)).toBe(false);
     // Photo mode (V4B) in the same step as the card goes away: the camera is the player's to frame.
@@ -188,7 +210,7 @@ test.describe.serial('one seat, one page', () => {
       q.setUi('settingsOpen', false);
     });
     await skip(page, 90_000);
-    await page.waitForTimeout(600);
+    await call(page, 'check');
     expect(await state(page)).toBeNull();
     expect(await due(page)).toBe(false);
     await page.evaluate(() =>
@@ -220,7 +242,7 @@ test.describe.serial('one seat, one page', () => {
     expect(after.pos).toEqual(saved.pos);
     // And none starts while it waits.
     await skip(page, 90_000);
-    await page.waitForTimeout(600);
+    await call(page, 'check');
     expect(await state(page)).toBeNull();
     await page.evaluate(() =>
       (window.__qoti as unknown as { setUi(n: string, v: unknown): void }).setUi('dialog', null),
@@ -242,7 +264,7 @@ test.describe('one seat', () => {
     );
     expect(waiting).toContain('raid');
     await skip(page, 200_000);
-    await page.waitForTimeout(600);
+    await call(page, 'check');
     expect(await due(page)).toBe(false);
     expect(await state(page)).toBeNull();
   });
@@ -260,7 +282,7 @@ test.describe('one seat', () => {
       .poll(() => page.evaluate(() => !!(window as unknown as { __qotiTeaBreak?: unknown }).__qotiTeaBreak))
       .toBe(true);
     await skip(page, 200_000);
-    await page.waitForTimeout(600);
+    await call(page, 'check');
     expect(await due(page)).toBe(false);
     expect(await state(page)).toBeNull();
   });
@@ -268,7 +290,7 @@ test.describe('one seat', () => {
   test('without teabreak in the URL it never starts under automation', async ({ page }) => {
     await open(page, '?debug&quality=low&noguide&fixture=grown');
     await skip(page, 500_000);
-    await page.waitForTimeout(600);
+    await call(page, 'check');
     expect(await due(page)).toBe(false);
     expect(await state(page)).toBeNull();
   });
@@ -328,7 +350,7 @@ test("V4A's developing picture: a tea break never folds a sample, and the view p
     const info = q.grownInfo();
     q.look(info.center[0], info.center[1], 70, 0, 0);
   });
-  await page.waitForTimeout(10_000);
+  await cameraAtRest(page);
   await page.keyboard.press('Shift');
   // Real time counts as idle too, and a slow runner can take over 90 s to settle: ten minutes' margin
   // on the tea break's clock, so no real tea break starts while the rest is measured.
@@ -412,9 +434,12 @@ test('two seats: one seat on a tea break sends nothing and moves nobody else', a
     await closeCards(a);
     await closeCards(b);
     // B has sat idle all through A's setup, which on a slow machine can pass 90 s, so B may be on a
-    // tea break of its own by now. A key ends it and starts B's count over, leaving B a full 90 s.
+    // tea break of its own by now. A key ends it and starts B's count over, and ten minutes' margin
+    // on B's tea-break clock keeps B from starting one however slowly the rest of the test runs.
     await b.keyboard.press('Shift');
-    await a.waitForTimeout(1500);
+    await skip(b, -600_000);
+    await cameraAtRest(a);
+    await cameraAtRest(b);
     expect(await state(b)).toBeNull();
 
     const bView = await view(b);
@@ -423,7 +448,8 @@ test('two seats: one seat on a tea break sends nothing and moves nobody else', a
     expect(sent.length).toBeGreaterThan(0);
     sent.length = 0;
     await startBreak(a);
-    await a.waitForTimeout(2500);
+    // Thirty frames of A's tea break drawn, for anything it might send to show up on the wire.
+    expect((await frames(a, 30, false)).length).toBe(30);
     expect(await state(a)).not.toBeNull();
     // Nothing the tea break did reached the wire: no command and no presence. The only frames a seat
     // sends on its own are the lockstep hash reports (k: 'hash'); those are the sim's, not the tea break's.
