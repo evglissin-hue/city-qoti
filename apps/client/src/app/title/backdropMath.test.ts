@@ -9,6 +9,7 @@ import {
   chooseValley,
   DRIFT,
   driftView,
+  footprintMargin,
   framedTarget,
   GROWN_BUILDINGS,
   HOURS,
@@ -44,9 +45,33 @@ describe('townCenter', () => {
     const town = [];
     for (let i = 0; i < 40; i++) town.push({ x: 90 + (i % 8) * 2, z: 90 + Math.floor(i / 8) * 2 });
     const c = townCenter([...town, { x: 10, z: 10 }, { x: 180, z: 20 }]);
-    expect(Math.abs(c.x - 97)).toBeLessThan(6);
-    expect(Math.abs(c.z - 94)).toBeLessThan(6);
-    expect(c.radius).toBeLessThan(20);
+    expect(Math.abs(c.x - 97)).toBeLessThan(8);
+    expect(Math.abs(c.z - 94)).toBeLessThan(8);
+    expect(c.radius).toBeLessThan(12);
+  });
+
+  it('never shows the map edge at any drift point, aspect or framing, wherever the town stands', () => {
+    for (const [x, z] of [
+      [96, 96],
+      [89, 96],
+      [30, 40],
+      [160, 150],
+      [20, 170],
+    ] as const) {
+      const a = aimAt({ x, z, radius: 10 });
+      for (const aspect of AIM.aspects) {
+        for (let s = 0; s <= 3000; s += 25) {
+          for (const f of [
+            { x: 0, y: 0 },
+            { x: 0.17, y: 0 },
+            { x: 0, y: 0.06 },
+          ]) {
+            const v = framedTarget(driftView(a, s), a, f, aspect);
+            expect(footprintMargin(v, v.yaw, v.pitch, v.distance, aspect)).toBeGreaterThan(0);
+          }
+        }
+      }
+    }
   });
 });
 
@@ -55,9 +80,9 @@ describe('the camera', () => {
 
   it('starts low and scenic, inside the play camera pitch range and far enough to frame the town', () => {
     expect(aim.pitch).toBeGreaterThanOrEqual((30 * Math.PI) / 180);
-    expect(aim.pitch).toBeLessThanOrEqual((38 * Math.PI) / 180);
+    expect(aim.pitch).toBeLessThanOrEqual((34 * Math.PI) / 180);
     expect(aim.distance).toBeGreaterThanOrEqual(AIM.minDistance);
-    expect(aim.distance).toBeLessThanOrEqual(AIM.maxDistance);
+    expect(aim.distance).toBeLessThanOrEqual(55);
   });
 
   it('holds still at second zero and never drifts far', () => {

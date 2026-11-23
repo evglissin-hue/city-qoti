@@ -5,7 +5,7 @@ import type { CameraView } from '../../input/camera';
 import type { Framing, TitleLight } from './shared';
 
 /** The hour pinned for each light (`renderer.photo.setTimeOfDay`), chosen by looking at shots. */
-export const HOURS: Record<TitleLight, number> = { day: 16, dusk: 19.5 };
+export const HOURS: Record<TitleLight, number> = { day: 16, dusk: 19.2 };
 
 /** A valley with fewer buildings than this is still a hamlet: the title shows the grown village. */
 export const GROWN_BUILDINGS = 25;
@@ -37,41 +37,134 @@ export interface TownAim {
   distance: number;
 }
 
-/** The camera's starting pose: low and scenic, a little off the street grid's axis. */
+/** The camera's starting pose: close and a little low, so cottages read as cottages. */
 export const AIM = {
-  yaw: 0.62,
-  pitch: 0.64,
-  /** Distance as a multiple of the town's radius, and its limits in tiles. */
-  radii: 4.6,
-  minDistance: 46,
-  maxDistance: 150,
+  pitch: 0.55,
+  /** Tiles from the heart of the town. */
+  distance: 46,
+  minDistance: 30,
+  /** Aspect ratios the view must stay on terrain at (a narrow window to an ultrawide). */
+  aspects: [1.3, 1.78, 2.3],
+  /** Tiles of terrain to keep between the view's edge and the map's. */
+  margin: 4,
 };
 
-/** The dense heart of the buildings: their mean, then the mean of those near it (stray farms drop out). */
+/**
+ * The heart of the town: the mean of the densest third of the buildings (most neighbors within a
+ * few tiles), so stray farms and a long street's tail fall away. `radius` is how far that heart reaches.
+ */
 export function townCenter(buildings: readonly { x: number; z: number }[]): {
   x: number;
   z: number;
   radius: number;
 } {
   if (buildings.length === 0) return { x: MAP_SIZE / 2, z: MAP_SIZE / 2, radius: 14 };
-  const mean = (list: readonly { x: number; z: number }[]) => ({
-    x: list.reduce((s, b) => s + b.x, 0) / list.length,
-    z: list.reduce((s, b) => s + b.z, 0) / list.length,
-  });
-  const dist = (b: { x: number; z: number }, c: { x: number; z: number }) => Math.hypot(b.x - c.x, b.z - c.z);
-  let c = mean(buildings);
-  const sorted = buildings.map((b) => dist(b, c)).sort((a, b) => a - b);
-  const median = sorted[Math.floor(sorted.length / 2)]!;
-  const near = buildings.filter((b) => dist(b, c) <= Math.max(10, median * 1.5));
-  c = mean(near);
-  const spread = near.map((b) => dist(b, c)).sort((a, b) => a - b);
-  const radius = spread[Math.min(spread.length - 1, Math.floor(spread.length * 0.85))]!;
-  return { x: c.x, z: c.z, radius: Math.max(10, radius) };
+  const near = buildings.map((b, i) => ({
+    i,
+    n: buildings.reduce((c, o) => c + (Math.hypot(b.x - o.x, b.z - o.z) <= 9 ? 1 : 0), 0),
+  }));
+  near.sort((a, b) => b.n - a.n || a.i - b.i);
+  const heart = near.slice(0, Math.max(1, Math.ceil(buildings.length / 3))).map((e) => buildings[e.i]!);
+  const x = heart.reduce((s, b) => s + b.x, 0) / heart.length;
+  const z = heart.reduce((s, b) => s + b.z, 0) / heart.length;
+  const spread = heart.map((b) => Math.hypot(b.x - x, b.z - z)).sort((a, b) => a - b);
+  return {
+    x,
+    z,
+    radius: Math.max(8, spread[Math.min(spread.length - 1, Math.floor(spread.length * 0.85))]!),
+  };
 }
 
-export function aimAt(c: { x: number; z: number; radius: number }): TownAim {
-  const distance = Math.min(AIM.maxDistance, Math.max(AIM.minDistance, c.radius * AIM.radii));
-  return { x: c.x, z: c.z, radius: c.radius, yaw: AIM.yaw, pitch: AIM.pitch, distance };
+/**
+ * How many tiles of terrain lie between the view's footprint on the ground and the map's edge
+ * (negative when the view would show the void). The footprint is the four corners of the view's
+ * ground trapezoid; a ray at or above the horizon counts as far beyond the map.
+ */
+export function footprintMargin(
+  target: { x: number; z: number },
+  yaw: number,
+  pitch: number,
+  distance: number,
+  aspect: number,
+): number {
+  const half = (VIEW_FOV * Math.PI) / 360;
+  const hHalf = Math.atan(Math.tan(half) * aspect);
+  const height = distance * Math.sin(pitch);
+  const sin = Math.sin(yaw);
+  const cos = Math.cos(yaw);
+  const cam = {
+    x: target.x + sin * distance * Math.cos(pitch),
+    z: target.z + cos * distance * Math.cos(pitch),
+  };
+  let worst = Infinity;
+  for (const dip of [pitch + half, pitch - half]) {
+    // Ground distance along the camera's heading to a ray `dip` below the horizon, and the width it spans.
+    const ground = dip > 0.02 ? height / Math.tan(dip) : 1e4;
+    const slant = dip > 0.02 ? height / Math.sin(dip) : 1e4;
+    const w = slant * Math.tan(hHalf);
+    for (const side of [-1, 1]) {
+      const x = cam.x - sin * ground + side * cos * w;
+      const z = cam.z - cos * ground - side * sin * w;
+      worst = Math.min(worst, x, z, MAP_SIZE - x, MAP_SIZE - z);
+    }
+  }
+  return worst;
+}
+
+/** The smallest margin over the drift's reach (yaw sway, breathing) and the framings a layout may ask for. */
+function reachMargin(c: { x: number; z: number }, yaw: number, distance: number): number {
+  let worst = Infinity;
+  for (const aspect of AIM.aspects) {
+    for (const sway of [-DRIFT.yawSwing, 0, DRIFT.yawSwing]) {
+      for (const breath of [1 - DRIFT.breath, 1 + DRIFT.breath]) {
+        const d = distance * breath;
+        const y = yaw + sway;
+        // Framings shift the target by up to a fifth of the width sideways or a tenth of the height ahead.
+        for (const [fx, fy] of [
+          [0, 0],
+          [0.2, 0],
+          [-0.2, 0],
+          [0, 0.1],
+        ] as const) {
+          const t = framedTarget(
+            { x: c.x, z: c.z, yaw: y, pitch: AIM.pitch, distance: d },
+            { x: c.x, z: c.z },
+            { x: fx, y: fy },
+            aspect,
+          );
+          worst = Math.min(worst, footprintMargin(t, y, AIM.pitch, d, aspect));
+        }
+      }
+    }
+  }
+  return worst;
+}
+
+/**
+ * Aims at the heart from the side with the most land behind it: of sixteen yaws the one whose drift
+ * keeps the view furthest from the map's edge, closing in, then sliding inward, if no yaw keeps `margin` tiles.
+ */
+export function aimAt(town: { x: number; z: number; radius: number }): TownAim {
+  let distance = AIM.distance;
+  let c = { x: town.x, z: town.z };
+  for (let guard = 0; guard < 60; guard++) {
+    let best = { yaw: 0.62, margin: -Infinity };
+    for (let k = 0; k < 16; k++) {
+      const yaw = 0.62 + (k * Math.PI) / 8;
+      const margin = reachMargin(c, yaw, distance);
+      if (margin > best.margin) best = { yaw, margin };
+    }
+    const done = best.margin >= AIM.margin;
+    if (done || guard === 59) {
+      return { x: c.x, z: c.z, radius: town.radius, yaw: best.yaw, pitch: AIM.pitch, distance };
+    }
+    if (distance > AIM.minDistance) distance = Math.max(AIM.minDistance, distance * 0.92);
+    else {
+      // A town near the map's edge: slide the aim toward the middle until the view fits.
+      c = { x: c.x + (MAP_SIZE / 2 - c.x) * 0.1, z: c.z + (MAP_SIZE / 2 - c.z) * 0.1 };
+    }
+  }
+  throw new Error('unreachable');
 }
 
 /** The drifting pose after `seconds` (0 holds still: Calm motion). The target is the town itself. */
@@ -86,7 +179,12 @@ export function driftView(aim: TownAim, seconds: number): CameraView {
  * of its height below it: the camera's right is (cos yaw, -sin yaw) on the ground, forward is
  * (-sin yaw, -cos yaw), and a step forward on the ground shows as sin(pitch) of that in the view.
  */
-export function framedTarget(view: CameraView, aim: TownAim, f: Framing, aspect: number): CameraView {
+export function framedTarget(
+  view: CameraView,
+  aim: { x: number; z: number },
+  f: Framing,
+  aspect: number,
+): CameraView {
   if (!f.x && !f.y) return view;
   const height = 2 * view.distance * Math.tan((VIEW_FOV * Math.PI) / 360);
   const width = height * aspect;
