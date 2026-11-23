@@ -178,23 +178,37 @@ function needsOf(spots: readonly Spot[]): Need[] {
       continue;
     }
     if (isMarket(def)) {
-      const want = Math.min(STALL_RESTOCK_TARGET - foodIncoming(rt), storageSpace(s.b, rt));
-      if (want > 0) out.push({ dest: s, good: -1, want, cls: JobClass.stallFood });
+      const space = storageSpace(s.b, rt);
+      const kept = treatsReserve(def, rt);
       // R1B: an outlet that takes Wares or Treats (the Market Square takes every family, a stall
-      // Food and Treats) is kept stocked with them too, a few of each.
-      for (let g = 0; g < content.goods.length; g++) {
-        const family = content.goods[g]!.family;
-        if ((family !== 'wares' && family !== 'treats') || !takes(def, g)) continue;
-        // R2B: a shelf holds what households buy; wool is the weaver's input, never a Wares flavor
-        // (a Village's shops each kept eight while its weaver went without, and the carrier would
-        // not buy what the town held).
-        if (INPUT_ONLY.has(content.goods[g]!.id)) continue;
-        const room = Math.min(
-          MARKET_GOODS_TARGET - (rt.store[g] ?? 0) - (rt.reservedIn[g] ?? 0),
-          storageSpace(s.b, rt),
-        );
-        if (room > 0) out.push({ dest: s, good: g, want: room, cls: JobClass.stallFood });
-      }
+      // Food and Treats) is kept stocked with them too, a few of each. R3X: one with no Treat held or
+      // coming asks for them before its food (ties go to the first need: a Square filled its thirty
+      // food first, a trip a time, and reached the evening bare).
+      const goodsNeeds = (treats: boolean): void => {
+        for (let g = 0; g < content.goods.length; g++) {
+          const family = content.goods[g]!.family;
+          if ((family !== 'wares' && family !== 'treats') || !takes(def, g)) continue;
+          if ((family === 'treats') !== treats) continue;
+          // R2B: a shelf holds what households buy; wool is the weaver's input, never a Wares flavor
+          // (a Village's shops each kept eight while its weaver went without, and the carrier would
+          // not buy what the town held).
+          if (INPUT_ONLY.has(content.goods[g]!.id)) continue;
+          const room = Math.min(
+            MARKET_GOODS_TARGET - (rt.store[g] ?? 0) - (rt.reservedIn[g] ?? 0),
+            treats ? space : space - kept,
+          );
+          if (room > 0) out.push({ dest: s, good: g, want: room, cls: JobClass.stallFood });
+        }
+      };
+      const bare = kept >= (content.places.treatsRoom ?? 12);
+      if (bare) goodsNeeds(true);
+      // R3X: food and Wares stop short of the last `treatsRoom` units of storage while the Treats held
+      // (and on their way) are fewer than that, so a pantry the food restock filled never leaves the
+      // shelf bare for the round (measured: shops ended the afternoon full of food and Wares, 3 Treats).
+      const want = Math.min(STALL_RESTOCK_TARGET - foodIncoming(rt), space - kept);
+      if (want > 0) out.push({ dest: s, good: -1, want, cls: JobClass.stallFood });
+      if (!bare) goodsNeeds(true);
+      goodsNeeds(false);
       continue;
     }
     const method = methodOf(s.b);
@@ -207,6 +221,21 @@ function needsOf(spots: readonly Spot[]): Need[] {
     }
   }
   return out;
+}
+
+/**
+ * R3X: units of a market outlet's storage held back from food and Wares for its Treats: the room
+ * (`PLACES.treatsRoom`) less the Treats it holds or has coming, never below 0; none when it takes no Treats.
+ */
+export function treatsReserve(def: BuildingDef | undefined, rt: BuildingRuntime): number {
+  let held = 0;
+  let takesAny = false;
+  for (let g = 0; g < content.goods.length; g++) {
+    if (content.goods[g]!.family !== 'treats' || !takes(def, g)) continue;
+    takesAny = true;
+    held += (rt.store[g] ?? 0) + (rt.reservedIn[g] ?? 0);
+  }
+  return takesAny ? Math.max(0, (content.places.treatsRoom ?? 12) - held) : 0;
 }
 
 /** Food goods in the order a stall wants them: what it holds least of first (variety). */
