@@ -39,11 +39,11 @@ The autoplayer plays R3 the way a sensible pair would (the Hearth keeps its best
 
 ## Acceptance criteria
 
-- [ ] The lanes test passes on every bench seed, and the worst fair evening's share does not fall below R2X's, or each failing seed is measured and explained for R3X.
-- [ ] The outcome tests pass, or each miss is explained with its measured number and the cycle it needs.
-- [ ] The R3 health kinds flag their cases in unit tests and stay quiet on a sensible run.
-- [ ] The variety check prints, per family, what can reach the Merchants' and Patrons' wants and from where.
-- [ ] The R3 lines hold their budget; a year hashes the same in Node and a browser worker; typecheck, lint, unit tests, build and bench pass.
+- [x] The lanes test passes on every bench seed, and the worst fair evening's share does not fall below R2X's, or each failing seed is measured and explained for R3X.
+- [x] The outcome tests pass, or each miss is explained with its measured number and the cycle it needs.
+- [x] The R3 health kinds flag their cases in unit tests and stay quiet on a sensible run.
+- [x] The variety check prints, per family, what can reach the Merchants' and Patrons' wants and from where.
+- [x] The R3 lines hold their budget; a year hashes the same in Node and a browser worker; typecheck, lint, unit tests, build and bench pass.
 
 ## Out of scope
 
