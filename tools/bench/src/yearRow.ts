@@ -2,7 +2,16 @@
 // the river is frozen), how many households were cold, the last festival's stars, the telegraphed
 // raid's band and how the last raid went. It reads the I3 slices C5.0 added, which C5A to C5D fill;
 // until a slice has something to say its column prints '-'. Nothing here changes the valley.
-import { balancesView, calendar, SEASON_NAMES, type WorldState } from '@qoti/sim';
+import { content } from '@qoti/content';
+import {
+  balancesView,
+  calendar,
+  callingsCount,
+  mastersCount,
+  pagesFound,
+  SEASON_NAMES,
+  type WorldState,
+} from '@qoti/sim';
 
 const DASH = '-';
 
@@ -78,9 +87,79 @@ function openGaps(s: WorldState): string {
   return g.open.length || g.closed.length || g.closedCount ? String(g.open.length) : DASH;
 }
 
-/** Column heads for `yearRow`. */
+/** The fourth-kind gaps (R3's rows of `content.gaps`): the supplies gap. */
+export const R3_GAP_KINDS: ReadonlySet<string> = new Set(
+  content.gaps.filter((g) => g.from === 'R3').map((g) => g.kind),
+);
+
+/** Lanterns standing (a decor piece whose supply is nightly) and how many have a candle tonight. */
+export function lanternStats(s: WorldState): { standing: number; lit: number } {
+  let standing = 0;
+  const ids = new Set<number>();
+  for (const d of s.decor) {
+    if (content.decorById.get(d.def)?.supply?.kind === 'nightly') {
+      standing++;
+      ids.add(d.id);
+    }
+  }
+  // R3A writes `supplies.lamps` at the settling; a stand-in leaves it empty and this reads 0 honestly.
+  let lit = 0;
+  for (const l of s.supplies.lamps) if (ids.has(l.id)) lit++;
+  return { standing, lit };
+}
+
+/** Units of a good (by id) places drew on the night last settled, or null before any night. */
+export function drawnLastNight(s: WorldState, goodId: string): number | null {
+  const row = s.supplies.drawn[s.supplies.drawn.length - 1];
+  const g = content.goodIndex.get(goodId);
+  return row && g !== undefined ? (row[g] ?? 0) : null;
+}
+
+/** Open and closed gaps of R3's kinds, by id (a gap's id is stable while open and after it closes). */
+export function r3Gaps(s: WorldState): { open: number; closed: number } {
+  let open = 0;
+  let closed = 0;
+  for (const g of s.gaps.open) if (R3_GAP_KINDS.has(g.kind)) open++;
+  for (const g of s.gaps.closed) if (R3_GAP_KINDS.has(g.kind)) closed++;
+  return { open, closed };
+}
+
+/** Percent of standing lanterns lit tonight, or '-' with none standing or no night settled yet. */
+function litShare(s: WorldState): string {
+  const { standing, lit } = lanternStats(s);
+  return standing > 0 && s.supplies.night >= 0 ? String(Math.round((lit / standing) * 100)) : DASH;
+}
+
+function drawn(s: WorldState, goodId: string): string {
+  const n = drawnLastNight(s, goodId);
+  return n === null ? DASH : String(n);
+}
+
+/** Masters in town, or '-' while none. */
+function masters(s: WorldState): string {
+  const n = mastersCount(s);
+  return n > 0 ? String(n) : DASH;
+}
+
+/** Pages found in the Town Book, or '-' while none. */
+function pages(s: WorldState): string {
+  const n = pagesFound(s);
+  return n > 0 ? String(n) : DASH;
+}
+
+/** Callings earned, or '-' while none. */
+function callings(s: WorldState): string {
+  const n = callingsCount(s);
+  return n > 0 ? String(n) : DASH;
+}
+
+/**
+ * Column heads for `yearRow`. R3 adds: lit% (standing lanterns lit tonight), cdl and fw (candles and
+ * firewood places drew last night), mst (masters), pgs (Town Book pages), cal (callings), g4 (the
+ * fourth-kind gaps open now).
+ */
 export const YEAR_HEAD =
-  'day  yr season    weather  cold stars threat     raid       marks  road   out% eve treats% gaps';
+  'day  yr season    weather  cold stars threat     raid       marks  road   out% eve treats% gaps lit% cdl  fw mst pgs cal  g4';
 
 /** One day of the year view (call at the day's end). */
 export function yearRow(state: WorldState, day: number): string {
@@ -100,5 +179,12 @@ export function yearRow(state: WorldState, day: number): string {
     avgEvening(state).padStart(3),
     treatsRound(state).padStart(7),
     openGaps(state).padStart(4),
+    litShare(state).padStart(4),
+    drawn(state, 'candles').padStart(3),
+    drawn(state, 'firewood').padStart(3),
+    masters(state).padStart(3),
+    pages(state).padStart(3),
+    callings(state).padStart(3),
+    (r3Gaps(state).open || DASH).toString().padStart(3),
   ].join(' ');
 }

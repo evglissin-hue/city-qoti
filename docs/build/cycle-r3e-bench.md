@@ -39,11 +39,11 @@ The autoplayer plays R3 the way a sensible pair would (the Hearth keeps its best
 
 ## Acceptance criteria
 
-- [ ] The lanes test passes on every bench seed, and the worst fair evening's share does not fall below R2X's, or each failing seed is measured and explained for R3X.
-- [ ] The outcome tests pass, or each miss is explained with its measured number and the cycle it needs.
-- [ ] The R3 health kinds flag their cases in unit tests and stay quiet on a sensible run.
-- [ ] The variety check prints, per family, what can reach the Merchants' and Patrons' wants and from where.
-- [ ] The R3 lines hold their budget; a year hashes the same in Node and a browser worker; typecheck, lint, unit tests, build and bench pass.
+- [x] The lanes test passes on every bench seed, and the worst fair evening's share does not fall below R2X's, or each failing seed is measured and explained for R3X.
+- [x] The outcome tests pass, or each miss is explained with its measured number and the cycle it needs.
+- [x] The R3 health kinds flag their cases in unit tests and stay quiet on a sensible run.
+- [x] The variety check prints, per family, what can reach the Merchants' and Patrons' wants and from where.
+- [x] The R3 lines hold their budget; a year hashes the same in Node and a browser worker; typecheck, lint, unit tests, build and bench pass.
 
 ## Out of scope
 
@@ -54,3 +54,29 @@ Changing a system to make a number pass (report it to R3X); the interface (R3D, 
 - Variance between runs is large (R1X, R2E): read every target over several seeds and runs; the container's timings swing by half, so medians. Known noise: the bench line "growth night R1B" swings around its 2 ms budget, and `street.test.ts` "runs in well under 2 ms" failed once at 6.06 ms against 6.
 - Arrivals have their own generator since R2X; the schedule still shares the `residents` stream, so seed-specific assertions can still move: report them with measurements.
 - Runs as the build and review loop (`31-parallel-development.md`); the dead-end hunt is this cycle's own product, so run it on every round.
+
+## As built
+
+Built on `cycle/r3e-bench` (PR #64, into `cycle/r3x-integration`) as the build and review loop: Sonnet executors in their own worktrees, only their own commits cherry-picked, then the master's checks, the dead-end hunt and a bisect.
+
+- **The advisors** (`tools/bench/src/advisors/lamps.ts`, Hearth, slot 63; `supplies.ts`, Ledger, slot 42).
+  - Lamps sends only `place.setPriority`. When candles fall short of the lanterns, it keeps the busiest places and rests the far, quiet ones, and it puts a rest back to normal once the candles cover every lantern. It leaves a place alone for four days after a change.
+  - Lamps also holds the Hearth's gates (`candlesAllow`, `firewoodAllows`, `specialtyNear`), which `hearth.ts`, `places.ts` and `together.ts` ask.
+  - Supplies pins hives and a chandler, adds a forester's lodge from autumn while Fuel stands under the winter mark, switches the carrier to buy for places above the repayment reserve plus 150 coins, and cobbles a master's front tile for level 3.
+- **Softeners, because R3's systems were placeholders while this was built.** Every lantern is lit and nothing burns, so each gate and pin only cost growth.
+  - Up to 16 lanterns and 3 braziers are always allowed.
+  - The candle gate stands down while more lanterns are lit than the stock could light.
+  - The candle chain waits for 80 residents (`CANDLE_POP`); the chandler also waits for 4 honey in town. Pinned at 60, the hive and chandler took two plain trades from birch's town of 68, and its Craftsfolk at day 70 fell from 38% to 27%; a bisect found those two pins together to be the whole cause.
+  - A spare trade needs three businesses before a pin takes one.
+  - R3X tunes these against R3A's real draw. The chandler's 6 candles a day (`CHANDLER_DAILY`) is a guess.
+- **The bench's report.**
+  - Outcomes: R3's rows sit in `r3Outcomes.ts`, for both profiles, with the two scripted scenes (candles for half, a departed master). `npm run outcomes` runs R2's rows and R3's.
+  - The per-seed report: `r3Report.ts` (`npm run r3report`).
+  - The variety check: `variety.ts` (`npm run variety`).
+  - R3's columns in `targets.ts` and `yearRow.ts`.
+  - R3's bench scenes: `r3.bench.ts`, a sorted list R3A to R3D and R3H join.
+- **The evening goal** holds each bench seed's worst fair evening to its figure before R3 (`EVENING_BASELINE`: birch 58, hazel 48, oak 56, willow 54) and reports the mean beside it. The spec keeps the worst from falling; no ruling holds the mean.
+- **Health kinds** `supply-unsuppliable`, `master-good-unsold` and `page-unproducible` are in `view/health.ts`, with their content-only checks in `view/healthR3.ts`; the fourth gap reaches `gap-unmeetable` and `gap-dead-end` through `supplyGapAchievable` and `supplyGapClosable`.
+- **The newcomer profile** is a parameter (`profile.ts`, P3A's `AutoplayOptions.newcomer`, copied word for word). `NEWCOMER_LIVE` stays false until P3A (#61) merges into `main`; until then the newcomer rows equal the tuned ones.
+- **The golden year** (`packages/sim/test/golden/r1-year.json`) is re-recorded, because the autoplayer now plays the new advisors.
+- **The grown fixture script** (`apps/client/scripts/grow-fixture.mjs`) uses seed rowan for 70 days, which gives 141 residents.

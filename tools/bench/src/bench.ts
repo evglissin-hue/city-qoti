@@ -32,6 +32,7 @@ import { r1Bench } from './r1.bench';
 import { r2aBench } from './r2a.bench';
 import { r3aBench } from './r3a.bench';
 import { r2Bench } from './r2.bench';
+import { r3Bench } from './r3.bench';
 import { r3dBench } from './r3d.bench';
 import { raidsBench } from './raids.bench';
 import { seasonsBench } from './seasons.bench';
@@ -208,7 +209,12 @@ failures.push(...r3a.failures);
 const r2 = r2Bench();
 lines.push(...r2.lines);
 failures.push(...r2.failures);
-// 17. R3D: Follow the thread's counts at City scale, the midnight halving and the Thread itself.
+// 17. R3: the settling and the walk, the masters' day, the Town Book's close, the thread counts, the
+// specialized buildings' day, and gaps, supplies, masters and the Book together, per hour.
+const r3 = r3Bench();
+lines.push(...r3.lines);
+failures.push(...r3.failures);
+// 18. R3D: Follow the thread's counts at City scale, the midnight halving and the Thread itself.
 const r3d = r3dBench();
 lines.push(...r3d.lines);
 failures.push(...r3d.failures);
@@ -250,6 +256,7 @@ const report = {
   r2a: r2a.report,
   r3a: r3a.report,
   r2: r2.report,
+  r3: r3.report,
   r3d: r3d.report,
   heapMb,
   failures,

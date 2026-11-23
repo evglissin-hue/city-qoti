@@ -19,6 +19,8 @@ describe('the advisors', () => {
       'shops',
       'charter',
       'money',
+      // R3E: the Ledger makes what places burn
+      'supplies',
       'watch',
       'hamlet',
       'plan',
@@ -26,6 +28,8 @@ describe('the advisors', () => {
       'hearth',
       // R2E: the Hearth's places, after the wishes
       'places',
+      // R3E: the Hearth keeps places alive, after the places are composed
+      'lamps',
       // I3 (C5C)
       'nature',
       'together',

@@ -36,6 +36,11 @@ export interface AutoplayOptions {
   record?: Turn[];
   /** C4C: play the Village chains, services and tiers (and claim the Charter when ready). */
   village?: boolean;
+  /**
+   * P3A: play as a newcomer pair, not the tuned player (`newcomer.ts`): workplaces before homes,
+   * zoning late and in lumps, no places for the first evenings, several sites at once, no labor sums.
+   */
+  newcomer?: boolean;
   /** Called after each day's line is recorded (tuning scripts read the books here). */
   onDay?: (w: WorldState, line: DayLine) => void;
   /** Called at every hourly look, where the health watch also looks (the playability audit reads here). */
