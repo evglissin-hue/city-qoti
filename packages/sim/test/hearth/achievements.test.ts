@@ -168,12 +168,19 @@ const SETUPS = new Map<string, (s: WorldState) => void>([
       s.gaps.closedBySeat = [3, 7, 0, 0];
     },
   ],
+  // R3 (R3A): a season settled with every lantern lit counts for the lamplighter's round.
+  [
+    'lamplighters-round',
+    (s) => {
+      s.supplies.roundSeasons = 1;
+    },
+  ],
 ]);
 
-// R3 (R3.0): an R3 feat reads a counter whose stand-in (R3.0) always gives 0, so it cannot be earned
-// yet. R3A (lampSeasons, The Lamplighter's Round) replaces the stand-in and moves the feat into
-// SETUPS (R3B's Master of the House and R3C's Made Together have theirs).
-const PENDING = new Set(['lamplighters-round']);
+// R3 (R3.0): each R3 feat read a counter whose stand-in (R3.0) always gave 0. R3A (lampSeasons, The
+// Lamplighter's Round), R3B (Master of the House) and R3C (Made Together) replaced them, so every feat
+// has its setup now and none is pending.
+const PENDING = new Set<string>();
 
 describe('every achievement', () => {
   it('has a setup, or is pending on its R3 stand-in', () => {
@@ -184,8 +191,12 @@ describe('every achievement', () => {
 
   it('does not unlock a pending feat on the stand-ins', () => {
     const s = hamletFixture().state;
-    expect(checkAchievements(s, createTickCtx(s))).not.toEqual(expect.arrayContaining([...PENDING]));
-    for (const id of PENDING) expect(s.achievements.some((x) => x.id === id)).toBe(false);
+    // Id by id: an empty PENDING (every feat has its setup now) has nothing to hold back.
+    const unlocked = checkAchievements(s, createTickCtx(s));
+    for (const id of PENDING) {
+      expect(unlocked).not.toContain(id);
+      expect(s.achievements.some((x) => x.id === id)).toBe(false);
+    }
   });
 
   for (const a of content.achievements.filter((x) => !PENDING.has(x.id))) {

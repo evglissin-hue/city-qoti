@@ -8,7 +8,9 @@
 // - price: pennies, the family's shelf goods' market prices averaged and weighted by what
 //   households bought yesterday (a plain average when nothing was bought);
 // - carriedIn and carriedOut: the carrier's units today and yesterday;
-// - rule, reserve, sell: the carrier's terms; mark: the season plan's winter mark, or null;
+// - rule, reserve, sell: the carrier's terms; forPlaces: whether it buys for places too;
+//   drawnByPlaces: the family's units places drew last night and the night before (supplies.drawn);
+//   mark: the season plan's winter mark, or null;
 // - history: the family's cover in hundredths at each day's end, oldest first, up to a year.
 // Around the lines: the carrier's budget and spend today, the County tab and its cap, whether the
 // pass is closed, the season plan and the deal offers.
@@ -42,6 +44,12 @@ export function balancesView(
     goods.reduce((t, g) => t + (row?.[g] ?? 0), 0);
   const made = new Set<string>(pre?.made ?? madeGoods(state));
   const bought = state.market.bought;
+  // R3: `supplies.drawn` rows are by good index, oldest first; the last row is last night.
+  const drawnSum = (st: WorldState, goods: readonly number[], back: number): number => {
+    const rows = st.supplies?.drawn ?? [];
+    const row = rows[rows.length - back];
+    return goods.reduce((t, g) => t + (row?.[g] ?? 0), 0);
+  };
   const lines: BalanceLine[] = GOOD_FAMILIES.map((family, f) => {
     // R3.0: a master's good is listed once some master makes it, it is in store or on offer, so the
     // book shows nobody a flavor the town has never had (SHELF_GOODS holds none until R3B adds them).
@@ -81,6 +89,11 @@ export function balancesView(
       reserve: terms.reserve,
       sell: terms.sell,
       mark: winterMark(state, f),
+      drawnByPlaces: {
+        lastNight: drawnSum(state, SHELF_GOODS[f]!, 1),
+        before: drawnSum(state, SHELF_GOODS[f]!, 2),
+      },
+      forPlaces: terms.places === true,
       history: (c.history ?? []).map((row) => row[f] ?? 0),
     };
   });

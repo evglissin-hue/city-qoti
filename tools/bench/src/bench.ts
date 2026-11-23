@@ -30,6 +30,7 @@ import { lotsBench } from './lots.bench';
 import { natureBench } from './nature.bench';
 import { r1Bench } from './r1.bench';
 import { r2aBench } from './r2a.bench';
+import { r3aBench } from './r3a.bench';
 import { r2Bench } from './r2.bench';
 import { r3Bench } from './r3.bench';
 import { r3dBench } from './r3d.bench';
@@ -200,6 +201,10 @@ failures.push(...r1.failures);
 const r2a = r2aBench();
 lines.push(...r2a.lines);
 failures.push(...r2a.failures);
+// 15b. R3A: the settling, the lamplighter's walk and the supplies' hourly cost at City scale.
+const r3a = r3aBench();
+lines.push(...r3a.lines);
+failures.push(...r3a.failures);
 // 16. R2: the place pass, planning the round, a whole evening and the gaps pass, at Village and City scale.
 const r2 = r2Bench();
 lines.push(...r2.lines);
@@ -249,6 +254,7 @@ const report = {
   lots: lots.report,
   r1: r1.report,
   r2a: r2a.report,
+  r3a: r3a.report,
   r2: r2.report,
   r3: r3.report,
   r3d: r3d.report,

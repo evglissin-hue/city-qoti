@@ -28,9 +28,9 @@ function freshWithLanterns(): { s: WorldState; ids: number[] } {
   return { s, ids };
 }
 
-describe('the supplies stand-ins on a fresh standard valley', () => {
+describe('supplies in a fresh standard valley (a Hamlet)', () => {
   it(
-    'light every lantern from 18:00 to 07:00, rest nothing, list the lamps, open no fourth gap',
+    'still lights every lantern from 18:00 to 07:00 for nothing, rests nothing, draws nothing, opens no fourth gap',
     { timeout: 120_000 },
     () => {
       const { s, ids } = freshWithLanterns();
@@ -62,6 +62,10 @@ describe('the supplies stand-ins on a fresh standard valley', () => {
         }
         expect(v.resting).toEqual([]);
         expect(v.lamplighters.held).toEqual([]);
+        // The settling ran at 17:30 and listed every lantern, for nothing: no candle was drawn.
+        expect(s.supplies.night).toBe(day);
+        expect(s.supplies.lamps.map((l) => l.id)).toEqual(ids);
+        expect(s.supplies.drawn.every((row) => row.every((n) => n === 0))).toBe(true);
         checkGaps();
         // Before 07:00 the view still reads the night just past, and its lamps are due out at 07:00.
         at(day + 1, 6);

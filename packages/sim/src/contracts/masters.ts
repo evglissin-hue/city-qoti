@@ -24,6 +24,11 @@ export interface LampState {
    * this says: the walk is there to be watched, and the rules never wait for it.
    */
   reach: number;
+  /**
+   * R3A (additive): the lamplighter who walks to it tonight (a resident id); absent when nobody reaches
+   * it before `litHour` (it comes on then with the rest), nobody holds the job, or in a Hamlet.
+   */
+  by?: EntityId;
 }
 
 /** What a supplied piece remembers (only what cannot be derived from the map and stock). */
@@ -59,6 +64,13 @@ export interface SuppliesState {
   /** This season (absolute index) and whether a lantern went unlit on one of its nights. */
   roundSeason: number;
   roundBroken: boolean;
+  /**
+   * R3A (additive): units the carrier bought for places on day `day` (its places switch), by good
+   * index, spent as places draw them: that day's settling and fires may draw them though the family
+   * stands under its reserve, since they were bought for places. Absent until the carrier first buys
+   * for places.
+   */
+  carried?: { day: number; units: number[] };
 }
 
 /** A supplied piece resting tonight, as R3F draws it and the place card says it. */

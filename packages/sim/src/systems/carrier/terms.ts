@@ -19,6 +19,11 @@ import { familyOf } from '../../state/zones';
 import { regionalPrice } from '../../view/village';
 import { defOf } from '../logistics/stores';
 import { renownEffect } from '../renown/api';
+import { neighborTrades } from './sellers';
+
+// R3A: kept in a light module of their own (the supplies' gap checks read them from the place
+// pass's import graph, which must not pull in the views); re-exported here for their old readers.
+export { neighborTrades, someoneSells } from './sellers';
 
 /** Units the Trading Post's carrier carries a day by rank, in RANKS order (a Hamlet has no post). */
 export const POST_UNITS_BY_RANK = [40, 40, 120, 240, 400] as const;
@@ -66,12 +71,6 @@ export function termsFor(state: WorldState, post: boolean): CarrierTerms {
   const rank = Math.max(0, RANKS.indexOf(state.charter.rank));
   const units = POST_UNITS_BY_RANK[rank]! + POST_CART_UNITS * Math.min(POST_CARTS_MAX, state.carts.length);
   return { units, buy: TRADE_BUY_PERCENT, sell: TRADE_SELL_PERCENT };
-}
-
-/** True when the neighbor trades with the valley at its rank. */
-export function neighborTrades(state: WorldState, id: string): boolean {
-  const def = content.neighborById.get(id);
-  return !!def && (!def.rank || RANKS.indexOf(state.charter.rank) >= RANKS.indexOf(def.rank));
 }
 
 /** The deal the season plan took, when it is one of this season's offers; else null. */
@@ -144,15 +143,6 @@ export function bestNeighbor(
     if (!best || (selling ? p > best.price : p < best.price)) best = { n, price: p };
   }
   return best;
-}
-
-/** True when some neighbor trading with the valley sells the good (so the carrier can bring it). */
-export function someoneSells(state: WorldState, good: number): boolean {
-  const id = content.goods[good]?.id;
-  for (const n of content.neighbors) {
-    if (neighborTrades(state, n.id) && n.sells.some(([g]) => g === id)) return true;
-  }
-  return false;
 }
 
 /** Moves a neighbor's price for a good by `by` per mille of impact, within IMPACT_RANGE. */

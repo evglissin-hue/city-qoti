@@ -13,6 +13,7 @@ import { isStandard } from '../../state/hamlet';
 import { rankAtLeast } from '../../state/village';
 import { pay } from '../economy/money';
 import { takeFromOutlet } from '../economy/outlets';
+import { shelfOf } from './round';
 
 /**
  * True once money circulates: a standard valley at Village rank (the Charter unlocks market
@@ -52,9 +53,10 @@ function note(state: WorldState, category: LedgerCategoryId, pennies: number): v
 
 /** Units of a good an outlet can hand out now (stock not promised to porters). */
 export function outletFree(state: WorldState, outlet: EntityId, good: number): number {
-  const rt = findById(state.buildings, outlet)?.rt;
-  if (!rt) return 0;
-  return Math.max(0, (rt.store[good] ?? 0) - (rt.reservedOut[good] ?? 0));
+  const b = findById(state.buildings, outlet);
+  const shelf = b && shelfOf(b);
+  if (!shelf) return 0;
+  return Math.max(0, (shelf.stock[good] ?? 0) - (shelf.reserved?.[good] ?? 0));
 }
 
 /**
