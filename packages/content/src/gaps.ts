@@ -33,7 +33,7 @@ export const nobodyPasses: GapDef = {
     '{shop} has a full shelf and an empty doorstep: {folk} bought a treat tonight.',
   ],
   closes:
-    'Four customers of an evening at the shop itself: a place within three tiles with seats and some charm brings them.',
+    'Four customers of an evening at the shop itself. A place within three tiles, with seats and some charm, sends them its way.',
   closed: 'Folk walk past {shop} now: {closers} gave them somewhere to be.',
   closedQuiet: 'Folk walk past {shop} again.',
 };
