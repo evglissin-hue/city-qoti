@@ -68,7 +68,7 @@ describe('climbLine', () => {
       }),
       def('granary'),
     );
-    expect(gran).toContain('396 goods in store and every porter in');
+    expect(gran).toContain('396 goods in store and every porter at work');
   });
 
   it('names the place a mill waits to fill (a full house climbs, the ruling of 2026-11-22)', () => {
@@ -76,13 +76,15 @@ describe('climbLine', () => {
       climb({ good: 'served', level: 2, places: { taken: 2, room: 3 }, next: ['room for a fourth baker'] }),
       def('windmill'),
     );
-    expect(one).toMatch(/^When a third baker takes the last place and all are kept in grain, /);
+    expect(one).toMatch(
+      /^Once a third baker takes the last place, three good days with all of them kept in grain /,
+    );
     expect(one).toMatch(/the windmill grows to level 3: room for a fourth baker\.$/);
     const two = climbLine(
       climb({ good: 'served', places: { taken: 0, room: 2 }, next: ['room for a third baker'] }),
       def('windmill'),
     );
-    expect(two).toMatch(/^When two more bakers take the empty places/);
+    expect(two).toMatch(/^Once two more bakers take the empty places,/);
   });
 
   it('says a store keeps the room it earned, and never warns of a slide', () => {

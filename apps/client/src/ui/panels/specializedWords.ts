@@ -36,7 +36,7 @@ function goodDay(climb: SpecializedClimbView, def: BuildingDef): string {
       return `${servedTrade(def)} kept in ${raw ? goodName(raw).toLowerCase() : 'supplies'}`;
     }
     case 'full':
-      return `${climb.today.need.toLocaleString('en-US')} goods in store and every porter in`;
+      return `${climb.today.need.toLocaleString('en-US')} goods in store and every porter at work`;
   }
 }
 
@@ -91,7 +91,7 @@ export function climbLine(climb: SpecializedClimbView, def: BuildingDef): string
         ? `a ${ORDINAL[p.room] ?? 'new'} ${servedOne(def)} takes the last place`
         : `${numberWord(open)} more ${servedTrade(def)} take the empty places`;
     const days = `${numberWord(climb.upDays)} good ${climb.upDays === 1 ? 'day' : 'days'}`;
-    return `When ${who} and all are kept in ${servedRaw(def)}, ${days} of it and ${name} grows to level ${climb.level + 1}${brings}.`;
+    return `Once ${who}, ${days} with all of them kept in ${servedRaw(def)} and ${name} grows to level ${climb.level + 1}${brings}.`;
   }
   return `${more} of ${goodDay(climb, def)} and ${name} grows to level ${climb.level + 1}${brings}.${keeps}`;
 }
