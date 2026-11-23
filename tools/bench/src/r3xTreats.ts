@@ -7,6 +7,7 @@
 import { content } from '@qoti/content';
 import { sellsTreats, storageOf, treatsOnShelf, type WorldState } from '@qoti/sim';
 import { autoplay, type DayLine } from './autoplay';
+import { measureOut, sampleEvening, type EveningSample } from './outcomes';
 import { isFood } from '../../../packages/sim/src/state/zones';
 import { isStorehouse, storageSpace } from '../../../packages/sim/src/systems/logistics/stores';
 import { dayIndex, hourOf } from '../../../packages/sim/src/systems/economy/time';
@@ -35,6 +36,10 @@ const stops: number[] = [];
 const passing: number[] = [];
 const storeTreats: number[] = [];
 const door: number[] = [];
+const evenings: EveningSample[] = [];
+let crafts = 0;
+let households = 0;
+let residents = 0;
 const owedUnits: number[] = [];
 
 const onHour = (w: WorldState): void => {
@@ -89,7 +94,10 @@ const onDay = (w: WorldState, line: DayLine): void => {
   passing.push(t.treatsPassing);
   door.push(t.treatsDoorstep);
   sold.push(t.treatsAtStops + t.treatsPassing);
-  void line;
+  evenings.push(sampleEvening(w));
+  crafts = line.craftsfolk;
+  households = w.households.length;
+  residents = line.residents;
 };
 
 autoplay(seed, days, { village: true, onDay, onHour });
@@ -106,6 +114,10 @@ const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / Math.max(1, xs.le
 console.log(
   `sold/evening d41+: mean ${mean(tail).toFixed(1)} max ${Math.max(0, ...tail)} (stops ${mean(stops.slice(40)).toFixed(1)}, passing ${mean(passing.slice(40)).toFixed(1)}), doorstep ${mean(door.slice(40)).toFixed(1)}, owed units at 18:00 ${mean(owedUnits).toFixed(1)}`,
 );
+const out = measureOut(evenings);
 console.log(
-  `ROW ${JSON.stringify({ seed, shelf18: Math.round(mean(shelf18) * 10) / 10, soldMean: Math.round(mean(tail) * 10) / 10, soldMax: Math.max(0, ...tail), doorstep: Math.round(mean(door.slice(40)) * 10) / 10, owed: Math.round(mean(owedUnits) * 10) / 10, storehouseTreats: Math.round(mean(storeTreats)) })}`,
+  `evenings: worst fair ${(out.worst * 100).toFixed(0)}% (day ${out.worstDay}), mean ${(out.mean * 100).toFixed(0)}%; day ${days}: residents ${residents}, households ${households}, craftsfolk ${crafts} (${((100 * crafts) / Math.max(1, households)).toFixed(0)}%)`,
+);
+console.log(
+  `ROW ${JSON.stringify({ seed, worstOut: Math.round(out.worst * 100), residents, crafts, households, shelf18: Math.round(mean(shelf18) * 10) / 10, soldMean: Math.round(mean(tail) * 10) / 10, soldMax: Math.max(0, ...tail), doorstep: Math.round(mean(door.slice(40)) * 10) / 10, owed: Math.round(mean(owedUnits) * 10) / 10, storehouseTreats: Math.round(mean(storeTreats)) })}`,
 );
