@@ -59,18 +59,21 @@ export function familyReach(family: VarietyFamily): FamilyReach {
   const f = familyIndex(family);
   const sellers = (goodId: string) =>
     content.neighbors.filter((n) => n.sells.some(([g]) => g === goodId)).map((n) => n.id);
-  const baseIds = SHELF_GOODS[f]!.map((g) => content.goods[g]!.id);
+  const masters = content.masters.flatMap((m) =>
+    m.good !== undefined && content.goodById.get(m.good)?.family === family
+      ? [{ good: m.good, trade: m.of }]
+      : [],
+  );
+  // Since R3B the masters' goods are shelf goods like any; only a master makes one, so they count
+  // under masters, not the base shelf.
+  const mastersOwn = new Set(masters.map((m) => m.good));
+  const baseIds = SHELF_GOODS[f]!.map((g) => content.goods[g]!.id).filter((g) => !mastersOwn.has(g));
   const base = baseIds.map((good) => ({
     good,
     madeBy: madeBy(good),
     raw: content.goodById.get(good)!.raw,
     neighbors: sellers(good),
   }));
-  const masters = content.masters.flatMap((m) =>
-    m.good !== undefined && content.goodById.get(m.good)?.family === family
-      ? [{ good: m.good, trade: m.of }]
-      : [],
-  );
   const specs = content.specialties.filter((s) => content.goodById.get(s.good)?.family === family);
   const goods = [...new Set(specs.map((s) => s.good))].sort();
   const known = new Set([...baseIds, ...masters.map((m) => m.good)]);
