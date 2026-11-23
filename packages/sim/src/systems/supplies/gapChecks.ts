@@ -9,7 +9,8 @@ import { townStock } from '../../view/hamlet';
 import { someoneSells } from '../carrier/sellers';
 import { placeableNow, tradeAvailable } from '../hearth/wishes/achievable';
 import { placeById } from '../places/api';
-import { pieceRests, registerSupplyGapRules } from './api';
+import { pieceRests } from './api';
+import { gapHook } from './gapHook';
 import { drawsGoods, Kind, placePieces, suppliedIndex } from './pieces';
 
 const KIND_KEYS = ['nightly', 'evening', 'season'] as const;
@@ -167,5 +168,5 @@ export function shortGapWords(state: WorldState, gap: Gap): { good: string; when
   };
 }
 
-// The cross-track API's two rules (supplies/api.ts), registered as this module loads.
-registerSupplyGapRules({ achievable: shortGapAchievable, closable: shortGapClosable });
+// The cross-track API's two rules (supplies/api.ts reads them through gapHook.ts), set as this loads.
+gapHook.rules = { achievable: shortGapAchievable, closable: shortGapClosable };

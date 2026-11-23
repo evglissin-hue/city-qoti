@@ -18,6 +18,7 @@ import { findById } from '../../state/entities';
 import { lanternsLit } from '../hearth/charm/sources';
 import { sellsTreats, treatsOnShelf } from '../market/round';
 import { doorTile } from '../movement/api';
+import { gapHook } from './gapHook';
 import { Kind, kindOfDef, pieceTile, seasonOfDay, suppliesDraw, tileDist } from './pieces';
 
 /** A decor piece's supply, or undefined when it needs none. */
@@ -140,7 +141,8 @@ export function pieceRests(state: WorldState, decor: Decor): RestKind | null {
  * what its pieces burn can be made here or bought from a neighbor under some carrier rule.
  */
 export function supplyGapAchievable(state: WorldState): boolean {
-  return gapRules ? gapRules.achievable(state) : false;
+  // Registered by gapChecks.ts (gapHook.ts says why it is not imported here); unregistered, R3.0's answer.
+  return gapHook.rules ? gapHook.rules.achievable(state) : false;
 }
 
 /**
@@ -149,26 +151,7 @@ export function supplyGapAchievable(state: WorldState): boolean {
  * reserve, a priority.
  */
 export function supplyGapClosable(state: WorldState, gap: Gap): boolean {
-  return gapRules ? gapRules.closable(state, gap) : true;
-}
-
-/**
- * The fourth gap's two rules, registered by gapChecks.ts when it loads (the supplies and gaps systems
- * both import it). They are kept out of this file's imports on purpose: the place pass and charm read
- * this file, and the checks reach the views, so importing them here pulled the market's evening trade
- * into the places module's graph. Unregistered, they answer as R3.0's stand-ins did.
- */
-let gapRules: {
-  achievable(state: WorldState): boolean;
-  closable(state: WorldState, gap: Gap): boolean;
-} | null = null;
-
-/** gapChecks.ts's registration of the fourth gap's rules. */
-export function registerSupplyGapRules(rules: {
-  achievable(state: WorldState): boolean;
-  closable(state: WorldState, gap: Gap): boolean;
-}): void {
-  gapRules = rules;
+  return gapHook.rules ? gapHook.rules.closable(state, gap) : true;
 }
 
 const CANDLES = content.goodIndex.get('candles') ?? -1;
