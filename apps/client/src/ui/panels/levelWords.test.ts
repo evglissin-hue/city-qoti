@@ -20,7 +20,7 @@ describe('nextLevelLine', () => {
   });
   it('asks a street and a master for level 3', () => {
     expect(nextLevelLine({ level: 2, levelDays: 1 }, trade('baker'))).toBe(
-      "Level 3 after 2 good days running: 1 so far. A good day sells four fifths of what it makes, never runs short of grain, with a street at the door, and a master of the trade on its crew.",
+      'Level 3 after 2 good days running: 1 so far. A good day sells four fifths of what it makes, never runs short of grain, with a street at the door, and a master of the trade on its crew.',
     );
   });
   it('asks farmland for a farmstead, and no raw good', () => {

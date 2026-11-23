@@ -1,6 +1,12 @@
 import { BuildingSeasonLines } from './seasonParts';
 import { content, type BuildingDef } from '@qoti/content';
-import { storageOf, type BuildingDetail, type BuildingView, type ResidentDetail, type SpecializedClimbView } from '@qoti/sim';
+import {
+  storageOf,
+  type BuildingDetail,
+  type BuildingView,
+  type ResidentDetail,
+  type SpecializedClimbView,
+} from '@qoti/sim';
 import { useState } from 'preact/hooks';
 import type { Session } from '../../app/session';
 import { removeWithCare } from '../../input/removal';
