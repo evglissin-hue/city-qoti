@@ -237,12 +237,13 @@
 .tf-arrive {
   margin: 0;
   line-height: 1.35;
-  text-wrap: balance;
+  text-wrap: pretty;
 }
 
 .tf-arrive .tf-link {
   font-size: inherit;
   padding: 0 1px;
+  white-space: nowrap;
 }
 
 /* Continue: the most recent valley, one click. */
