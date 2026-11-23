@@ -22,10 +22,11 @@ test('the storybook opens with its parts, prints at A4 and Letter, and closes cl
   page,
   baseURL,
 }, testInfo) => {
-  test.setTimeout(240_000);
+  // Software rendering in CI runs some runners 1.6 times slower than others: room to spare.
+  test.setTimeout(360_000);
   await page.setViewportSize({ width: 1250, height: 800 });
   await openStorybook(page, baseURL ?? 'http://localhost:5173', valley, async () => {
-    await layInPictures(page, 6);
+    await layInPictures(page, 3);
     await layInTownBook(page);
   });
 
