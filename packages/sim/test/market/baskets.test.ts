@@ -119,13 +119,18 @@ describe('a food outing at the till', () => {
   it('puts breakfast on the slate for a household with nobody in work, and the basket remembers', () => {
     const f = villageFixture();
     const s = f.state;
-    // The house families have no jobs; the cottage families do, and pay their way.
+    // The house families have no jobs; the cottage families do, and pay their way while the purse
+    // can pay. P3A (meals): with a purse short of the cheapest food they eat on the slate too, and
+    // the basket remembers it (a grown-up in work feels it).
     const working = household(s, f.households[0]!);
     working.savings = 0;
     working.pantry.fill(0);
     working.arrivedDay = -10;
+    ensureBasket(working);
     stall(s, f.b.stalls[0], [['bread', 10]]);
-    expect(shopFood(s, working, f.b.stalls[0], 4)).toBeNull();
+    expect(shopFood(s, working, f.b.stalls[0], 4)![1]).toBe(Math.min(4, working.members.length));
+    expect(working.savings).toBe(0);
+    expect(basketScore(s, working)).toBeLessThan(100);
     const h = household(s, f.households[8]!);
     h.arrivedDay = -10;
     ensureBasket(h);

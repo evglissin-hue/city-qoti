@@ -200,7 +200,7 @@ class Nature implements Advisor {
       const x = door % S;
       const z = Math.floor(door / S);
       for (const def of ['flower-bed', 'planter', 'cherry-tree']) {
-        const spot = streetDecorSpot(w, def, x, z);
+        const spot = streetDecorSpot(w, def, x, z, (fx, fz) => !this.p.wallsDoor(def, fx, fz));
         if (spot)
           this.p.do(`${def} for the street`, [{ t: 'decor.place', def, fx: spot[0], fz: spot[1], rot: 0 }]);
       }
@@ -245,8 +245,18 @@ function charmAt(w: WorldState, b: Building): number {
   return n ? sum / n : 0;
 }
 
-/** A free spot for decor within three tiles of a door, or null. */
-function streetDecorSpot(w: WorldState, def: string, x: number, z: number): [number, number] | null {
+/**
+ * A free spot for decor within three tiles of a door that `ok` accepts, or null. P3A: the caller
+ * passes the planner's door check, so a tree is not sent to a spot beside a door, held back, and
+ * sent there again every visit (hazel's cherry tree, days 1 to 6; the audit's held actions).
+ */
+function streetDecorSpot(
+  w: WorldState,
+  def: string,
+  x: number,
+  z: number,
+  ok: (fx: number, fz: number) => boolean = () => true,
+): [number, number] | null {
   const d = content.decorById.get(def)!;
   const reader = worldIndex(w).reader;
   for (let r = 1; r <= 3; r++) {
@@ -255,7 +265,7 @@ function streetDecorSpot(w: WorldState, def: string, x: number, z: number): [num
         if (Math.max(Math.abs(dx), Math.abs(dz)) !== r) continue;
         const fx = (x + dx) * TILE_FP + TILE_FP / 2;
         const fz = (z + dz) * TILE_FP + TILE_FP / 2;
-        if (canPlaceDecor(reader, d, fx, fz, 0).ok) return [fx, fz];
+        if (canPlaceDecor(reader, d, fx, fz, 0).ok && ok(fx, fz)) return [fx, fz];
       }
     }
   }

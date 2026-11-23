@@ -10,6 +10,7 @@
     "golden:year": "tsx src/goldenYear.ts",
     "hands": "tsx src/hands.ts",
     "lanes": "tsx src/lanes.ts",
+    "newcomer": "tsx src/newcomerRun.ts",
     "outcomes": "tsx src/outcomes.ts",
     "targets": "tsx src/targets.ts",
     "tune": "tsx src/tune.ts",

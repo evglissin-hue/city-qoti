@@ -16,10 +16,12 @@ import {
   MAP_SIZE,
   RANKS,
   ResidentFlags,
+  RoundFlags,
   TICKS_PER_DAY,
   TICKS_PER_HOUR,
   TILE_FP,
   CARRIER_HOUR,
+  BuildingStatus,
 } from '../constants';
 import type { Building, Gap, Place, WorldState } from '../contracts';
 import { Road, TREE_MATURE, treeStage } from '../map/layers';
@@ -30,12 +32,15 @@ import { doorFront, reachesTile, townReach } from '../rules/reach';
 import { gateTiles } from '../rules/wall';
 import { canPlantTree } from '../rules/tree';
 import { worldIndex } from '../state/worldIndex';
+import { findById } from '../state/entities';
 import { townReachesDoor } from '../state/reach';
 import { placeState } from '../state/evenings';
 import { rankAtLeast } from '../state/village';
-import { familyIndex, methodOf } from '../state/zones';
+import { familyIndex, jobsOf, methodOf } from '../state/zones';
 import { isStandard } from '../state/hamlet';
 import { carrierCovers, passClosed } from '../systems/carrier/api';
+import { nearestOutletWithFood, outletFood } from '../systems/economy/outlets';
+import { doorTile } from '../systems/movement/api';
 import { dayIndex, hourOf, isBuildTime } from '../systems/economy/time';
 import { currentPlan, isFestivalDay } from '../systems/festivals/api';
 import { gapAchievable } from '../systems/gaps/achievable';
@@ -128,7 +133,21 @@ export type HealthKind =
    * R2E: a garden lot (`Lot.kind` 'garden') that something grew on or tried to: a building id on it,
    * a building or site on its tiles, or a building whose `lot` is it. Flagged at once, once per lot.
    */
-  | 'garden-grown';
+  | 'garden-grown'
+  /**
+   * P3A: the hands spiral the owner met (too few hands, then too little food): food under three days
+   * in hand and food jobs open at two midday looks running, while hands work past the first at
+   * workplaces that do not feed the town (the job ranks failed), or three sites wait and the Homes
+   * bar names no lever (nothing on screen says what would bring hands).
+   */
+  | 'hands-spiral'
+  /**
+   * P3A (meals): households that went without breakfast on two mornings running (a member's food
+   * need under MEAL_MISSED_BELOW at the 08:00 look) while an outlet with food stood in reach of their
+   * door (`nearestOutletWithFood`): the town has the food and the household does not eat it (a purse
+   * too thin for the shelf's prices, a trip that never comes). Names the households and the shelf.
+   */
+  | 'meals-missed';
 
 export interface HealthIssue {
   kind: HealthKind;
@@ -145,6 +164,16 @@ export const IDLE_TICKS = 2 * TICKS_PER_HOUR;
 export const STUCK_TICKS = 6 * TICKS_PER_HOUR;
 /** No builder place beside a waiting site, an unachievable wish: a day before it counts. */
 export const DAY_TICKS = TICKS_PER_DAY;
+/** P3A: the hour the hands-spiral check looks (folk at work), and the days running it must hold. */
+export const SPIRAL_HOUR = 12;
+export const SPIRAL_DAYS = 2;
+/** P3A (meals): the hour the meals-missed check looks (an hour after breakfast), and the food need that counts as a missed meal. */
+export const MEALS_HOUR = 8;
+export const MEAL_MISSED_BELOW = 60;
+/** P3A: sites waiting at once that count as piling up. */
+export const SPIRAL_SITES = 3;
+/** P3A: a food workplace in this state can use no hands (the jobs pass's own STUCK bits). */
+const SPIRAL_STUCK = BuildingStatus.noTrees | BuildingStatus.noFields | BuildingStatus.missingInput;
 /** R2X: carrier visits a site's Materials may miss (a full cart) before site-unsupplied flags it. */
 export const CARRIER_VISITS_WAITED = 2;
 /** A season (6 days). */
@@ -195,6 +224,125 @@ export function quietSeasons(good: string, seen: ReadonlySet<string> = new Set()
     producers.length === 0 ? ALL_YEAR : new Set([0, 1, 2, 3].filter((q) => producers.every((p) => p.has(q))));
   if (seen.size === 0) quietCache.set(good, out);
   return out;
+}
+
+/** P3A: true when the building's method grows or makes Food. */
+function feedsTown(b: Building): boolean {
+  const m = methodOf(b);
+  if (!m) return false;
+  if (m.kind === 'farm') return true;
+  return m.outputs.some(([g]) => content.goodById.get(g)?.family === 'food');
+}
+
+/** P3A (meals): ids of the households with a member whose food need says they missed this morning's meal. */
+export function hungryHouseholds(state: WorldState): Set<number> {
+  const out = new Set<number>();
+  for (const h of state.households) {
+    if (!h.homeId) continue;
+    for (const id of h.members) {
+      const r = findById(state.residents, id);
+      if (r && (r.needs[0] ?? 100) < MEAL_MISSED_BELOW) {
+        out.add(h.id);
+        break;
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * P3A (meals): the households that missed breakfast this morning and the one before (`before`: the
+ * hungry households of yesterday's look) with food on a shelf in reach of their door, in words, or
+ * null. The words name the count and the shelf most of them could have shopped at.
+ */
+export function mealsMissed(state: WorldState, before: ReadonlySet<number>): string | null {
+  const now = hungryHouseholds(state);
+  // The households each nearest shelf serves, with their mouths: a shelf holding fewer units than
+  // the households queuing at it have mouths is a shortage (the Ledger's line), not food in reach.
+  const shelves = new Map<number, { households: number; mouths: number }>();
+  for (const h of state.households) {
+    if (!now.has(h.id) || !before.has(h.id)) continue;
+    const home = findById(state.buildings, h.homeId);
+    if (!home) continue;
+    const shelf = nearestOutletWithFood(state, doorTile(home));
+    if (!shelf) continue;
+    const at = shelves.get(shelf) ?? { households: 0, mouths: 0 };
+    at.households++;
+    at.mouths += Math.max(1, h.members.length);
+    shelves.set(shelf, at);
+  }
+  let n = 0;
+  let top = 0;
+  let topN = 0;
+  for (const [id, at] of shelves) {
+    if (outletFood(state, id) < at.mouths) continue;
+    n += at.households;
+    if (at.households > topN) {
+      top = id;
+      topN = at.households;
+    }
+  }
+  if (n === 0) return null;
+  const shelf = findById(state.buildings, top);
+  return (
+    `${n} household${n === 1 ? '' : 's'} went without breakfast two mornings running with food on ` +
+    `${shelf ? `${shelf.def} #${shelf.id}` : 'a shelf'} in reach`
+  );
+}
+
+/**
+ * P3A: the hands spiral at this moment, in words, or null: food under three days in hand (stock and
+ * pantries, the jobs pass's own test) and food jobs open, while hands work past the first at a
+ * workplace that does not feed the town, or SPIRAL_SITES sites wait with the Homes bar silent.
+ */
+export function handsSpiral(state: WorldState): string | null {
+  const pop = state.residents.length;
+  if (pop === 0) return null;
+  const stock = townStock(state);
+  let food = 0;
+  content.goods.forEach((g, i) => {
+    if (g.family !== 'food') return;
+    food += stock[i] ?? 0;
+    for (const h of state.households) food += h.pantry[i] ?? 0;
+  });
+  if (food >= 3 * pop) return null;
+  let foodOpen = 0;
+  let elsewhere = 0;
+  let waiting = 0;
+  for (const b of state.buildings) {
+    const rt = b.rt;
+    if (!rt) continue;
+    if (b.stage === 'construction') {
+      if (rt.status & (BuildingStatus.waitingMaterials | BuildingStatus.waitingBuilders)) waiting++;
+      continue;
+    }
+    if (b.stage !== 'built' || rt.paused || rt.status & BuildingStatus.resting) continue;
+    const def = content.buildingById.get(b.def);
+    if (feedsTown(b)) {
+      // A farm with no fields or a maker with no raw good can use no hands: the jobs pass ranks it last.
+      if (rt.status & SPIRAL_STUCK) continue;
+      foodOpen += Math.max(0, (b.trade ? jobsOf(b) : (def?.jobs?.count ?? 0)) - rt.workers.length);
+      continue;
+    }
+    const role = def?.jobs?.role ?? 'worker';
+    if (role !== 'worker' || def?.category === 'service') continue;
+    // Past the first hand, and free to move: the jobs pass never moves an apprentice before their
+    // season is out (rebalanceJobs), so neither does this check.
+    const today = dayIndex(state.tick);
+    let movable = 0;
+    for (let k = 1; k < rt.workers.length; k++) {
+      const r = findById(state.residents, rt.workers[k]!);
+      if (r && !(r.apprentice && r.apprentice.untilDay > today)) movable++;
+    }
+    elsewhere += movable;
+  }
+  if (foodOpen === 0) return null;
+  const days = Math.floor((food * 10) / pop) / 10;
+  if (elsewhere > 0)
+    return `${foodOpen} food jobs open with ${days} days of food in hand, while ${elsewhere} hands work past the first at other workplaces`;
+  if (waiting >= SPIRAL_SITES && (state.demand.reasons[0] ?? []).length === 0)
+    return `${foodOpen} food jobs open with ${days} days of food in hand and ${waiting} sites waiting, and the Homes bar names no lever`;
+  return null;
 }
 
 /**
@@ -248,6 +396,12 @@ export class HealthWatch {
   private unsoldDay = -1;
   /** R2E: tiers (and `lot:<id>` rows) already reported, so each is said once. */
   private readonly reported = new Set<string>();
+  /** P3A: the day of the last hands-spiral look, and how many looks running it held. */
+  private spiralDay = -1;
+  private spiralRun = 0;
+  /** P3A (meals): the day of the last morning look, and the households that were hungry at it. */
+  private mealDay = -1;
+  private mealHungry: ReadonlySet<number> = new Set();
 
   check(state: WorldState): HealthIssue[] {
     if (!isStandard(state)) return [];
@@ -284,6 +438,8 @@ export class HealthWatch {
     for (const id of [...this.progress.keys()]) if (!seen.has(id)) this.progress.delete(id);
     this.checkCutOff(state, out);
     this.checkGrowthWaits(state, out);
+    this.checkHandsSpiral(state, out);
+    this.checkMealsMissed(state, out);
 
     // Builders idle beside work they could do: a reachable site with work allowed and room in its
     // crew that has not moved for a while, though builders stood free at every look.
@@ -519,6 +675,27 @@ export class HealthWatch {
     for (const k of [...this.ruleSince.keys()]) if (!live.has(k)) this.ruleSince.delete(k);
   }
 
+  /** hands-spiral: handsSpiral at the day's first look from SPIRAL_HOUR, SPIRAL_DAYS days running. */
+  private checkHandsSpiral(state: WorldState, out: HealthIssue[]): void {
+    const day = Math.floor(state.tick / TICKS_PER_DAY);
+    if (hourOf(state.tick) < SPIRAL_HOUR || day === this.spiralDay) return;
+    this.spiralDay = day;
+    const why = handsSpiral(state);
+    this.spiralRun = why ? this.spiralRun + 1 : 0;
+    if (why && this.spiralRun >= SPIRAL_DAYS) out.push({ kind: 'hands-spiral', id: 0, text: why });
+  }
+
+  /** meals-missed: at the day's first look from MEALS_HOUR, the households hungry now and at the last look too, with food in reach. */
+  private checkMealsMissed(state: WorldState, out: HealthIssue[]): void {
+    const day = Math.floor(state.tick / TICKS_PER_DAY);
+    if (hourOf(state.tick) < MEALS_HOUR || day === this.mealDay) return;
+    const consecutive = day === this.mealDay + 1;
+    this.mealDay = day;
+    const why = consecutive ? mealsMissed(state, this.mealHungry) : null;
+    this.mealHungry = hungryHouseholds(state);
+    if (why) out.push({ kind: 'meals-missed', id: 0, text: why });
+  }
+
   /** growth-waits-unseen: homes held back by quiet evenings a whole day, with no reason shown and no gap open (looked at hourly). */
   private checkGrowthWaits(state: WorldState, out: HealthIssue[]): void {
     const now = state.tick;
@@ -669,13 +846,23 @@ export class HealthWatch {
         if (list) list.push(p);
         else byOutlet.set(id, [p]);
       }
+    // A household that went shopping first stops at the outlet itself (`shop:<id>`), which has no place
+    // row: the sale is on the stop's flags, not on any row (hazel's tuned Village run flagged a stall
+    // that sold 2 Treats at its own door on three of the six evenings).
+    const soldAtDoor = new Map<number, number>();
+    for (const r of state.residents)
+      for (const stop of r.round ?? [])
+        if (stop.place.startsWith('shop:') && (stop.flags & RoundFlags.treat) !== 0) {
+          const id = Number(stop.place.slice(5));
+          soldAtDoor.set(id, (soldAtDoor.get(id) ?? 0) + 1);
+        }
     const live = new Set<number>();
     for (const b of state.buildings) {
       const mine = byOutlet.get(b.id);
       if (!mine || !sellsTreats(state, b) || !treatsOnShelf(state, b)) continue;
       live.add(b.id);
       let visitors = 0;
-      let sold = 0;
+      let sold = soldAtDoor.get(b.id) ?? 0;
       for (const p of mine) {
         const row = placeState(state, p.id);
         if (!row) continue;

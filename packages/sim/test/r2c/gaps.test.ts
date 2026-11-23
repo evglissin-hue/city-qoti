@@ -289,6 +289,28 @@ describe('a shop nobody passes', () => {
     b.rt!.store[content.goodIndex.get('honey')!] = 0;
   }
 
+  it('drops a gap nothing could close any more, and opens it again when ground frees up', () => {
+    const ctx = newCtx(state);
+    const shop = findById(state.buildings, shopId)!;
+    let day = 0;
+    for (let i = 0; i < d.openAfter; i++) night(state, ctx, { day: day++, places: { 'seats:9': { v: 0 } } });
+    expect(findGap(state, kind, subject)).toBeDefined();
+    // The lots around the shop fill in (every tile within six is built on) and its one place is gone.
+    const around: number[] = [];
+    for (let z = shop.z - 6; z <= shop.z + 6; z++)
+      for (let x = shop.x - 6; x <= shop.x + 6; x++) around.push(z * S + x);
+    const was = around.map((t) => state.map.occupant[t]!);
+    for (const t of around) state.map.occupant[t] = 1;
+    setPlaces([mkPlace('seats:9', shop.z * S + shop.x + 40)]);
+    night(state, ctx, { day: day++, places: { 'seats:9': { v: 0 } } });
+    expect(state.gaps.open.some((g) => g.kind === kind && g.subject === subject)).toBe(false);
+    expect(state.gaps.closedCount).toBe(0);
+    // Ground frees up: the same quiet evenings open it again.
+    around.forEach((t, i) => (state.map.occupant[t] = was[i]!));
+    for (let i = 0; i < d.openAfter; i++) night(state, ctx, { day: day++, places: { 'seats:9': { v: 0 } } });
+    expect(findGap(state, kind, subject)).toBeDefined();
+  });
+
   it('drops a gap whose shop is gone', () => {
     const ctx = newCtx(state);
     for (let i = 0; i < d.openAfter; i++) night(state, ctx, { day: i, places: { 'seats:9': { v: 0 } } });

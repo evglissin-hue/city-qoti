@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+import { content } from '@qoti/content';
 import { h } from 'preact';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { Session } from '../app/session';
@@ -236,8 +237,10 @@ describe('lens toolbars', () => {
     // R1C: three shelves. A hand-placed cottage is on Services, under "Homes by hand".
     expect(ids(view.root, 'group-')).toEqual(['zones', 'specialized', 'services']);
     const cottage = view.get('variant-cottage');
-    expect(cottage.textContent).toContain('20');
-    expect(cottage.textContent).toContain('16 timber');
+    // P3A: read from content (the basic buildings got cheaper; the card must show what they cost).
+    const cost = content.buildingById.get('cottage')!.cost!;
+    expect(cottage.textContent).toContain(String(cost.coins));
+    expect(cottage.textContent).toContain(`${cost.goods!.find(([g]) => g === 'timber')![1]} timber`);
     // Homes have no upkeep (C3X tuning), so the card shows none.
     expect(cottage.textContent).not.toContain('a day to keep');
     expect(view.get('homes-by-hand').textContent).toContain('Homes by hand');

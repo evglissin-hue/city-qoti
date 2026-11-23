@@ -50,6 +50,7 @@ import type { Lane } from './advisors/types';
 import { command, runTicks, startingTown, type Hamlet } from './hamlet';
 import type { DecisionRecord } from './decisions';
 import { ledgerLine, type LedgerLine } from './ledgerRow';
+import { NEWCOMER_HEARTH_FROM, NEWCOMER_LATE } from './newcomer';
 import { Planner } from './planner';
 import { charterLine, craftsfolk, FOODS, G, sites, storyLetters, vacantHomes } from './town';
 import { grownSince, growthLine, type GrowthLine, type GrowthNight, type HighStreet } from './village';
@@ -215,6 +216,7 @@ export function autoplay(seed: string, days: number, opts: AutoplayOptions = {})
   // C5D: the threat dial (valleys start Peaceful). A recorded run has it in its settings already.
   if (opts.threat && !opts.record) h.world.settings.threat = opts.threat;
   const planner = new Planner(h);
+  planner.newcomer = !!opts.newcomer;
   // Every advisor that plays this run, in visit order.
   // C5X: TUNE_SKIP=nature,festivals leaves advisors out, to see what each one costs (tuning only).
   const skip = (process.env.TUNE_SKIP ?? '').split(',');
@@ -251,7 +253,12 @@ export function autoplay(seed: string, days: number, opts: AutoplayOptions = {})
       planner.offLanes.clear();
       if (opts.hearthOffFrom !== undefined && d >= opts.hearthOffFrom) planner.offLanes.add('hearth');
       if (opts.ledgerOffFrom !== undefined && d >= opts.ledgerOffFrom) planner.offLanes.add('ledger');
-      const visits = team.filter((t) => t.def.lane === 'both' || !planner.offLanes.has(t.def.lane));
+      // P3A: a newcomer pair composes no places (and dresses nothing) for the first evenings.
+      const visits = team.filter(
+        (t) =>
+          (t.def.lane === 'both' || !planner.offLanes.has(t.def.lane)) &&
+          !(opts.newcomer && d < NEWCOMER_HEARTH_FROM && NEWCOMER_LATE.includes(t.def.id)),
+      );
       // The night's growth pass (01:00): what it wanted, and what it started. R1: from the second
       // day (the first starts after 01:00), not from the Village claim: the zones are open from founding.
       let night: GrowthNight | undefined;

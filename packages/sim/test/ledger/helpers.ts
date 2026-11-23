@@ -11,6 +11,23 @@ import { applyTurn, createTickCtx } from '../../src/turn';
 
 export const good = (id: string): number => content.goodIndex.get(id)!;
 
+/** A building's build cost read from content: coins, goods by name, total goods units and work. */
+export function costOf(defId: string): {
+  coins: number;
+  goods: (name: string) => number;
+  units: number;
+  work: number;
+} {
+  const def = content.buildingById.get(defId)!;
+  const list = def.cost?.goods ?? [];
+  return {
+    coins: def.cost?.coins ?? 0,
+    goods: (name) => list.find(([g]) => g === name)?.[1] ?? 0,
+    units: list.reduce((n, [, q]) => n + q, 0),
+    work: def.work ?? 0,
+  };
+}
+
 export function building(state: WorldState, id: EntityId): Building {
   return findById(state.buildings, id)!;
 }

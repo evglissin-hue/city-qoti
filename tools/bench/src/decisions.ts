@@ -178,3 +178,39 @@ export function stuckCommands(records: readonly DecisionRecord[], minDays = STUC
   }
   return out.sort((a, b) => b.days - a.days || a.first - b.first);
 }
+
+/** The planner's own holds: a command it never sends because it would wall a home's door. */
+const HELD = ' (would wall a door)';
+
+/**
+ * P3A's class check, beside `stuckCommands`: the same action held back by the planner itself on
+ * `STUCK_DAYS` or more separate days. Those never reach the sim, so they are not refusals and
+ * `stuckCommands` cannot see them: willow's herbalist was sent to one spot by the Coldbrooks' door
+ * every visit for 70 days, so no herbalist came and no household reached Craftsfolk. Reads the
+ * planner's action log (`day:label (would wall a door)`).
+ */
+export function heldActions(actions: readonly string[], minDays = STUCK_DAYS): StuckCommand[] {
+  const byLabel = new Map<string, Set<number>>();
+  for (const a of actions) {
+    if (!a.endsWith(HELD)) continue;
+    const colon = a.indexOf(':');
+    const day = Number(a.slice(0, colon));
+    const label = a.slice(colon + 1, a.length - HELD.length);
+    const days = byLabel.get(label) ?? new Set<number>();
+    days.add(day);
+    byLabel.set(label, days);
+  }
+  const out: StuckCommand[] = [];
+  for (const [label, set] of byLabel) {
+    if (set.size < minDays) continue;
+    const days = [...set].sort((a, b) => a - b);
+    out.push({
+      advisor: 'planner',
+      label: `${label}${HELD}`,
+      days: days.length,
+      first: days[0]!,
+      last: days[days.length - 1]!,
+    });
+  }
+  return out.sort((a, b) => b.days - a.days || a.first - b.first);
+}
