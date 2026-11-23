@@ -10,7 +10,9 @@ const browser = await chromium.launch({
 });
 const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 2 });
 const page = await ctx.newPage();
-await page.goto(`${base}/?debug&fixture=grown&clean&teabreak&quality=low&noguide&season=summer&day=3&weather=clear`);
+await page.goto(
+  `${base}/?debug&fixture=grown&clean&teabreak&quality=low&noguide&season=summer&day=3&weather=clear`,
+);
 await page.waitForFunction(() => window.__qoti?.status() === 'live', null, { timeout: 240000 });
 await page.waitForTimeout(3000);
 await page.evaluate(() => window.__qoti.submit({ t: 'time.setSpeed', speed: 0 }));
