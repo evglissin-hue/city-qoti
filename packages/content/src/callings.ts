@@ -8,7 +8,7 @@ import type { CallingDef, ChronicleTemplate } from './types';
 /** The County's words. {town}, {calling}, {signature}, {leaning}, {coins}. */
 export const callingPhrases = {
   earned:
-    'A letter from the County Clerk: "Noted, with approval, that {town} has earned {calling}. Three pages of the Town Book lean {leaning}, and the County can count. A {signature} has been sent along, since it seemed the thing to send. Place it where it will be admired."',
+    'A letter from the County Clerk: "Noted, with approval, that {town} has earned {calling}. Three pages of the Town Book lean to {leaning}, and the County can count. A {signature} has been sent along, since it seemed the thing to send. Place it where it will be admired."',
   /** Garden Village: the weekly word on visitors ({town}, {coins}). */
   visitors: "This week's visitors left about {coins} behind in {town}, a good deal of it on cake.",
 };
