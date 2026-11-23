@@ -1,0 +1,52 @@
+/* R3D: the quiet lines for masters, apprentices, the lamplighter and callings. Plain ink, no new headings. */
+
+.master-lines {
+  margin: 4px 0;
+  display: grid;
+  gap: 2px;
+}
+
+.master-lines p {
+  margin: 0;
+}
+
+.charter-callings {
+  margin: 10px 0 4px;
+}
+
+.charter-callings ul {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.charter-callings li {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.charter-callings li svg {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+}
+
+.charter-callings li > div {
+  min-width: 0;
+}
+
+.charter-callings .label {
+  margin: 0;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+.charter-callings li p {
+  margin: 0;
+}

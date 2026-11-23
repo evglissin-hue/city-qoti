@@ -3,6 +3,7 @@
 // list, the lens switch when the thing is in the other lens), when the arrow has done its job,
 // and the words the guide uses outside its letters. No DOM writes here.
 import type { GuideView, Lens } from '@qoti/sim';
+import { toolGroups } from './toolGroups';
 
 export const guideCopy = {
   /** New valley checkbox and the Settings line. */
@@ -58,8 +59,13 @@ export function pointTargets(g: GuideView, ui: GuideUiNow): string[] {
   if (!p || pointDone(g, ui)) return [];
   const lens = stepLens(g, ui.lens);
   const lensSwitch = `lens-${lens}`;
-  if (p.tool) return [`tool-${p.tool}`, lensSwitch];
-  if (p.panel) return [`book-${p.panel}`, lensSwitch];
+  // P3B: a tool in a group is on its shelf once the group is out, else the group's button points
+  // the way; a book is on the Books shelf once it is open, else the Books button does.
+  if (p.tool) {
+    const group = toolGroups.find((t) => t.members.some(([id]) => id === p.tool));
+    return [`tool-${p.tool}`, ...(group ? [`tool-group-${group.id}`] : []), lensSwitch];
+  }
+  if (p.panel) return [`book-${p.panel}`, ui.lens === lens ? 'books' : lensSwitch];
   if (p.overlay) {
     if (ui.lens !== lens) return [lensSwitch];
     return ui.overlayListOpen ? [`overlay-${p.overlay}`, 'overlays'] : ['overlays'];

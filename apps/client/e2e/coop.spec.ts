@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { clickTile, counts, DEBUG_QUERY, dragTiles, hashesAt, waitLive } from './helpers';
+import { clickTile, counts, DEBUG_QUERY, dragTiles, hashesAt, takeTool, waitLive } from './helpers';
 
 // Acceptance: two tabs share a valley through the dev server, see each other's placements
 // within 250 ms, keep equal hashes, pause together, and a reloaded tab catches up.
@@ -55,7 +55,7 @@ test('two seats build together in one valley', async ({ browser }) => {
   expect(latency).toBeLessThan(250);
 
   // B places a bench; A sees it.
-  await b.getByTestId('tool-decor').click();
+  await takeTool(b, 'decor');
   await b.getByTestId('variant-bench').click();
   const bench = await b.evaluate(() => window.__qoti.findDecorSpot('bench'));
   expect(bench).not.toBeNull();

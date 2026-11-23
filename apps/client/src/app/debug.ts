@@ -34,9 +34,11 @@ import { fakeCharm, fakeRuntime, startSyntheticResidents, type SyntheticOptions 
 import { SimHost } from '../worker/host';
 import { overlayMocks, overlayVillageMocks } from './fixture';
 import type { GroundAo } from '../render/groundAo';
+import { startLampSequence, type LampSequence, type LampSequenceOptions } from '../render/lampSequence';
 import { layerTriangles, runPerf, type PerfOptions } from './perf';
 import type { Session } from './session';
 import { lamplitHour, lampOverride } from '../ui/cards';
+import { topGroundLayer } from '../ui/groundHighlight';
 
 export interface GoldenScript {
   seed: string;
@@ -72,6 +74,7 @@ export function installDebugHook(getSession: () => Session | null): void {
   if (!DEBUG) return;
   const s = () => getSession();
   let stopSynth: (() => void) | null = null;
+  let lamps: LampSequence | null = null;
   const hook = {
     status: () => s()?.connection?.status.value ?? 'none',
     phase: () => s()?.phase.value ?? 'none',
@@ -390,6 +393,56 @@ export function installDebugHook(getSession: () => Session | null): void {
     eveningAt: (x: number, z: number) => s()?.mirror.eveningStreet(x, z) ?? false,
     /** R2D: the places and gaps the Mirror holds (the &evening mocks until R2A and R2C land). */
     places: () => [...(s()?.mirror.places.values() ?? [])],
+    /** R3D: the businesses as the Ledger sees them (master fields included), for e2e. */
+    businesses: () => [...(s()?.mirror.businesses.values() ?? [])],
+    /** R3D: tonight's supplies view (lamps, candle-lit homes, the lamplighters), for e2e. */
+    supplies: () => s()?.mirror.supplies.value ?? null,
+    /** R3D: which ground layer shows now (an inspector's own picture or a Thread's route), or null. */
+    groundHighlight: () => {
+      const session = s();
+      return session ? topGroundLayer(session) : null;
+    },
+    /**
+     * R3D: a cider's thread recorded in the real sim (a debug worker message): fruit from an orchard
+     * through a storehouse to a cider maker, the cider back through it to a stall, 14 drunk at a place
+     * and 3 households taking it home. The press, the place and its name, or null when the valley
+     * lacks one of them (the grown village has them all). The sim then drifts from a room's.
+     */
+    threadScene: () => {
+      const session = s();
+      if (!session) return null;
+      const m = session.mirror;
+      const built = [...m.buildings.values()].filter((b) => b.stage === 'built');
+      const tags = (def: string) => content.buildingById.get(def)?.tags ?? [];
+      const orchard = built.find((b) => b.trade === 'orchard');
+      const press = built.find((b) => b.trade === 'cider-maker');
+      const store = built.find((b) => b.def === 'storehouse');
+      const stall =
+        built.find((b) => b.def === 'market-stall') ??
+        built.find((b) => tags(b.def).includes('outlet') && b.def !== 'storehouse' && b.def !== 'granary');
+      const place = [...m.places.values()].find((p) => p.source !== 'porch');
+      const homes = [...new Set([...m.residents.values()].map((r) => r.homeId))]
+        .filter((id) => {
+          const b = m.buildings.get(id);
+          return !!b && !tags(b.def).includes('outlet');
+        })
+        .slice(0, 3);
+      if (!orchard || !press || !store || !stall || !place || homes.length < 3) return null;
+      session.seedThreadsForTest([
+        [orchard.id, store.id, 'fruit', 10],
+        [store.id, press.id, 'fruit', 8],
+        [press.id, store.id, 'cider', 9],
+        [store.id, stall.id, 'cider', 9],
+        [stall.id, place.id, 'cider', 14],
+        ...homes.map((h) => [stall.id, h, 'cider', 2] as [number, number, string, number]),
+      ]);
+      return {
+        press: press.id,
+        place: place.id,
+        placeName: place.name,
+        at: [press.x, press.z] as [number, number],
+      };
+    },
     gaps: () => s()?.mirror.gaps.value ?? null,
     /** Interface size, 0.8 to 1.4, as the settings slider sets it. */
     setUiScale: (scale: number) => applySettings({ ...loadSettings(), uiScale: scale }),
@@ -592,6 +645,25 @@ export function installDebugHook(getSession: () => Session | null): void {
     },
     /** C3D: the renderer, for render tests (overlays, bubbles, follow, stats). */
     renderer: () => s()?.renderer ?? null,
+    /**
+     * V4.0: V4A's test scene for the R3F handshake (render/lampSequence.ts): lamps lighting one by
+     * one at rest about the view's focus (or `center`), a light map change each. Returns how many
+     * lamps it will light; `lampSequenceLit()` counts the lit ones, `lampSequenceStop()` puts them out.
+     */
+    lampSequence: (opts: Partial<LampSequenceOptions> = {}) => {
+      const r = s()?.renderer;
+      if (!r) return 0;
+      lamps?.stop();
+      const f = r.env.focus;
+      const o: LampSequenceOptions = { center: [f.x, f.z], ...opts };
+      lamps = startLampSequence(r, o);
+      return Math.max(1, Math.floor(o.count ?? 12));
+    },
+    lampSequenceLit: () => lamps?.lit() ?? 0,
+    lampSequenceStop: () => {
+      lamps?.stop();
+      lamps = null;
+    },
     /** C3D-1: jumps the camera (no glide) to look at a tile from `distance`, for screenshots. */
     look: (x: number, z: number, distance: number, turn = 0, tilt = 0) => {
       const r = s()?.renderer;

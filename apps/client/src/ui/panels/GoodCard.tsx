@@ -7,6 +7,7 @@ import type { Session } from '../../app/session';
 import { GoodIcon } from '../goodIcons';
 import { coverText, MOOD_WORD, priceMood } from '../village';
 import { Toggle } from './parts';
+import { Thread } from './Thread';
 import { Price, PriceChart, Stepper } from './villageParts';
 
 /** One good drawn large: its chart, how much is in store, and the cap and subsidy on food. */
@@ -39,6 +40,7 @@ export function GoodCard({ session, line }: { session: Session; line: MarketLine
           ×
         </button>
       </header>
+      <Thread session={session} subject={{ kind: 'good', good: line.good }} routeWhen="open" />
       <PriceChart values={history} base={line.base} cap={line.cap} />
       <p class="small">
         Households wanted <b>{line.demand}</b> yesterday, with {coverText(line.cover, line.demand)}.

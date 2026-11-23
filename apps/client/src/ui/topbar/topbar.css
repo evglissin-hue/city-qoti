@@ -318,6 +318,26 @@ button.winter-reserve:hover {
   height: 5px;
 }
 
+/* P3B: a chip with weeks in hand sits quiet: soft ink, no bar, no count of days (the tooltip and
+   Balances keep them), so the chips that need attention are the ones that read first. The bar's
+   room stays, so the row never changes height as a store fills or runs low. */
+.balance-chip.easy .chip-amount {
+  color: var(--ink-soft);
+  font-weight: 600;
+}
+
+.balance-chip.easy .good-icon {
+  opacity: 0.62;
+}
+
+.balance-chip.easy .cover-bar {
+  visibility: hidden;
+}
+
+.balance-chip.easy .cover-days {
+  display: none;
+}
+
 .flavor-pips {
   display: flex;
   gap: 2px;
@@ -400,6 +420,15 @@ button.strip-chip:hover {
 .strip-chip .glyph {
   width: 1.2em;
   height: 1.2em;
+}
+
+.strip-chip.easy {
+  color: var(--ink-soft);
+  font-weight: 500;
+}
+
+.strip-chip.easy .glyph {
+  opacity: 0.6;
 }
 
 .strip-word {

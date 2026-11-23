@@ -1,14 +1,16 @@
 // @vitest-environment happy-dom
+import { content } from '@qoti/content';
 import { Flags, MAP_SIZE, RoundFlags, type ResidentDetail } from '@qoti/sim';
 import { h } from 'preact';
 import { act } from 'preact/test-utils';
 import { afterEach, describe, expect, it } from 'vitest';
 import { mockPlace, mockRound } from '../mocks/evening';
 import { mockSession } from '../mocks/session';
+import { mockCharter } from '../mocks/village';
 import { mount, settle, type Mounted } from '../test/dom';
 import { Day, manhattan, needWords, roundTiles, scoreWords, stopWords } from './Day';
 import { InspectorPanel } from './Inspector';
-import { drawParts, drawSum, seatsWords, tookWords } from './PlaceCard';
+import { drawParts, drawSum, restingWords, seatsWords, suppliesWords, tookWords } from './PlaceCard';
 
 let view: Mounted | null = null;
 afterEach(() => {
@@ -289,5 +291,104 @@ describe('a resident day', () => {
     view = await mount(h(Day, { session, detail: { ...base, round: undefined, evening: undefined } }));
     expect(view.find('resident-day')).toBeNull();
     expect(calls.filter((c) => c.method === 'highlight')).toEqual([]);
+  });
+});
+
+describe('the place card, supplies (R3D)', () => {
+  function rig(
+    rank: 'hamlet' | 'village',
+    defs: string[],
+    extra: Partial<Parameters<typeof mockPlace>[0]> = {},
+  ) {
+    const out = mockSession();
+    const m = out.session.mirror;
+    m.charter.value = { ...mockCharter, rank };
+    defs.forEach((def, i) =>
+      m.decor.set(900 + i, { id: 900 + i, def, fx: 40.5, fz: 41.5, rot: 0, builtBy: 0 }),
+    );
+    m.setPlaces({
+      places: [
+        mockPlace({ id: 'seats:5', name: 'the Promenade', members: defs.map((_, i) => 900 + i), ...extra }),
+      ],
+    });
+    out.session.ui.selection.value = { kind: 'place', id: 'seats:5' };
+    return out;
+  }
+
+  it('shows no control with no supplied piece, and none in a Hamlet', async () => {
+    let { session } = rig('village', ['bench']);
+    view = await mount(h(InspectorPanel, { session }));
+    expect(view.find('place-priority')).toBeNull();
+    view.unmount();
+    ({ session } = rig('hamlet', ['lantern']));
+    view = await mount(h(InspectorPanel, { session }));
+    expect(view.find('place-priority')).toBeNull();
+  });
+
+  it('shows three options with the chosen one checked, and sends a change once', async () => {
+    const { session, submitted } = rig('village', ['lantern']);
+    view = await mount(h(InspectorPanel, { session }));
+    const group = view.get('place-priority');
+    expect(group.getAttribute('role')).toBe('radiogroup');
+    const radios = [...group.querySelectorAll('[role="radio"]')];
+    expect(radios.map((r) => r.textContent)).toEqual(['Keep first', 'As it comes', 'Let it rest']);
+    expect(view.get('place-priority-normal').getAttribute('aria-checked')).toBe('true');
+    expect(view.get('place-priority-keep').getAttribute('aria-checked')).toBe('false');
+    expect(group.parentElement?.getAttribute('title')).toContain('run short');
+    expect(view.find('place-supplies')).toBeNull();
+    await view.click('place-priority-normal');
+    expect(submitted.filter((c) => c.t === 'place.setPriority')).toEqual([]);
+    await view.click('place-priority-rest');
+    expect(submitted).toContainEqual({ t: 'place.setPriority', id: 'seats:5', priority: 'rest' });
+  });
+
+  it('reads a saved priority', async () => {
+    const { session } = rig('village', ['lantern'], { priority: 'keep' });
+    view = await mount(h(InspectorPanel, { session }));
+    expect(view.get('place-priority-keep').getAttribute('aria-checked')).toBe('true');
+  });
+
+  it('says what the supplied pieces draw and what rests tonight', async () => {
+    const { session } = rig('village', ['lantern', 'lantern', 'lantern', 'brazier'], {
+      supplies: [
+        { kind: 'nightly', good: 'candles', pieces: 3, wants: 1, resting: 2 },
+        { kind: 'evening', good: 'firewood', pieces: 1, wants: 1, resting: 1 },
+      ],
+      resting: [
+        { id: 900, kind: 'unlit' },
+        { id: 901, kind: 'unlit' },
+        { id: 903, kind: 'cold' },
+      ],
+    });
+    view = await mount(h(InspectorPanel, { session }));
+    const text = view.get('place-supplies').textContent!;
+    expect(text).toContain('Its 3 lanterns take a candle a night.');
+    expect(text).toContain('Its brazier takes firewood on an evening someone comes.');
+    expect(text).toContain('Resting tonight: 2 lanterns unlit, the brazier cold.');
+  });
+
+  it('gets singular and plural right, and says when everything is supplied', () => {
+    const { session } = rig('village', []);
+    const p = mockPlace({
+      id: 'x',
+      members: [900, 901, 902, 903, 904],
+      supplies: [
+        { kind: 'nightly', good: 'candles', pieces: 1, wants: 1, resting: 0 },
+        { kind: 'season', good: 'cloth', pieces: 2, wants: 4, resting: 0 },
+        { kind: 'outlet', pieces: 1, wants: 0, resting: 0 },
+        { kind: 'well', pieces: 1, wants: 0, resting: 0 },
+      ],
+    });
+    const defs = ['lantern', 'bunting', 'bunting', 'cafe-table', 'fountain'].map((def, i) => ({
+      id: String(900 + i),
+      name: def === 'cafe-table' ? 'cafe table' : def,
+      supply: content.decorById.get(def)!.supply!,
+    }));
+    const words = suppliesWords(p, defs as never);
+    expect(words).toContain('Its lantern takes a candle a night.');
+    expect(words).toContain('Its 2 bunting take 4 cloth a season.');
+    expect(words).toContain('Its cafe table is served by a stall or shop within 3 tiles.');
+    expect(words).toContain('Its fountain needs a well within 8 tiles.');
+    expect(restingWords(session, { resting: [] })).toBe('Everything is supplied tonight.');
   });
 });

@@ -1148,7 +1148,10 @@ function hall(opts: KitBuildOptions | undefined): Built {
   // The tower rises from the ridge so its clock face clears the roof.
   const ty = sh.ridge - 0.28;
   const tw = 0.3;
+  // P3C: plastered, as the walls are (it was a pale plain box, the stand-in check's find).
+  s.surface(SURFACE.plaster);
   s.rbox(cx - tw, sh.top + 0.2, cz - tw, cx + tw, ty + 0.95, cz + tw, palette.plasterCream, 0.02);
+  s.surface(SURFACE.plain);
   s.box(
     cx - tw - 0.025,
     ty + 0.28,
@@ -1299,6 +1302,8 @@ function mill(opts: KitBuildOptions | undefined): Built {
   const s = kitBuilder(opts);
   const anchors: KitAnchors = { smoke: [], lights: [] };
   // A stone base, then a tapering white tower in timber bands, a reefing stage and a boat cap.
+  // P3C: with their surfaces (the tower was a pale plain cylinder, the stand-in check's find).
+  s.surface(SURFACE.stone);
   s.cylinder(cx, cz, 0.84, 0.8, 0, 0.42, vary(palette.stone, rnd, 0.6), 8, Math.PI / 8);
   for (let i = 0; i < 8; i++) {
     const a = (i / 8) * Math.PI * 2 + Math.PI / 8 + 0.2;
@@ -1315,11 +1320,14 @@ function mill(opts: KitBuildOptions | undefined): Built {
     );
   }
   const wall = c.wall ?? palette.plasterCream;
+  s.surface(SURFACE.plaster);
   s.cylinder(cx, cz, 0.74, 0.52, 0.42, 2.3, vary(wall, rnd, 0.4), 8, Math.PI / 8);
+  s.surface(SURFACE.timber);
   for (const y of [1.0, 1.7]) {
     const r = 0.74 - ((y - 0.42) / (2.3 - 0.42)) * 0.22;
     s.cylinder(cx, cz, r + 0.02, r + 0.015, y, y + 0.06, palette.timber, 8, Math.PI / 8);
   }
+  s.surface(SURFACE.plain);
   // The reefing stage: a ring of planks on brackets with a railing.
   const stageY = 1.26;
   const rIn = 0.64;

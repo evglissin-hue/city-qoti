@@ -8,6 +8,9 @@
 // V2.0: Settings, Measure this laptop (`measureLaptop` below, `ui/panels/Measure.tsx`) runs it on
 // every preset in the valley on screen, then in the village and town showcases, and puts the valley
 // back as it was.
+//
+// V4.0: each row with a still-frame cache ends with a short still part, where every frame draws the
+// still frame again: its cost is what each sample of V4A's refinement adds to a resting frame.
 import { lastPatternMs } from '@qoti/art';
 import type { PerfMachine } from '@qoti/protocol';
 import { serialize, SIM_VERSION } from '@qoti/sim';
@@ -15,7 +18,7 @@ import { WebGLRenderTarget } from 'three';
 import { villageShowcase } from '../render/showcase';
 import { startSyntheticResidents } from '../render/synthetic';
 import { townShowcase } from '../render/townShowcase';
-import type { Quality } from '../render/quality';
+import { QUALITY_PRESETS, type Quality } from '../render/quality';
 import type { Renderer } from '../render/renderer';
 import type { Mirror } from '../state/mirror';
 import { SimHost } from '../worker/host';
@@ -36,6 +39,11 @@ export interface PerfOptions {
   onPreset?: (quality: Quality, index: number) => void;
   /** V2.0: the hour the light was pinned to, written on each row (the table then has an Hour column). */
   hour?: number;
+  /**
+   * V4.0: seconds of the still part (default 3; 0 for none): every frame draws the still frame again,
+   * on presets with the still-frame cache.
+   */
+  still?: number;
 }
 
 export interface PerfPart {
@@ -48,8 +56,8 @@ export interface PerfPart {
   gpuP95: number | null;
   draws: number;
   triangles: number;
-  /** V1D: drawn frames by mode, and sun shadow renders, in this part. */
-  modes: { moving: number; still: number; idle: number };
+  /** V1D: drawn frames by mode, and sun shadow renders, in this part. V4: `sample` frames too. */
+  modes: { moving: number; still: number; idle: number; sample: number };
   shadowRenders: number;
 }
 
@@ -60,6 +68,11 @@ export interface PerfRow {
   hour?: number;
   moving: PerfPart;
   idle: PerfPart;
+  /**
+   * V4.0: the still frame's own cost (the camera at rest, every frame drawing the still frame
+   * again, the shadow map left alone); absent on Low, which has no still-frame cache.
+   */
+  still?: PerfPart;
 }
 
 export interface PerfResult {
@@ -76,7 +89,7 @@ interface Sample {
 
 /** V1D: counts what the renderer drew during a part (from its running counters). */
 interface Tally {
-  modes: { moving: number; still: number; idle: number };
+  modes: { moving: number; still: number; idle: number; sample: number };
   shadowRenders: number;
 }
 
@@ -143,7 +156,7 @@ async function phase(
   const samples: Sample[] = [];
   const gpu: number[] = [];
   const timer = renderer.gpuTimer;
-  const tally: Tally = { modes: { moving: 0, still: 0, idle: 0 }, shadowRenders: 0 };
+  const tally: Tally = { modes: { moving: 0, still: 0, idle: 0, sample: 0 }, shadowRenders: 0 };
   const start = await nextFrame(signal);
   let last = start;
   let seen = timer.total;
@@ -179,21 +192,33 @@ const pair = (a: number | null, b: number | null): string => `${fmt(a)} / ${fmt(
 export const hourText = (h: number): string =>
   `${String(Math.floor(h)).padStart(2, '0')}:${String(Math.round((h % 1) * 60)).padStart(2, '0')}`;
 
+/** V4.0: the still part's cell: its GPU ms (or frame ms where the browser has no GPU timer) and draws. */
+function stillCell(p: PerfPart | undefined): string {
+  if (!p || p.frames === 0) return 'n/a';
+  const ms = p.gpuAvg !== null ? pair(p.gpuAvg, p.gpuP95) : `${pair(p.frameAvg, p.frameP95)} (frame)`;
+  return `${ms}, ${p.draws}`;
+}
+
+/** V4: sample frames, once V4A's refinement draws any, follow the rest's idle count. */
+const samplesText = (p: PerfPart): string => (p.modes.sample > 0 ? ` + ${p.modes.sample} samples` : '');
+
 /**
  * The rows as a Markdown table. V2.0: when any row carries its hour (Measure this laptop's day and
  * night rows), an Hour column follows Preset; v1-perf and v2-perf rows carry none and keep V1's columns.
+ * V4.0: when any row has a still part, a last column gives the still frame's GPU ms and draws.
  */
 export function perfTable(rows: PerfRow[]): string {
   const hours = rows.some((r) => r.hour !== undefined);
+  const stills = rows.some((r) => r.still !== undefined);
   const head = [
-    `| Scene | Preset |${hours ? ' Hour |' : ''} Moving frame ms (avg / p95) | Moving GPU ms (avg / p95) | Idle frame ms (avg / p95) | Idle GPU ms (avg / p95) | Draws | Triangles | Rest: moving / still / idle frames, shadow renders |`,
-    `|---|---|${hours ? '---|' : ''}---|---|---|---|---|---|---|`,
+    `| Scene | Preset |${hours ? ' Hour |' : ''} Moving frame ms (avg / p95) | Moving GPU ms (avg / p95) | Idle frame ms (avg / p95) | Idle GPU ms (avg / p95) | Draws | Triangles | Rest: moving / still / idle frames, shadow renders |${stills ? ' Still frame GPU ms (avg / p95), draws |' : ''}`,
+    `|---|---|${hours ? '---|' : ''}---|---|---|---|---|---|---|${stills ? '---|' : ''}`,
   ];
   return [
     ...head,
     ...rows.map(
       (r) =>
-        `| ${r.scene} | ${r.quality} |${hours ? ` ${r.hour === undefined ? 'n/a' : hourText(r.hour)} |` : ''} ${pair(r.moving.frameAvg, r.moving.frameP95)} | ${pair(r.moving.gpuAvg, r.moving.gpuP95)} | ${pair(r.idle.frameAvg, r.idle.frameP95)} | ${pair(r.idle.gpuAvg, r.idle.gpuP95)} | ${r.moving.draws} | ${(r.moving.triangles / 1e6).toFixed(2)} M | ${r.idle.modes.moving} / ${r.idle.modes.still} / ${r.idle.modes.idle}, ${r.idle.shadowRenders} |`,
+        `| ${r.scene} | ${r.quality} |${hours ? ` ${r.hour === undefined ? 'n/a' : hourText(r.hour)} |` : ''} ${pair(r.moving.frameAvg, r.moving.frameP95)} | ${pair(r.moving.gpuAvg, r.moving.gpuP95)} | ${pair(r.idle.frameAvg, r.idle.frameP95)} | ${pair(r.idle.gpuAvg, r.idle.gpuP95)} | ${r.moving.draws} | ${(r.moving.triangles / 1e6).toFixed(2)} M | ${r.idle.modes.moving} / ${r.idle.modes.still} / ${r.idle.modes.idle}${samplesText(r.idle)}, ${r.idle.shadowRenders} |${stills ? ` ${stillCell(r.still)} |` : ''}`,
     ),
   ].join('\n');
 }
@@ -245,7 +270,34 @@ export async function runPerf(renderer: Renderer, opts: PerfOptions = {}): Promi
       rig.snap();
       renderer.invalidate();
       const idle = await phase(renderer, rest, Math.min(1.5, rest / 2), () => {}, signal);
-      rows.push({ scene, quality, ...(opts.hour !== undefined && { hour: opts.hour }), moving, idle });
+      // V4.0: the still frame's own cost, from the scene's own view (the path may end far off: in
+      // a software renderer its zoom, scaled by frame time, reaches the map). Every frame drops the
+      // still frame with a shadowless static change (the shadow map stays), so each one draws it
+      // again: what a refinement sample adds to a resting frame.
+      const stillFor = opts.still ?? 3;
+      const hasStill = stillFor > 0 && QUALITY_PRESETS[quality].stillCache;
+      if (hasStill) {
+        goHome();
+        // Rested before it starts (the jump home is a moving frame, seconds long in software).
+        await phase(renderer, 0.4, 99, () => {}, signal);
+      }
+      const still = hasStill
+        ? await phase(
+            renderer,
+            stillFor,
+            Math.min(0.5, stillFor / 3),
+            () => renderer.invalidateStatic('measure', true),
+            signal,
+          )
+        : undefined;
+      rows.push({
+        scene,
+        quality,
+        ...(opts.hour !== undefined && { hour: opts.hour }),
+        moving,
+        idle,
+        ...(still && { still }),
+      });
       goHome();
     }
   } finally {
@@ -341,6 +393,8 @@ export interface MeasureOptions {
   move?: number;
   rest?: number;
   settle?: number;
+  /** V4.0: seconds of the still part per row with a still-frame cache (default 3). */
+  still?: number;
   /** Most seconds to wait for a showcase to stream in before measuring it (default 20). */
   settleMax?: number;
   presets?: readonly Quality[];
@@ -387,9 +441,9 @@ export function sameCounts(a: MirrorCounts, b: MirrorCounts): boolean {
 
 /** About how long a run takes, in seconds: each row settles, moves and rests; showcases load. */
 export function measureSeconds(
-  opts: Pick<MeasureOptions, 'move' | 'rest' | 'settle' | 'settleMax'> = {},
+  opts: Pick<MeasureOptions, 'move' | 'rest' | 'settle' | 'settleMax' | 'still'> = {},
 ): number {
-  const row = (opts.settle ?? 1.5) + (opts.move ?? 10) + (opts.rest ?? 10) + 1;
+  const row = (opts.settle ?? 1.5) + (opts.move ?? 10) + (opts.rest ?? 10) + (opts.still ?? 3) + 1;
   const load = Math.min(opts.settleMax ?? 20, 12) + 3;
   return measureRowCount() * row + (MEASURE_SCENES.length - 1) * load;
 }
@@ -575,6 +629,7 @@ export async function measureLaptop(host: MeasureHost, opts: MeasureOptions = {}
           ...(opts.move !== undefined && { move: opts.move }),
           ...(opts.rest !== undefined && { rest: opts.rest }),
           ...(opts.settle !== undefined && { settle: opts.settle }),
+          ...(opts.still !== undefined && { still: opts.still }),
           ...(signal && { signal }),
           onPreset: (q, i) =>
             onProgress?.({

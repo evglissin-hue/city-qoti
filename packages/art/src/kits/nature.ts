@@ -34,20 +34,21 @@ export const bush: Kit = {
     const leaf = vary(mixHex(LEAF_DARK, palette.oakLeaf, 0.5), rnd, 1.5);
     const top = mixHex(leaf, 0xc8e070, 0.16);
     const s = new ShapeBuilder();
+    // P3C: the bush sits on the ground (its lumps were 6 cm up, a gap under it close up).
     if (opts?.lod === 'low') {
-      s.blob(0, 0.18, 0, 0.24, 0.16, 0.22, leaf, 0, rnd, 0.1, top);
+      s.blob(0, 0.15, 0, 0.24, 0.15, 0.22, leaf, 0, rnd, 0.1, top);
       return s.build();
     }
     // V2B: a small crown of dabs over a darker core, its lumps shading as one mass from below its
     // middle; thins with the season (`params.thin`) like the trees.
     const blobs: DabBlob[] = [
-      { center: [0, 0.2, 0], radii: [0.2, 0.14, 0.19], color: leaf },
-      { center: [0.13, 0.15, 0.06], radii: [0.13, 0.1, 0.13], color: vary(leaf, rnd) },
+      { center: [0, 0.155, 0], radii: [0.2, 0.15, 0.19], color: leaf },
+      { center: [0.13, 0.1, 0.06], radii: [0.13, 0.1, 0.13], color: vary(leaf, rnd) },
     ];
     const flowering = rnd() < 0.6;
     const dot = rnd() < 0.5 ? 0xf1e6f0 : 0xd8556b;
     if (!flowering)
-      blobs.push({ center: [-0.12, 0.14, -0.05], radii: [0.12, 0.09, 0.12], color: vary(leaf, rnd) });
+      blobs.push({ center: [-0.12, 0.09, -0.05], radii: [0.12, 0.09, 0.12], color: vary(leaf, rnd) });
     const thin = thinOf(opts);
     const crnd = seeded((opts?.seed ?? 3) * 7 + 1);
     if (thin <= 0) {
@@ -90,7 +91,7 @@ export const bush: Kit = {
       // Some bushes flower: a few berries or blossoms dotted on the outside.
       for (let i = 0; i < 5; i++) {
         const a = rnd() * Math.PI * 2;
-        s.blob(Math.cos(a) * 0.21, 0.15 + rnd() * 0.12, Math.sin(a) * 0.19, 0.025, 0.025, 0.025, dot, 0);
+        s.blob(Math.cos(a) * 0.21, 0.11 + rnd() * 0.12, Math.sin(a) * 0.19, 0.025, 0.025, 0.025, dot, 0);
       }
     }
     return s.build();

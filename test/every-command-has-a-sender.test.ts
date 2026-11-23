@@ -24,23 +24,13 @@ export const NO_CLIENT_SENDER: Record<string, string> = {
  * R1.0: commands that land before their buttons (R2.0 adds R2D's). Each names the cycle that owes the sender and why;
  * the entry comes off when that cycle ships it (the test says so), so this list only shrinks.
  */
-export const OWED_SENDERS: Record<string, { cycle: 'R1C' | 'R1D' | 'R2D' | 'R3D'; why: string }> = {
-  'place.setPriority': {
-    cycle: 'R3D',
-    why: "R3D's place card sends the keep and rest buttons; R3.0 lands the command first",
-  },
-};
+export const OWED_SENDERS: Record<string, { cycle: 'R1C' | 'R1D' | 'R2D' | 'R3D'; why: string }> = {};
 
 /**
  * R3.0: optional fields on commands the client already sends, owed by a named cycle. Keyed
  * `<command>.<field>`; the entry comes off when a client literal sends the field.
  */
-export const OWED_FIELDS: Record<string, { cycle: 'R3D'; why: string }> = {
-  'carrier.setRule.places': {
-    cycle: 'R3D',
-    why: "R3D's carrier rule panel gets the places toggle; R3.0 lands the field first",
-  },
-};
+export const OWED_FIELDS: Record<string, { cycle: 'R3D'; why: string }> = {};
 
 function commandTypes(): string[] {
   const src = readFileSync(join(root, 'packages/sim/src/contracts/commands.ts'), 'utf8');

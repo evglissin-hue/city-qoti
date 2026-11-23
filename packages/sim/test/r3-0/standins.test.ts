@@ -80,12 +80,8 @@ describe('the supplies stand-ins on a fresh standard valley', () => {
     const { s } = freshWithLanterns();
     const subject = { kind: 'good', good: 'cider' } as const;
     const t = threadView(s, subject);
-    expect(t).toEqual({
-      subject,
-      text: 'Nobody has followed this thread yet.',
-      refs: [],
-      route: [],
-    });
+    // R3D replaced the stand-in: with no counts yet, the Thread says so (test/r3d/threadView.test.ts).
+    expect(t).toEqual({ subject, text: 'Nobody has bought any cider lately.', refs: [], route: [] });
     const book = townBookView(s);
     expect(book.pages).toEqual([]);
     expect(book.hints).toEqual([]);
@@ -116,6 +112,8 @@ describe('the stand-in comments', () => {
       });
     }
     expect(files.length).toBeGreaterThan(100);
-    expect(n).toBeGreaterThan(20);
+    // The scan sees the markers while the wave's stand-ins remain (each cycle removes its own: R3.0
+    // left more than 20, R3B and R3C together leave 17). R3X, with none left, drops this line.
+    expect(n).toBeGreaterThan(0);
   });
 });

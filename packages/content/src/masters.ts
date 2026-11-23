@@ -1,4 +1,4 @@
-import type { MasterDef, MasteryTuning } from './types';
+import type { ChronicleTemplate, MasterDef, MasteryTuning } from './types';
 
 // Masters (docs/spec/19-evenings.md, Masters), written in R3.0. One row for each trade and each
 // specialized building that has masters. A master's good is made while one is on the crew, from the
@@ -128,6 +128,7 @@ export const fishery: MasterDef = {
 export const forestersLodge: MasterDef = {
   of: 'foresters-lodge',
   title: 'master forester',
+  unlocks: ['ornamental-tree'],
   apprentices: true,
 };
 
@@ -183,6 +184,7 @@ export const orchard: MasterDef = {
 export const quarry: MasterDef = {
   of: 'quarry',
   title: 'master quarryman',
+  unlocks: ['carved-stone'],
   apprentices: true,
 };
 
@@ -223,4 +225,75 @@ export const windmill: MasterDef = {
   title: 'master miller',
   apprentices: true,
   room: 'baker',
+};
+
+// --- Words (R3B) ---------------------------------------------------------------------------------
+// The town's voice for a new master and for losing one. Variants rotate (the sim walks each list
+// before repeating). Placeholders: {name} the master, {title} ("master baker"), {place} where they
+// work ("the bakery"), {town}.
+
+export const masterWords = {
+  /** A letter to the town when someone becomes a master ({name} {title} {place} {town}). */
+  letter: [
+    'A letter from the Guild of Nobody In Particular: {name} of {place} is now a {title}. A sign will go up over the door. The sign is rather proud of itself already.',
+    'Word has gone round {town}: {name} has been named a {title}. Nobody was asked to vote, and nobody minded.',
+    'By long habit, steady hands and a great deal of getting up early, {name} is now a {title}. Over at {place}, the sign has been told and is standing a little straighter.',
+    'The valley has a new {title}: {name}, of {place}. A small crowd gathered to say it was about time. It was a very small crowd, and very sincere.',
+  ],
+  /** The notice when someone becomes a master ({name} {title} {place}). */
+  made: [
+    '{name} is now a {title}. The sign went up over {place} before the paint was dry.',
+    '{name} has become a {title}, which at {place} mostly means the same work, said with more weight.',
+    'A good many good days later, {name} is a {title}. Everyone at {place} is pleased and pretending not to be.',
+    '{name} was named a {title} today. The apprentices at {place} are taking notes.',
+  ],
+  /** The notice when a master retires ({name} {title}). */
+  lostRetired: [
+    '{name}, {title}, has retired. The trade will miss the hands, and the stories that came with them.',
+    'The {title} has hung up the apron: {name} is retired, still a master, and off the schedule for good.',
+    '{name} has stepped back from the work. A {title} does not stop being one, but the business will feel the gap.',
+    'Retirement has found {name}, the {title}. The workshop is quiet, in the way a room is quiet after a good talker leaves.',
+  ],
+  /** The notice when a master's household leaves the valley ({name} {title}). */
+  lostLeft: [
+    '{name}, {title}, is leaving the valley. The trade has had worse news, but not recently.',
+    'The household of {name} is packing up, and with them goes a {title}. The sign will hang a while out of habit.',
+    '{name} is off, and a {title} walks out of {town} with the good tools. The business has some days to find its feet.',
+    'A {title} has decided the grass is greener elsewhere. {name} is leaving, and the neighbors are being brave about it.',
+  ],
+  /** The Chronicle's `{why}` for a master lost: retired, or left the valley. */
+  whyRetired: ['has retired', 'has hung up the apron', 'has stepped back from the work'],
+  whyLeft: ['is leaving the valley', 'has packed up and gone', 'is off over the hills'],
+} as const;
+
+export const masterMade: ChronicleTemplate = {
+  kind: 'master-made',
+  text: [
+    '{name} became a {title} today, at {place}. The sign over the door is new, and so is the way the neighbors say hello.',
+    'A {title} for {town}: {name}, of {place}. Years of habit, it turns out, add up to something you can paint on a board.',
+    '{name} is now a {title}. A sign went up over {place}, and it has been polished twice by people who were only passing.',
+    'The valley counts a new {title}: {name}, at {place}. The apprentices have been told to look busy.',
+  ],
+  notable: true,
+};
+
+/** A story character whose arc is done: the town calls them a master (StoryArc.mastery). */
+export const masterStory: ChronicleTemplate = {
+  kind: 'master-story',
+  text: [
+    'With the last of their plans seen through, {name} is a {title} as far as {town} is concerned. Nobody asked them; everybody agreed.',
+    '{name} has done what they came to do, and the valley has given them a title for it: {title}. Word has gone round {place}.',
+    'It is official, or as official as {town} gets: {name} is its {title}. The sign was painted by three people who all claim the credit.',
+  ],
+  notable: true,
+};
+
+export const masterLost: ChronicleTemplate = {
+  kind: 'master-lost',
+  text: [
+    'Our {title}, {name}, {why}. The business keeps its sign and its level for a few days, and its fingers crossed.',
+    '{name}, the {title}, {why}. Everyone agrees it will not be the same, and has started to say so quietly.',
+    'The valley loses a {title}: {name} {why}. Somebody has to learn the trade fast.',
+  ],
+  notable: true,
 };
