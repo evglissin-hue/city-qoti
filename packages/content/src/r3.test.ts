@@ -80,6 +80,31 @@ describe('R3 supplies on decor', () => {
   });
 });
 
+describe("R3X neighbors and the masters' goods", () => {
+  // The nine masters' goods are the town's own: no neighbor sells one, and each has a buyer, so the
+  // carrier can sell what the masters make (a Village's outside income grows with them).
+  const masterGoods = masters.flatMap((m) => (m.good ? [m.good] : []));
+  it("has nine masters' goods, each bought by a neighbor and sold by none", () => {
+    expect(new Set(masterGoods).size).toBe(9);
+    for (const g of masterGoods) {
+      expect(
+        content.neighbors.some((n) => n.buys.some(([x]) => x === g)),
+        `a neighbor buys ${g}`,
+      ).toBe(true);
+      for (const n of content.neighbors) {
+        expect(
+          n.sells.some(([x]) => x === g),
+          `${n.id} sells ${g}`,
+        ).toBe(false);
+        expect(
+          (n.seasonal ?? []).some(([x]) => x === g),
+          `${n.id} seasonal ${g}`,
+        ).toBe(false);
+      }
+    }
+  });
+});
+
 describe('R3 masters', () => {
   const tradeIds = new Set(trades.map((t) => t.id));
   const specializedIds = new Set(buildings.filter((b) => b.specialized).map((b) => b.id));

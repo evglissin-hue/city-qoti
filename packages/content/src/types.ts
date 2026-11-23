@@ -920,6 +920,11 @@ export interface NeedsBasket {
    * of `charm` and the tavern in `services`; absent asks nothing.
    */
   evenings?: number;
+  /**
+   * R3X (additive, experiment; read on the Settler basket only): coins each grown-up of a household
+   * arriving from outside the valley brings in a purse (paid from outside). Absent or 0 brings none.
+   */
+  arrivalPurse?: number;
 }
 
 /** A zone the Ledger paints (docs/spec/13-ledger.md, Zoning and growth). */
@@ -1750,6 +1755,11 @@ export interface MasteryTuning {
   apprenticeDays: number;
   /** A business keeps its level this many days after its last master leaves or retires (6), then slides. */
   graceDays: number;
+  /**
+   * R3X (additive): units of a master's good the town keeps before the carrier sells the rest
+   * (8; the carrier also keeps twice what households bought of it yesterday). Absent reads 8.
+   */
+  exportKeep?: number;
 }
 
 /** R3: what a Town Book page leans to; three of one leaning earn that calling. Index order is the sim's LEANINGS. */

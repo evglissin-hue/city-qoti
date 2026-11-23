@@ -54,6 +54,7 @@ import {
 import type { Building, DealOffer, NeighborState, System, TickCtx, WorldState } from '../../contracts';
 import { isStandard } from '../../state/hamlet';
 import { seasonAt } from '../../state/seasons';
+import { isMasterGood } from '../../state/masters';
 import { familyIndex, GOODS_BY_FAMILY } from '../../state/zones';
 import { balancesView } from '../../view/balances';
 import { dockView } from '../../view/seasons';
@@ -869,6 +870,23 @@ export function carrierDay(state: WorldState, ctx: TickCtx): void {
       if (good < 0 || !sellOne(day, good)) break;
       over--;
     }
+  }
+
+  // 5b. R3X: a master's good is the town's own, so it sells on its own surplus, not behind its
+  // family's twice-the-reserve gate: what is over the larger of `exportKeep` and twice what households
+  // bought of it yesterday, while the cart or the boat has room, and never what places want tonight.
+  const exportKeep = content.mastery.exportKeep ?? 8;
+  for (let g = 0; g < content.goods.length; g++) {
+    if (!isMasterGood(g)) continue;
+    const f = familyIndex(content.goods[g]!.family);
+    const t = families[f]!;
+    if (!t.sell || t.rule === 'never') continue;
+    const keep = Math.max(exportKeep, 2 * (state.market.bought?.[g] ?? 0)) + forPlaces[f]!;
+    let free = 0;
+    for (const s of day.stores) free += Math.max(0, s.b.rt!.store[g]! - s.b.rt!.reservedOut[g]!);
+    for (const b of day.makers) free += Math.max(0, b.rt!.output[g]! - b.rt!.reservedOut[g]!);
+    let over = free - keep;
+    while (over > 0 && (day.cart.room > 0 || (day.boat?.room ?? 0) > 0) && sellOne(day, g)) over--;
   }
 
   // Stow what came, once per store and good.
