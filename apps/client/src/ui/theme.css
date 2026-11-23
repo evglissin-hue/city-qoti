@@ -600,6 +600,9 @@ input::placeholder {
   bottom: 12px;
   left: 50%;
   transform: translateX(-50%);
+  /* P3B: over the raid bar (12), so a shelf or picker opened from the bar is never under it; under
+     the cards (14 and up). */
+  z-index: 13;
   display: grid;
   justify-items: center;
   gap: 8px;
@@ -617,7 +620,8 @@ input::placeholder {
   align-items: center;
   border-radius: 16px;
   border-top: 3px solid var(--accent, var(--ink-line));
-  max-width: calc(100vw - 16px);
+  /* P3B: clear of the view corner and the map on either side, so it is never under them. */
+  max-width: calc(100vw - 2 * (24px + 172px * var(--ui-scale)));
 }
 
 /* The toolbar is one quiet strip: its buttons have no boxes of their own, only the chosen tool
@@ -671,8 +675,8 @@ input::placeholder {
   display: grid;
   justify-items: center;
   gap: 1px;
-  min-width: 50px;
-  padding: 4px 6px 3px;
+  min-width: 54px;
+  padding: 4px 8px 3px;
   border-radius: 10px;
   font-size: 0.78rem;
   color: var(--ink);
@@ -680,19 +684,6 @@ input::placeholder {
 
 .tool.band {
   margin-left: 10px;
-}
-
-/* R2D (the player's chair at 1250 px): with an overlay named on the View button, the Hearth's last
-   tool scrolled half out of the strip ("Era"). A little less air per tool keeps every one whole. */
-@media (max-width: 1360px) {
-  .tool {
-    min-width: 46px;
-    padding: 4px 4px 3px;
-  }
-
-  .tool.band {
-    margin-left: 8px;
-  }
 }
 
 /* The bar sizes to its narrowest fit, so a two-word label ("Cart lane") would break over two
@@ -720,36 +711,245 @@ input::placeholder {
   box-shadow: inset 0 0 0 1.5px var(--accent);
 }
 
-/* Books: small spines with a tooltip, apart from the tools. */
-.books {
+/* P3B: a group of tools that are one idea (Roads, Land, Decor, Nature, Plans) wears a small caret,
+   and its kinds open on a shelf just over the bar. */
+.tool.group .label {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.tool.group .more {
+  width: 0;
+  height: 0;
+  border-left: 3px solid transparent;
+  border-right: 3px solid transparent;
+  border-bottom: 4px solid currentColor;
+  opacity: 0.45;
+}
+
+.kinds {
   display: flex;
-  gap: 1px;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 12px;
+  animation: panel-in 140ms ease-out;
+}
+
+.kinds button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px 4px 8px;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  font-size: 0.84rem;
+  white-space: nowrap;
+}
+
+.kinds button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--ink) 7%, transparent);
+  border-color: transparent;
+  box-shadow: none;
+  transform: none;
+}
+
+.kinds button.active,
+.kinds button.active:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 18%, var(--paper-light));
+  box-shadow: inset 0 0 0 1.5px var(--accent);
+}
+
+/* In the Decor picker's head the kinds lead the shelf tabs; the row wraps rather than squeezing a
+   tab onto three lines, and the kinds keep their own look (the tabs' filled pill is for shelves). */
+.picker-groups:has(.kinds) {
+  flex-wrap: wrap;
+  row-gap: 4px;
+}
+
+.picker-groups button {
+  white-space: nowrap;
+}
+
+.picker-groups:has(.kinds) .hint {
+  flex: 1 1 140px;
+}
+
+.picker-groups .kinds button,
+.picker-groups .kinds button:hover:not(:disabled) {
+  padding: 4px 10px 4px 8px;
+  border-radius: 10px;
+  border-color: transparent;
+  font-weight: 400;
+  color: var(--ink);
+}
+
+.picker-groups .kinds button.active,
+.picker-groups .kinds button.active:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 18%, var(--paper-light));
+  box-shadow: inset 0 0 0 1.5px var(--accent);
+  color: var(--ink);
+}
+
+/* In a picker's head row or a tool's own row, the kinds lead, set off by a hairline. */
+.kinds.inline {
+  padding: 0 8px 0 0;
+  margin-right: 4px;
+  border-right: 1px solid color-mix(in srgb, var(--ink) 16%, transparent);
+  border-radius: 0;
+  animation: none;
+}
+
+.kinds svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* P3B: the books open from one named button; its shelf names each book, its key, and what waits. */
+.books-menu {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.toolbar-row .books-menu {
   margin-left: 6px;
   padding-left: 8px;
   border-left: 1px solid color-mix(in srgb, var(--ink) 14%, transparent);
 }
 
-.toolbar-row .book {
-  display: grid;
-  place-items: center;
-  width: 36px;
-  height: 36px;
-  padding: 0;
+.books-button {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 40px;
+  padding: 0 12px 0 10px;
   border-radius: 10px;
-  color: var(--ink-soft);
+  font-size: 0.86rem;
+  white-space: nowrap;
 }
 
-.toolbar-row .book .glyph,
-.toolbar-row .book svg {
+.toolbar-row .books-button {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.books-button .glyph {
   width: 20px;
   height: 20px;
 }
 
-.toolbar-row .book.active,
-.toolbar-row .book.active:hover:not(:disabled) {
-  color: var(--ink);
+.books-button.active,
+.books-button.active:hover:not(:disabled),
+.books-button[aria-expanded='true'] {
   background: color-mix(in srgb, var(--accent) 18%, var(--paper-light));
   box-shadow: inset 0 0 0 1.5px var(--accent);
+}
+
+.books-dot {
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #fffaf0;
+  background: var(--accent);
+}
+
+.books-list {
+  position: absolute;
+  bottom: calc(100% + 12px);
+  right: -8px;
+  z-index: 3;
+  display: grid;
+  gap: 1px;
+  width: 236px;
+  padding: 6px;
+  border-radius: 14px;
+  animation: panel-in 140ms ease-out;
+}
+
+.books-list button {
+  display: grid;
+  grid-template-columns: 20px 1fr auto auto;
+  gap: 9px;
+  align-items: center;
+  text-align: left;
+  padding: 6px 8px;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  font-size: 0.88rem;
+}
+
+.books-list button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--ink) 7%, transparent);
+  border-color: transparent;
+  box-shadow: none;
+  transform: none;
+}
+
+.books-list button.active {
+  background: color-mix(in srgb, var(--accent) 18%, var(--paper-light));
+}
+
+.books-list .glyph {
+  width: 18px;
+  height: 18px;
+}
+
+.book-mark {
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.books-list kbd {
+  font: inherit;
+  font-size: 0.7rem;
+  min-width: 18px;
+  text-align: center;
+  padding: 0 4px;
+  border-radius: 5px;
+  border: 1px solid var(--line);
+  color: var(--ink-soft);
+}
+
+.books-list kbd:only-of-type {
+  grid-column: 4;
+}
+
+/* P3B: View, undo and the camera keep to the bottom right corner, under the map, apart from the
+   tools. */
+.view-corner {
+  position: absolute;
+  right: 10px;
+  bottom: 12px;
+  z-index: 13;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 6px;
+  border-radius: 14px;
+}
+
+.view-corner button {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.view-corner button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--ink) 7%, transparent);
+  border-color: transparent;
+  box-shadow: none;
+  transform: none;
 }
 
 /* Overlays: one button that names the overlay showing and opens a short list above it. */
@@ -759,7 +959,7 @@ input::placeholder {
   align-items: center;
 }
 
-.toolbar-row .overlay-button {
+.overlay-button {
   display: flex;
   align-items: center;
   gap: 5px;
@@ -776,13 +976,13 @@ input::placeholder {
   height: 17px;
 }
 
-.toolbar-row .overlay-button.active {
+.view-corner .overlay-button.active {
   color: var(--ink);
   background: color-mix(in srgb, var(--accent) 18%, var(--paper-light));
   box-shadow: inset 0 0 0 1.5px var(--accent);
 }
 
-.toolbar-row .overlay-clear {
+.overlay-clear {
   padding: 0 6px;
   height: 24px;
   margin-left: -2px;
@@ -842,7 +1042,7 @@ input::placeholder {
   line-height: 1.25;
 }
 
-.toolbar-row .undo-button {
+.undo-button {
   display: grid;
   place-items: center;
   width: 34px;
@@ -858,11 +1058,13 @@ input::placeholder {
 }
 
 /* Quick tooltips for the icon-only buttons (the title attribute waits too long). */
-.toolbar-row [data-tip] {
+.toolbar-row [data-tip],
+.view-corner [data-tip] {
   position: relative;
 }
 
-.toolbar-row [data-tip]:hover::after {
+.toolbar-row [data-tip]:hover::after,
+.view-corner [data-tip]:hover::after {
   content: attr(data-tip);
   position: absolute;
   bottom: calc(100% + 10px);
@@ -1371,6 +1573,15 @@ kbd {
   font-style: italic;
 }
 
-.toolbar-row [aria-expanded='true']:hover::after {
+.toolbar-row [aria-expanded='true']:hover::after,
+.view-corner [aria-expanded='true']:hover::after,
+.books-button[aria-expanded='true']:hover::after {
   display: none;
+}
+
+/* The corner's tips open leftward, so the long ones stay on the screen. */
+.view-corner [data-tip]:hover::after {
+  left: auto;
+  right: -4px;
+  transform: none;
 }

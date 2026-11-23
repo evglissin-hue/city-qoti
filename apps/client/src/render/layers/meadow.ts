@@ -262,6 +262,9 @@ uniform int uLightCount;
 varying vec3 vQColor;
 varying vec3 vQGlow;
 varying vec2 vQXZ;
+// P3C: a flowering blade's head (rgb, and a 1 when it flowers) and how far up the blade a fragment is.
+varying vec4 vQHead;
+varying float vQTip;
 ${NOISE_GLSL}
 ${GROUND_AO_GLSL}
 ${LIGHT_MAP_GLSL}
@@ -302,6 +305,8 @@ float qGlowSum(vec3 p) {
 // One blade (one triangle): its position, the ground's normal, color and night glow. A blade whose
 // root is not open grass, or that has faded or been flattened away, collapses to a point.
 void qBlade(out vec3 pos, out vec3 nrm, out vec3 col, out vec3 glow, out vec2 xz) {
+  vQHead = vec4(0.0);
+  vQTip = aCorner > 1.5 ? 1.0 : 0.0;
   vec2 shift = vec2(qHash(aTile.xy * 1.31), qHash(aTile.yx * 0.77 + 3.7));
   vec2 uv = fract(aBlade.xy + shift);
   vec2 root = aTile.xy + uv;
@@ -419,14 +424,16 @@ void qBlade(out vec3 pos, out vec3 nrm, out vec3 col, out vec3 glow, out vec2 xz
   float lawn = max(mown, 0.0);
   vec3 foot = c * mix(mix(0.82, 0.74, longK), 0.8, lawn);
   vec3 top = c * mix(mix(1.15 + 0.06 * r2, 1.2 + 0.1 * r2, longK), 1.12 + 0.06 * r2, lawn) * vec3(1.03, 1.01, 0.95);
-  // Wildflowers: a share of tips take the ground's flower colors where it has them.
+  // Wildflowers: a share of blades carry a small head at the tip in the ground's flower colors.
+  // P3C: only the head (the fragment shader paints the top fifth), never the whole blade: drifts of
+  // blades combed one way and colored foot to tip read as hatching, the owner's "stripes". The
+  // night takes them as it takes the rest (lighting.ts, the moon's muting); they half close too.
   float bloom = gc.a;
-  // A flowering tip colors its whole blade down to the foot, a spike of color above the pile.
-  if (bloom > 0.01 && qHash(root * 91.7) < 0.45 * bloom) {
+  if (bloom > 0.01 && qHash(root * 91.7) < 0.3 * bloom) {
     float pick = qHash(root * 53.1);
-    vec3 fc = pick < 0.3 ? qSrgb(vec3(0.95, 0.62, 0.70)) : pick < 0.55 ? qSrgb(vec3(0.97, 0.86, 0.38))
-      : pick < 0.8 ? qSrgb(vec3(0.68, 0.60, 0.90)) : qSrgb(vec3(0.98, 0.97, 0.92));
-    top = mix(top, fc, 1.0 - 0.65 * uNight);
+    vec3 fc = pick < 0.3 ? qSrgb(vec3(0.93, 0.66, 0.72)) : pick < 0.55 ? qSrgb(vec3(0.95, 0.85, 0.45))
+      : pick < 0.8 ? qSrgb(vec3(0.72, 0.65, 0.88)) : qSrgb(vec3(0.95, 0.94, 0.9));
+    vQHead = vec4(fc, 1.0 - 0.5 * uNight);
   }
   if (snowK > 0.0) {
     vec3 white = qSrgb(vec3(0.95, 0.94, 0.91));
@@ -455,6 +462,8 @@ uniform float uClouds;
 varying vec3 vQColor;
 varying vec3 vQGlow;
 varying vec2 vQXZ;
+varying vec4 vQHead;
+varying float vQTip;
 ${NOISE_GLSL}
 float qCloudShade(vec2 wp) {
   vec2 p = wp * 0.028 + vec2(uTime * 0.006, uTime * 0.0035);
@@ -514,7 +523,8 @@ export function createMeadowMaterial(
       )
       .replace(
         '#include <color_fragment>',
-        '#include <color_fragment>\ndiffuseColor.rgb = vQColor * qCloudShade(vQXZ);',
+        // P3C: a flowering blade's head, the top fifth of the blade.
+        '#include <color_fragment>\ndiffuseColor.rgb = mix(vQColor, vQHead.rgb, vQHead.a * smoothstep(0.76, 0.86, vQTip)) * qCloudShade(vQXZ);',
       )
       .replace(
         '#include <emissivemap_fragment>',

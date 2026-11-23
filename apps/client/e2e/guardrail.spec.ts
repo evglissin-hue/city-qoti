@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { clickTile, counts, DEBUG_QUERY, waitLive } from './helpers';
+import { clickTile, counts, DEBUG_QUERY, takeTool, waitLive } from './helpers';
 
 // The two seats' pages close after the test: left open, their valley kept running in the shared
 // browser through every later spec and starved the next one's start-up (hamlet's new valley).
@@ -26,7 +26,7 @@ test("removing the partner's decor asks first and leaves them a note", async ({ 
   await waitLive(b);
 
   // Seat 2 places a bench; seat 1 sees it.
-  await b.getByTestId('tool-decor').click();
+  await takeTool(b, 'decor');
   await b.getByTestId('variant-bench').click();
   const bench = await b.evaluate(() => window.__qoti.findDecorSpot('bench'));
   expect(bench).not.toBeNull();

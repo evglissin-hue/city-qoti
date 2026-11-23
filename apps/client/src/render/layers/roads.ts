@@ -1,7 +1,7 @@
-import { palette, seeded, ShapeBuilder, vary, type V3 } from '@qoti/art';
+import { palette, seeded, ShapeBuilder, SURFACE, vary, type V3 } from '@qoti/art';
 import { CHUNK_SIZE, Flags, MAP_SIZE, Road } from '@qoti/sim';
 import { ChunkedMeshes } from '../chunks';
-import { groundY, WATER_Y } from '../surface';
+import { groundY, WATER_Y, type SurfaceReader } from '../surface';
 import type { LayerContext, RenderLayer } from './types';
 
 /**
@@ -286,23 +286,35 @@ vec3 qTrailPaint(vec2 wp, vec3 col) {
 
 const DECK_Y = WATER_Y + 0.2;
 
-/** Stone for steps: a warm sandstone that sits with the dirt of the paths it carries. */
-const STEP_STONE = 0xc4b49a;
-const STEP_KERB = 0xa89a84;
-/** Treads per level climbed (a level is 0.5 world units, so 0.1 risers on 0.2 treads). */
-const STEPS = 5;
+/**
+ * P3C: the risers of a flight. Weathered stone on lanes and streets, a shade under the dirt of the
+ * paths it carries (C4P's pale sandstone stood out as a stand-in, the owner's playtest of V3), and
+ * timber edging on footpaths, as a garden's steps are.
+ */
+const STEP_STONE = 0x8d8170;
+const STEP_TIMBER = palette.darkWood;
+/** Risers per level climbed (a level is 0.5 world units, so a step of 0.1). */
+export const STEPS = 5;
 /** Half the width of a flight: a little wider than the path it carries (qRoadHalf for paths). */
 const STEP_HALF = 0.24;
+/** A riser's depth along the climb, how far it stands proud of the ground, and how deep it is set. */
+const RISER_DEPTH = 0.07;
+const RISER_LIP = 0.04;
+const RISER_SET = 0.07;
+/** Cuts across a riser, so a cross slope never lifts one end off the ground. */
+const RISER_CUTS = 3;
 
 /**
- * Stone steps where a path with the stairs flag climbs one level to a road neighbor (C4E, rebuilt
- * in C4P). The ground already climbs from the lower tile's center to the upper one's as an even
- * slope, so the flight is cut into that slope: each tread's back is flush with the ground and its
- * front rises one riser above it, and every height comes from the drawn ground (`groundY`), so no
- * tread floats where the hillside falls away to one side. A sloped kerb runs along each side,
- * sinking into the ground at both ends. Consecutive climbs meet at tile centers, so a path that
- * climbs on and on reads as one flight. Each flight is built once, from the lower tile (or the
- * upper one when only it carries the flag).
+ * Steps where a path with the stairs flag climbs one level to a road neighbor (C4E, rebuilt in
+ * C4P, P3C). The ground already climbs from the lower tile's center to the upper one's as an even
+ * slope, and the road paint lies on it; the flight is that slope with its risers let in: a row of
+ * edges across the path, each standing a little proud of the drawn ground (`groundY`) at every
+ * corner and set into it below, so nothing stands off the ground wherever it dips (a building's
+ * apron) or falls away to one side. P3C: C4P's tread boxes reached down to the lowest ground under
+ * them and ratcheted up over any dip, so beside a building's pad a flight stood as a pale plinth
+ * with a sloped kerb slab, which the owner read as a stand-in. Consecutive climbs meet at tile
+ * centers, so a path that climbs on and on reads as one flight. Each flight is built once, from the
+ * lower tile (or the upper one when only it carries the flag).
  */
 function stairs(ctx: LayerContext, s: ShapeBuilder, x: number, z: number): void {
   const m = ctx.mirror;
@@ -326,99 +338,67 @@ function stairs(ctx: LayerContext, s: ShapeBuilder, x: number, z: number): void 
     if (!lowerHere && flagged(nx, nz)) continue;
     const [lx, lz] = lowerHere ? [x, z] : [nx, nz];
     const [ux, uz] = lowerHere ? [nx, nz] : [x, z];
-    flight(ctx, s, lx, lz, ux - lx, uz - lz);
+    flight(ctx.mirror, s, lx, lz, ux - lx, uz - lz, m.road(lx, lz) === Road.path);
   }
 }
 
-/** One flight from the center of tile (lx, lz) up to its neighbor in direction (ddx, ddz). */
-function flight(ctx: LayerContext, s: ShapeBuilder, lx: number, lz: number, ddx: number, ddz: number): void {
-  const m = ctx.mirror;
+/**
+ * One flight from the center of tile (lx, lz) up to its neighbor in direction (ddx, ddz): STEPS
+ * risers across the path, timber on a footpath and stone otherwise. Every corner's height is the
+ * drawn ground's there, so a riser follows the slope under it and can never float.
+ */
+export function flight(
+  m: SurfaceReader,
+  s: ShapeBuilder,
+  lx: number,
+  lz: number,
+  ddx: number,
+  ddz: number,
+  footpath: boolean,
+): void {
   const rnd = seeded(lx * 7919 + lz * 104729 + (lx + ddx) * 31 + (lz + ddz));
   // Along the climb (a: 0 at the lower center, 1 at the upper) and across it (c).
   const cxp = ddz !== 0 ? 1 : 0;
   const czp = ddx !== 0 ? 1 : 0;
-  const at = (a: number, c: number): [number, number] => [
-    lx + 0.5 + ddx * a + cxp * c,
-    lz + 0.5 + ddz * a + czp * c,
-  ];
-  const g = (a: number, c: number): number => {
-    const [px, pz] = at(a, c);
-    return groundY(m, px, pz);
+  const at = (a: number, c: number, lift: number): V3 => {
+    const px = lx + 0.5 + ddx * a + cxp * c;
+    const pz = lz + 0.5 + ddz * a + czp * c;
+    return [px, groundY(m, px, pz) + lift, pz];
   };
-  const y0 = g(0, 0);
-  const y1 = g(1, 0);
-  const rise = (y1 - y0) / STEPS;
-  // A box between two (a, c) corners and two heights, mapped back to x and z.
-  const box = (
-    a0: number,
-    c0: number,
-    a1: number,
-    c1: number,
-    yb: number,
-    yt: number,
-    hex: number,
-    bev: number,
-  ) => {
-    const [px, pz] = at(a0, c0);
-    const [qx, qz] = at(a1, c1);
-    s.rbox(Math.min(px, qx), yb, Math.min(pz, qz), Math.max(px, qx), yt, Math.max(pz, qz), hex, bev);
-  };
-  let prevTop = y0;
+  const up: V3 = [ddx, 0, ddz];
+  const down: V3 = [-ddx, 0, -ddz];
+  const side: V3 = [cxp, 0, czp];
+  const back: V3 = [-cxp, 0, -czp];
+  s.surface(footpath ? SURFACE.woodGrain : SURFACE.stone);
   for (let i = 0; i < STEPS; i++) {
-    const a0 = i / STEPS;
-    const a1 = (i + 1) / STEPS;
-    // The back of the tread is flush with the ground; never lower than the tread below.
-    const top = Math.max(prevTop + rise * 0.5, g(a1, 0)) - 0.005;
-    prevTop = top;
-    let low = top;
-    for (const a of [a0, a1]) for (const c of [-STEP_HALF, 0, STEP_HALF]) low = Math.min(low, g(a, c));
-    // Each tread laps a little under the next riser, so no gap opens between them.
-    const tone = vary(STEP_STONE, rnd, 1.2);
-    box(a0, -STEP_HALF, Math.min(1, a1 + 0.03), STEP_HALF, low - 0.08, top, tone, 0.014);
-  }
-  // Kerbs: sloped stones along both sides, a little above the tread fronts in the middle and
-  // dipping to the ground at both ends, so they start and stop without a post.
-  const lip = Math.abs(rise) + 0.035;
-  const knots = [-0.06, 0.18, 0.5, 0.82, 1.06];
-  const kw = 0.04;
-  for (const side of [-1, 1]) {
-    const cIn = side * STEP_HALF;
-    const cOut = side * (STEP_HALF + 2 * kw);
-    const top = (a: number): number => {
-      const t = Math.min(1, Math.max(0, a));
-      const ends = a <= 0 || a >= 1 ? 0.02 : lip;
-      return y0 + (y1 - y0) * t + ends;
-    };
-    const bottom = (a: number): number => Math.min(g(a, cIn), g(a, cOut), y0 + (y1 - y0) * a) - 0.1;
-    const tone = vary(STEP_KERB, rnd, 1);
-    for (let k = 0; k + 1 < knots.length; k++) {
-      const a0 = knots[k]!;
-      const a1 = knots[k + 1]!;
-      const corner = (a: number, c: number, y: number): V3 => {
-        const [px, pz] = at(a, c);
-        return [px, y, pz];
-      };
-      const t0 = top(a0);
-      const t1 = top(a1);
-      const b0 = bottom(a0);
-      const b1 = bottom(a1);
-      const i0t = corner(a0, cIn, t0);
-      const i1t = corner(a1, cIn, t1);
-      const o0t = corner(a0, cOut, t0);
-      const o1t = corner(a1, cOut, t1);
-      const i0b = corner(a0, cIn, b0);
-      const i1b = corner(a1, cIn, b1);
-      const o0b = corner(a0, cOut, b0);
-      const o1b = corner(a1, cOut, b1);
-      const outSide: V3 = [cxp * side, 0, czp * side];
-      const inSide: V3 = [-cxp * side, 0, -czp * side];
-      s.quad(i0t, i1t, o1t, o0t, tone, [0, 1, 0]);
-      s.quad(o0b, o1b, o1t, o0t, tone, outSide);
-      s.quad(i0b, i1b, i1t, i0t, tone, inSide);
-      if (k === 0) s.quad(i0b, o0b, o0t, i0t, tone, [-ddx, 0, -ddz]);
-      if (k + 2 === knots.length) s.quad(i1b, o1b, o1t, i1t, tone, [ddx, 0, ddz]);
+    // Evenly up the climb, a little uneven, as laid by hand.
+    const a = (i + 0.5) / STEPS + (rnd() - 0.5) * 0.03;
+    const a0 = a - RISER_DEPTH / 2;
+    const a1 = a + RISER_DEPTH / 2;
+    const wob = (rnd() - 0.5) * 0.04;
+    const half = STEP_HALF + (rnd() - 0.5) * 0.03;
+    const tone = vary(footpath ? STEP_TIMBER : STEP_STONE, rnd, footpath ? 1.4 : 1.1);
+    const top = vary(tone, rnd, 0.6);
+    for (let k = 0; k < RISER_CUTS; k++) {
+      const c0 = -half + wob + (2 * half * k) / RISER_CUTS;
+      const c1 = -half + wob + (2 * half * (k + 1)) / RISER_CUTS;
+      // The front (downhill) edge stands a lip proud; the back sits nearly flush with the slope.
+      const f0t = at(a0, c0, RISER_LIP);
+      const f1t = at(a0, c1, RISER_LIP);
+      const b0t = at(a1, c0, RISER_LIP * 0.35);
+      const b1t = at(a1, c1, RISER_LIP * 0.35);
+      const f0b = at(a0, c0, -RISER_SET);
+      const f1b = at(a0, c1, -RISER_SET);
+      const b0b = at(a1, c0, -RISER_SET);
+      const b1b = at(a1, c1, -RISER_SET);
+      s.quad(f0t, f1t, b1t, b0t, top, [0, 1, 0]);
+      s.quad(f0b, f1b, f1t, f0t, tone, down);
+      s.quad(b0b, b1b, b1t, b0t, tone, up);
+      if (k === 0) s.quad(f0b, b0b, b0t, f0t, tone, back);
+      if (k === RISER_CUTS - 1) s.quad(f1b, b1b, b1t, f1t, tone, side);
     }
   }
+  s.surface(SURFACE.plain);
 }
 
 /** Plank bridges over water road tiles (and C4E stairs on slopes), one mesh per chunk. */

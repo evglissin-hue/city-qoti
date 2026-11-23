@@ -126,9 +126,14 @@ export function endpaperLayer(opts: EndpaperLayerOptions = {}): RenderLayer {
         u.uEndpaperGround.value = env.focus.y;
         u.uEndpaperSpan.value.set(-ENDPAPER_MARGIN, endpaperSpan(mirror.size));
       }
+      // V4B: the night wash follows the hour in the final pass; while the map shows, a step of the
+      // night redraws the frame (never the map).
+      const night = Math.min(1, Math.max(0, (env as Partial<WorldEnv>).night?.value ?? 0));
+      const dusk = cover > 0 && Math.abs(night - u.uEndpaperNight.value) > 0.004;
+      if (dusk || cover <= 0) u.uEndpaperNight.value = night;
       const moved = cover !== lastCover;
       lastCover = cover;
-      return landed || moved;
+      return landed || moved || dusk;
     },
     dispose() {
       writer?.dispose();
