@@ -145,11 +145,13 @@ describe('content', () => {
         'wildflower-verge',
         // I2 (C4C)
         'cafe-table',
+        'carved-stone',
         'flower-cart',
         'fountain',
         'lamp-post',
         'maypole',
         'notice-board',
+        'ornamental-tree',
         // I3 (C5D): the Town Gate and Watch Lookout pieces
         'gate-banner',
         'lookout-bench',
@@ -387,6 +389,8 @@ describe('I1 content', () => {
     const unlockable = new Set(patterns.flatMap((p) => p.unlocks));
     // R2.0: a charter's unlock list opens pieces too (the brazier, from Village rank).
     for (const c of content.charters) for (const u of c.unlocks) unlockable.add(u);
+    // R3B: a master's unlocks open pieces too (the carved stone, the ornamental trees).
+    for (const m of content.masters) for (const u of m.unlocks ?? []) unlockable.add(u);
     // Festival pieces [I3] are placed by the festival planner, not unlocked by a pattern. The
     // callings' signature pieces [P1] wait, locked, for R3 to bring callings back earned.
     for (const d of decor.filter((x) => x.locked && !x.festival && !x.tags.includes('calling')))

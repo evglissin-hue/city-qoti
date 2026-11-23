@@ -31,6 +31,7 @@ import { natureBench } from './nature.bench';
 import { r1Bench } from './r1.bench';
 import { r2aBench } from './r2a.bench';
 import { r2Bench } from './r2.bench';
+import { r3dBench } from './r3d.bench';
 import { raidsBench } from './raids.bench';
 import { seasonsBench } from './seasons.bench';
 import { villageBench } from './village.bench';
@@ -202,6 +203,10 @@ failures.push(...r2a.failures);
 const r2 = r2Bench();
 lines.push(...r2.lines);
 failures.push(...r2.failures);
+// 17. R3D: Follow the thread's counts at City scale, the midnight halving and the Thread itself.
+const r3d = r3dBench();
+lines.push(...r3d.lines);
+failures.push(...r3d.failures);
 
 const heapMb = process.memoryUsage().heapUsed / 1024 / 1024;
 lines.push(`memory          ${heapMb.toFixed(0)} MB heap in use`);
@@ -239,6 +244,7 @@ const report = {
   r1: r1.report,
   r2a: r2a.report,
   r2: r2.report,
+  r3d: r3d.report,
   heapMb,
   failures,
 };

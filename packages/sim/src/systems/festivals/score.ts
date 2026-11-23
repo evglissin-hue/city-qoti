@@ -4,9 +4,11 @@
 // the twist (its goal held). The score is joy x turnout (guests out of residents in reach, with
 // weather and mood already in who came), and stars come from the score's thresholds. Pure.
 import { content } from '@qoti/content';
+import { MAP_SIZE } from '../../constants';
 import type { FestivalOutcome, FestivalPlan, Rect, WorldState } from '../../contracts';
 import { evaluate } from '../../conditions';
-import { festivalTuningNow, hasBandstand } from './api';
+import { placeById } from '../places/api';
+import { festivalTuningNow, hasBandstand, specialtyDishes } from './api';
 import { patternSiteOf, pieceVariety, siteCharm } from './site';
 
 const clamp100 = (v: number): number => Math.max(0, Math.min(100, Math.round(v)));
@@ -22,8 +24,11 @@ export function varietyPart(state: WorldState, rect: Rect): number {
   return clamp100((pieceVariety(state, rect) * 100) / Math.max(1, festivalTuningNow().varietyFull));
 }
 
-/** Half variety (distinct goods put by), half sufficiency (units put by a guest). */
-export function menuPart(plan: FestivalPlan, guests: number): number {
+/**
+ * Half variety (distinct goods put by), half sufficiency (units put by a guest). `extraDishes` counts
+ * the specialties on the menu as dishes of their own (R3C; scoreFestival passes specialtyDishes).
+ */
+export function menuPart(plan: FestivalPlan, guests: number, extraDishes = 0): number {
   const t = festivalTuningNow();
   let kinds = 0;
   let units = 0;
@@ -31,6 +36,7 @@ export function menuPart(plan: FestivalPlan, guests: number): number {
     if (q > 0) kinds++;
     units += q;
   }
+  kinds += extraDishes;
   const variety = Math.min(1, kinds / Math.max(1, t.menuGoods));
   const enough = guests > 0 ? Math.min(1, units / (guests * t.perGuest)) : kinds > 0 ? 1 : 0;
   return clamp100(50 * variety + 50 * enough);
@@ -53,10 +59,36 @@ export function musicPart(state: WorldState, plan: FestivalPlan): number {
   return m.none;
 }
 
-export function twistPart(state: WorldState, plan: FestivalPlan): number {
+/**
+ * The twist's part. A custom's twist (R3C) holds when the festival's ground covers the place where
+ * the town keeps that custom; it has no goal, so without a `rect` it never holds. Others hold their goal.
+ */
+export function twistPart(state: WorldState, plan: FestivalPlan, rect?: Rect): number {
   const def = plan.twist ? content.twistById.get(plan.twist) : undefined;
-  if (!def?.goal) return 0;
+  if (!def) return 0;
+  if (def.custom !== undefined)
+    return rect && customKeptIn(state, def.custom, rect) ? festivalTuningNow().twist : 0;
+  if (!def.goal) return 0;
   return evaluate(state, def.goal) ? festivalTuningNow().twist : 0;
+}
+
+function customKeptIn(state: WorldState, custom: string, rect: Rect): boolean {
+  for (const p of state.townBook.pages) {
+    if (p.kind !== 'custom' || p.def !== custom) continue;
+    const tile = placeById(state, p.place)?.tile ?? anchorOf(p.place);
+    if (tile < 0) continue;
+    const x = tile % MAP_SIZE;
+    const z = Math.floor(tile / MAP_SIZE);
+    if (x >= rect[0] && x <= rect[2] && z >= rect[1] && z <= rect[3]) return true;
+  }
+  return false;
+}
+
+/** The anchor tile in a site's place id (`site:<pattern>:<anchor>`), or -1 when the id is another kind. */
+function anchorOf(id: string): number {
+  if (!id.startsWith('site:')) return -1;
+  const n = Number(id.slice(id.lastIndexOf(':') + 1));
+  return Number.isInteger(n) ? n : -1;
 }
 
 /** Joy from its parts, 0 to 100, by the content weights. */
@@ -87,9 +119,9 @@ export function scoreFestival(
   const joy = {
     site: sitePart(state, plan, rect),
     variety: varietyPart(state, rect),
-    menu: menuPart(plan, guests),
+    menu: menuPart(plan, guests, specialtyDishes(state, plan).length),
     music: musicPart(state, plan),
-    twist: twistPart(state, plan),
+    twist: twistPart(state, plan, rect),
   };
   const turnout = invited > 0 ? Math.min(1, guests / invited) : 0;
   const factor = (t.turnoutFloor + (1000 - t.turnoutFloor) * turnout) / 1000;

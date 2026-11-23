@@ -188,6 +188,7 @@ export function mockSession(view: ViewSnapshot = mockView(), seat: 0 | 1 = 0): M
       return submitted.length;
     },
     inspect: (kind: InspectKind, id: number) => Promise.resolve(mockInspect(kind, id)),
+    thread: () => Promise.resolve(null),
     toast: record('toast'),
     undoLast: record('undoLast'),
     myDesiredSpeed: () => 1,

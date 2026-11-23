@@ -109,7 +109,6 @@ export async function layInTownBook(page) {
       callings: [],
       leanings: [1, 0, 0],
     };
-    if (m.townBook && 'value' in m.townBook) m.townBook.value = view;
-    else m.townBook = { value: view };
+    m.townBook.value = view;
   });
 }

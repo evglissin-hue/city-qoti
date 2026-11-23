@@ -7,6 +7,7 @@ import { TICKS_PER_DAY } from '../../constants';
 import type { System } from '../../contracts';
 import { isStandard } from '../../state/hamlet';
 import { dailyOffset } from '../economy/time';
+import { closeTownBook } from './close';
 
 export const TOWNBOOK_OFFSET = dailyOffset(21, 67);
 
@@ -15,8 +16,8 @@ export const townbook: System = {
   order: 81,
   every: TICKS_PER_DAY,
   offset: TOWNBOOK_OFFSET,
-  tick(state) {
+  tick(state, ctx) {
     if (!isStandard(state)) return;
-    // R3 stand-in (R3C): no counts are closed and no page is found.
+    closeTownBook(state, ctx);
   },
 };

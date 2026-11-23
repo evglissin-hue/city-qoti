@@ -13,6 +13,7 @@ import * as D from './decor';
 import * as Dr from './dressing';
 import * as DrR from './dressingRules';
 import * as Co from './commissions';
+import * as CT from './customTwists';
 import * as Fe from './festivals';
 import * as FC from './festivalsChronicle';
 import * as FD from './fineDecor';
@@ -23,6 +24,7 @@ import * as He from './herbalist';
 import * as I from './innovations';
 import * as L from './lives';
 import * as Ma from './masters';
+import * as MD from './masterDecor';
 import { familyNames } from './names';
 import * as N from './neighbors';
 import * as Na from './nature';
@@ -94,13 +96,13 @@ import type {
 
 export { callingPhrases } from './callings';
 export { chroniclePhrases } from './chronicle';
-export { MASTERY } from './masters';
+export { MASTERY, masterWords } from './masters';
 export { festivalTuning } from './festivals';
 export { PLACES } from './places';
 export { placeWords } from './placeWords';
 export { STREET_NAMES } from './streetNames';
 export { SUPPLIES } from './supplies';
-export { TOWN_BOOK } from './townBook';
+export { TOWN_BOOK, townBookPhrases } from './townBook';
 export { lifePhrases } from './lives';
 export { familyNames, valleyNamePrefixes, valleyNameSuffixes } from './names';
 export { villagePhrases } from './villageText';
@@ -161,6 +163,7 @@ export const decor: readonly DecorDef[] = [
   VD.brazier,
   Fe.bunting,
   VD.cafeTable,
+  MD.carvedStone,
   D.cherryTree,
   D.crates,
   D.curvedBench,
@@ -185,6 +188,7 @@ export const decor: readonly DecorDef[] = [
   Si.millstoneBench,
   D.mooringPost,
   VD.noticeBoard,
+  MD.ornamentalTree,
   FD.paintedShopSign,
   ND.pearTree,
   D.planter,
@@ -375,6 +379,9 @@ export const chronicle: readonly ChronicleTemplate[] = [
   Gu.guideDone,
   C.householdArrived,
   C.householdLeft,
+  Ma.masterLost,
+  Ma.masterMade,
+  Ma.masterStory,
   C.patternDiscovered,
   Th.raidHeld,
   Th.raidLost,
@@ -387,6 +394,7 @@ export const chronicle: readonly ChronicleTemplate[] = [
   L.storyArrived,
   L.storyFinale,
   C.threatDial,
+  TB.townBookPage,
   SC.trialFailed,
   SC.trialPassed,
   L.wedding,
@@ -534,6 +542,19 @@ export const festivals: readonly FestivalDef[] = [
 // prettier-ignore
 export const twists: readonly FestivalTwistDef[] = [
   Fe.costumeParade,
+  CT.customBuntingSeason,
+  CT.customEveningWalk,
+  CT.customGreenEvenings,
+  CT.customLanternRound,
+  CT.customLongTable,
+  CT.customMarketNight,
+  CT.customOrchardStroll,
+  CT.customPondEvening,
+  CT.customPromenade,
+  CT.customSquareNight,
+  CT.customTavernNight,
+  CT.customWellGathering,
+  CT.customWinterFires,
   Fe.harvestDisplay,
   Fe.lanternsOnTheWater,
   Fe.pieContest,

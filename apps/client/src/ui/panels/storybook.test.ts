@@ -255,11 +255,12 @@ describe('town book pages', () => {
     expect(chapterTownBookPages(null, m.seats.value, ch)).toEqual([]);
   });
 
-  it('reads the book off the mirror when R3D has laid one there', () => {
+  it("reads R3D's Town Book off the mirror", () => {
     const { m } = sessionWith('passed');
+    m.townBook.value = null;
     expect(townBookOf(m)).toBeNull();
     const b = book([]);
-    (m as unknown as { townBook: { value: TownBookView } }).townBook = { value: b };
+    m.townBook.value = b;
     expect(townBookOf(m)).toBe(b);
   });
 });

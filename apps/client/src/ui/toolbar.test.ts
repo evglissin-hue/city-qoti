@@ -132,12 +132,13 @@ describe('lens toolbars', () => {
       'wishes',
       'festival',
       'patterns',
+      'town-book',
+      // R3G: the storybook, a shared book, beside the Town Book on both shelves.
+      'storybook',
       'field-guide',
       'chronicle',
       'letters',
       'achievements',
-      // R3G: the storybook, a shared book, last on both shelves.
-      'storybook',
     ]);
     for (const b of view.root.querySelectorAll('[data-testid^="book-"]'))
       expect(b.textContent!.trim()).not.toBe('');
@@ -186,10 +187,11 @@ describe('lens toolbars', () => {
       'balances',
       'patterns',
       'purse',
+      'town-book',
+      'storybook',
       'businesses',
       'watch',
       'notebook',
-      'storybook',
     ]);
     await view.click('books');
     await view.click('overlays');

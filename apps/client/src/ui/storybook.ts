@@ -22,7 +22,6 @@ import {
   type TownBookPageView,
   type TownBookView,
 } from '@qoti/sim';
-import type { ReadonlySignal } from '@preact/signals';
 import type { Mirror } from '../state/mirror';
 import { chapterDone, CHAPTER_CHARTER } from './chapter';
 import { pictureFor, type PictureRef } from './pictures';
@@ -263,13 +262,9 @@ export function chapterTownBookPages(
     }));
 }
 
-/**
- * The Town Book as the Mirror holds it. R3D adds `mirror.townBook` (a signal of `TownBookView`); until
- * it lands, and in a valley that has found nothing, there is none.
- */
+/** The Town Book as the Mirror holds it (R3D's `mirror.townBook`, from `townBook.updated`). */
 export function townBookOf(m: Mirror): TownBookView | null {
-  const sig = (m as unknown as { townBook?: ReadonlySignal<TownBookView | null> }).townBook;
-  return sig?.value ?? null;
+  return m.townBook.value;
 }
 
 /** Everyone in town by household, households in the order they arrived, elders first within one. */
