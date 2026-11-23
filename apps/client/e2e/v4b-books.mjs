@@ -147,22 +147,28 @@ if (card) {
 } else console.log('no season card in this valley');
 
 // 5. The Chronicle with an ink snapshot (the flow C5F built, drawn as a new entry would be).
-await page.evaluate(async (c) => {
+const picked = await page.evaluate(async () => {
   const q = window.__qoti;
   const r = q.renderer();
   const ui = q.ui();
   const entries = r.mirror.chronicle.value;
-  const pick = [...entries].reverse().slice(0, 2);
+  // Only an entry that carries its own place gets a picture (the newest two); never an invented aim.
+  const pick = [...entries]
+    .filter((e) => e.snapshot)
+    .reverse()
+    .slice(0, 2);
   const next = new Map(ui.snapshots.value);
   for (const e of pick) {
-    const snap = e.snapshot ?? { focus: c, radius: 18 };
+    const snap = e.snapshot;
     const blob = await r.capture({ focus: snap.focus, radius: snap.radius, size: [320, 200], style: 'ink' });
     if (blob) next.set(e.id, URL.createObjectURL(blob));
   }
   ui.snapshots.value = next;
   q.openPanel('chronicle');
-}, info.center);
-await page.waitForSelector('.gazette-picture img', { timeout: 240000 });
+  return pick.length;
+});
+if (picked === 0) console.log('no Chronicle entry carries its own snapshot in this valley: no pictures');
+else await page.waitForSelector('.gazette-picture img', { timeout: 240000 });
 await page.waitForTimeout(800);
 await page.getByTestId('chronicle').screenshot({ path: file('chronicle') });
 console.log('saved', file('chronicle'));

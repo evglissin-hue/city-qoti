@@ -7,9 +7,17 @@
 //
 // The seam: R3D's `ui/pictures.ts` (`PictureRef`, `pictureFor`, `setPictureSource`) is not on V4's
 // branches yet. Whichever of R3X and V4X lands second deletes the structural copy of `PictureRef`
-// below and makes the one call at startup: `setPictureSource(inkPictureSource(session))`.
+// below and makes the one call at startup: `setPictureSource(inkPictureSource(session))`, passing
+// the live `Session` (it satisfies `PictureSession`: render, mirror and ui). The source's second
+// argument, `{ print: true }`, selects print size (1600 x 1200); `pictureFor` carries no size, so the
+// print path (storybook layout) must call the source with it, and the screen with no second argument.
+//
+// The moment rule (V4X): a Chronicle picture belongs to its entry's place AND moment. An entry's
+// stored snapshot (`ui.snapshots`, taken when it was written) is the right picture at any age. A fresh
+// capture shows the valley as it is now, so it is taken only for an entry written today (the same
+// game day as the mirror's tick); an older entry without a stored snapshot gets none, never a wrong one.
 import { useEffect, useRef, useState } from 'preact/hooks';
-import type { ChronicleEntryView, PatternView, PlaceView } from '@qoti/sim';
+import { TICKS_PER_DAY, type ChronicleEntryView, type PatternView, type PlaceView } from '@qoti/sim';
 import type { RenderApi } from '../render/api';
 import type { SeasonRender } from './snapshots';
 
@@ -39,6 +47,8 @@ export interface PictureMirror {
   places: ReadonlyMap<string, PlaceView>;
   buildings: ReadonlyMap<unknown, { x: number; z: number }>;
   meta: { startArea: readonly [number, number, number, number] };
+  /** The clock (V4X: today's entries still look as the valley does); absent means no entry is today's. */
+  tick?: { value: number };
   /** R3C's Town Book, once R3 lands on the Mirror (absent until then). */
   townBook?: { value: { pages: readonly { id: number; place: string }[] } | null | undefined };
 }
@@ -46,6 +56,8 @@ export interface PictureMirror {
 export interface PictureSession {
   render: RenderApi | null;
   mirror: PictureMirror;
+  /** V4X: the Chronicle snapshots this device holds (entry id to an object URL), when it can reach them. */
+  ui?: { snapshots: { value: ReadonlyMap<number, string> } };
 }
 
 /** The aim that frames a set of tiles (index z * size + x), with a margin. */
@@ -156,8 +168,26 @@ export function inkPictureSource(
   return (ref, opts) => {
     const aim = aimFor(session.mirror, ref);
     if (!aim) return Promise.resolve(null);
-    return inkAlbum(session).picture(`${ref.book}:${ref.id}`, aim, opts?.print ? PRINT_SIZE : SLOT_SIZE);
+    const size = opts?.print ? PRINT_SIZE : SLOT_SIZE;
+    if (ref.book === 'chronicle') {
+      const entry = session.mirror.chronicle.value.find((e) => String(e.id) === ref.id);
+      const today = !!entry && writtenToday(session, entry);
+      const stored = entry ? (session.ui?.snapshots.value.get(entry.id) ?? null) : null;
+      const fresh = () => inkAlbum(session).picture(`${ref.book}:${ref.id}`, aim, size);
+      // The picture taken at the moment is the right one; at print size, today's entry gets a fresh
+      // print-size capture instead (the valley still looks as it did). Older: the stored one, small
+      // but right, or none.
+      if (opts?.print) return today ? fresh() : Promise.resolve(stored);
+      return stored ? Promise.resolve(stored) : today ? fresh() : Promise.resolve(null);
+    }
+    return inkAlbum(session).picture(`${ref.book}:${ref.id}`, aim, size);
   };
+}
+
+/** Whether a Chronicle entry was written on the game day the valley is in now. */
+function writtenToday(session: PictureSession, entry: ChronicleEntryView): boolean {
+  const now = session.mirror.tick?.value;
+  return now !== undefined && Math.floor(now / TICKS_PER_DAY) === Math.floor(entry.tick / TICKS_PER_DAY);
 }
 
 /** A season card's picture: the village's heart in ink, once per season. */
