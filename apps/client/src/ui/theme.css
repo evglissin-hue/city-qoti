@@ -1332,50 +1332,47 @@ input::placeholder {
   pointer-events: none;
   transition-duration: 1.2s;
 }
-/* The name and the clock keep a soft paper backing (a spread shadow, so nothing changes size). */
+/* The name block and the clock keep a soft paper backing: one plain rounded shape per label, drawn
+   by a pseudo-element that is faded with opacity (nothing changes size or position). */
 .game-ui .topbar-town,
 .game-ui .topbar-clock {
-  border-radius: 12px;
-  transition:
-    box-shadow 0.2s ease,
-    background-color 0.2s ease;
+  position: relative;
+  isolation: isolate;
 }
-.game-ui.tea-break .topbar-town,
-.game-ui.tea-break .topbar-clock {
-  background: color-mix(in srgb, var(--paper-light) 80%, transparent);
-  box-shadow: 0 0 0 6px color-mix(in srgb, var(--paper-light) 80%, transparent);
-  transition-duration: 1.2s;
-}
-/* The valley's name and the weather chip are the stats of a small label: they step back too. */
-.game-ui .topbar-town .muted,
-.game-ui .topbar-clock .weather-chip {
+.game-ui .topbar-town::before,
+.game-ui .topbar-clock::before {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  z-index: -1;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--paper-light) 82%, transparent);
+  opacity: 0;
+  pointer-events: none;
   transition: opacity 0.2s ease;
 }
-.game-ui.tea-break .topbar-town .muted,
-.game-ui.tea-break .topbar-clock .weather-chip {
-  opacity: 0;
-  visibility: hidden;
-  transition:
-    opacity 1.2s ease,
-    visibility 0s linear 1.2s;
+.game-ui.tea-break .topbar-town::before,
+.game-ui.tea-break .topbar-clock::before {
+  opacity: 1;
+  transition-duration: 1.2s;
+}
+/* The weather glyph stays in the clock's cluster, but is not a button for the while. */
+.game-ui.tea-break .topbar-clock {
+  pointer-events: none;
 }
 :root.reduced-motion .game-ui > *,
 :root.reduced-motion .game-ui .topbar,
 :root.reduced-motion .game-ui .topbar > *,
-:root.reduced-motion .game-ui .topbar-town,
-:root.reduced-motion .game-ui .topbar-clock,
-:root.reduced-motion .game-ui .topbar-town .muted,
-:root.reduced-motion .game-ui .topbar-clock .weather-chip {
+:root.reduced-motion .game-ui .topbar-town::before,
+:root.reduced-motion .game-ui .topbar-clock::before {
   transition: none !important;
 }
 @media (prefers-reduced-motion: reduce) {
   .game-ui > *,
   .game-ui .topbar,
   .game-ui .topbar > *,
-  .game-ui .topbar-town,
-  .game-ui .topbar-clock,
-  .game-ui .topbar-town .muted,
-  .game-ui .topbar-clock .weather-chip {
+  .game-ui .topbar-town::before,
+  .game-ui .topbar-clock::before {
     transition: none !important;
   }
 }
