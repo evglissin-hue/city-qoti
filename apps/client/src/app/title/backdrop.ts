@@ -64,6 +64,12 @@ export function backdropQuality(): Quality {
   return 'low';
 }
 
+/** The pinned hour: `?titleHour=` (0 to 24, for shots comparing hours), else the light's own. */
+function titleHour(light: TitleLight): number {
+  const h = Number(new URLSearchParams(location.search).get('titleHour') ?? NaN);
+  return Number.isFinite(h) && h >= 0 && h < 24 ? h : HOURS[light];
+}
+
 /** Both seats join, so the clock runs at its own pace even in a together-only valley. */
 function joinCommands(): SeatedCommand[] {
   return ([0, 1] as const).map((seat) => ({ seat, seq: 0, cmd: { t: 'sys.seatJoined', seat } }));
@@ -194,7 +200,7 @@ export function startBackdrop(opts: BackdropOptions): LiveBackdrop {
     backdropStats.liveRenderers++;
     r.canvas.tabIndex = -1;
     r.canvas.setAttribute('aria-hidden', 'true');
-    r.photo.setTimeOfDay(HOURS[opts.light]);
+    r.photo.setTimeOfDay(titleHour(opts.light));
 
     const aim: TownAim = aimAt(townCenter([...mirror.buildings.values()]));
     // For the shot script and the tests: where the camera was aimed and how big the town is.

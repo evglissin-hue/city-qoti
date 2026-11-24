@@ -5,7 +5,7 @@ import type { CameraView } from '../../input/camera';
 import type { Framing, TitleLight } from './shared';
 
 /** The hour pinned for each light (`renderer.photo.setTimeOfDay`), chosen by looking at shots. */
-export const HOURS: Record<TitleLight, number> = { day: 16, dusk: 19.2 };
+export const HOURS: Record<TitleLight, number> = { day: 16, dusk: 20.5 };
 
 /** A valley with fewer buildings than this is still a hamlet: the title shows the grown village. */
 export const GROWN_BUILDINGS = 25;
