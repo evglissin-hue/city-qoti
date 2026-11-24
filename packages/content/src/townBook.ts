@@ -7,12 +7,14 @@ import type { ChronicleTemplate, CustomDef, SpecialtyDef, TownBookTuning } from 
 // name away, in the Pattern Book's style; `text` is what the page says once found.
 
 export const TOWN_BOOK: TownBookTuning = {
-  // A specialty: four customers on three evenings of a season, then five more draw for the place.
-  // R3X: was ten on four. A Village sells two to five Treats an evening across the whole town (the
-  // bench's four seeds, days 41 to 100), so ten of one Treat at one place never happened; four of
-  // the same good at one place on half a season's evenings is a regular crowd, the town's evening
-  // trade gathered on one good in one spot.
-  specialtyCustomers: 4,
+  // A specialty: a Treat sold at one place on three evenings of a season (an evening counts when one
+  // customer bought it there), then five more draw for the place. R3X: was ten on four, then four on
+  // three; both were out of reach. A Village sells one to three Treats an evening across the whole
+  // town, and in the bench's play no Treat reached four customers at one place on more than one
+  // evening of a season. One customer on half a season's evenings still means a habit: of about
+  // sixteen places and two flavors on a round that sells two or three Treats a night, only a spot
+  // where the same Treat keeps selling earns it.
+  specialtyCustomers: 1,
   specialtyEvenings: 3,
   specialtyDraw: 5,
   // A custom: a dozen visitors on the same day of three seasons running, then fifteen more draw on its

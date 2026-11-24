@@ -215,12 +215,22 @@ describe('a specialty', () => {
     expect(specialtiesOnRound(s, a!, GOOD_FAMILIES.indexOf('food'))).toBe(0);
   });
 
-  it('is not found for fewer than four evenings, or with nine customers', () => {
+  it('is not found on two evenings, nor on three evenings of different seasons', () => {
     const s = town();
     const { id } = site(s, 'orchard-path', 60, 60);
-    sellCider(s, id, [0, 1, 2, 3], TOWN_BOOK.specialtyCustomers - 1);
-    sellCider(s, id, [4, 5], TOWN_BOOK.specialtyCustomers);
+    sellCider(s, id, firstDays(EVENINGS - 1));
     expect(s.townBook.pages).toEqual([]);
+    // An evening of the next season does not add to this one's count.
+    close(s, DAYS_PER_SEASON, { [id]: { customers: [[CIDER, MARK]] } });
+    expect(s.townBook.pages).toEqual([]);
+  });
+
+  it('is found for one customer of one Treat at one site on three evenings of a season', () => {
+    const s = town();
+    const { id } = site(s, 'orchard-path', 60, 60);
+    expect(MARK).toBe(1);
+    sellCider(s, id, firstDays(EVENINGS), 1);
+    expect(s.townBook.pages.map((p) => p.name)).toEqual(['Orchard Walk Cider']);
   });
 
   it('a second page of the same def at another place takes the place name', () => {
