@@ -5,12 +5,11 @@
 // taken once and kept as an object URL. Nothing is captured until a slot is shown and asks: a book
 // that is never opened costs nothing, and the renderer takes every capture at rest.
 //
-// The seam: R3D's `ui/pictures.ts` (`PictureRef`, `pictureFor`, `setPictureSource`) is not on V4's
-// branches yet. Whichever of R3X and V4X lands second deletes the structural copy of `PictureRef`
-// below and makes the one call at startup: `setPictureSource(inkPictureSource(session))`, passing
-// the live `Session` (it satisfies `PictureSession`: render, mirror and ui). The source's second
-// argument, `{ print: true }`, selects print size (1600 x 1200); `pictureFor` carries no size, so the
-// print path (storybook layout) must call the source with it, and the screen with no second argument.
+// The seam (R3X wired it): R3D's `ui/pictures.ts` holds `PictureRef`, `pictureFor` and
+// `setPictureSource`; `app/GameView.tsx` makes the one call when a valley opens,
+// `setPictureSource(inkPictureSource(session))`, passing the live `Session` (it satisfies
+// `PictureSession`: render, mirror and ui). `{ print: true }` selects print size (1600 x 1200): the
+// storybook's print path asks `pictureFor(ref, { print: true })`, the screen asks with no options.
 //
 // The moment rule (V4X): a Chronicle picture belongs to its entry's place AND moment. An entry's
 // stored snapshot (`ui.snapshots`, taken when it was written) is the right picture at any age. A fresh
@@ -19,14 +18,10 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { TICKS_PER_DAY, type ChronicleEntryView, type PatternView, type PlaceView } from '@qoti/sim';
 import type { RenderApi } from '../render/api';
+import type { PictureRef, PictureSource } from '../ui/pictures';
 import type { SeasonRender } from './snapshots';
 
-/** R3D's `PictureRef` (ui/pictures.ts on cycle/r3x-integration), copied structurally until the wiring. */
-export interface PictureRef {
-  book: 'townBook' | 'patternBook' | 'chronicle';
-  /** A Town Book page id, a pattern id, or a Chronicle entry id, as a string. */
-  id: string;
-}
+export type { PictureRef };
 
 /** A Town Book or Pattern Book slot is 240 x 180 CSS px: the picture is taken at twice that. */
 export const SLOT_SIZE: [number, number] = [480, 360];
@@ -167,12 +162,10 @@ export function inkAlbum(session: PictureSession): InkAlbum {
 
 /**
  * The picture source for R3D's seam: a book's page or entry in ink, at the slot's size (480 x 360),
- * or at print size (1600 x 1200) when asked with `{ print: true }` (the seam's `pictureFor` takes
- * no size; see the PR). Null when the page has no place yet or there is no renderer.
+ * or at print size (1600 x 1200) when asked with `{ print: true }`. Null when the page has no place
+ * yet or there is no renderer.
  */
-export function inkPictureSource(
-  session: PictureSession,
-): (ref: PictureRef, opts?: { print?: boolean }) => Promise<string | null> {
+export function inkPictureSource(session: PictureSession): PictureSource {
   return (ref, opts) => {
     const aim = aimFor(session.mirror, ref);
     if (!aim) return Promise.resolve(null);

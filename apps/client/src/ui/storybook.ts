@@ -327,7 +327,7 @@ export async function slotPicture(
   ref: PictureRef,
   snapshot: (() => Promise<string | null>) | null,
 ): Promise<SlotPicture | null> {
-  const url = await pictureFor(ref);
+  const url = await pictureFor(ref, { print: true });
   if (url) return { url, from: 'source' };
   if (!snapshot) return null;
   try {

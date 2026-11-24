@@ -13,6 +13,7 @@ import { fetchSnapshot } from '../../app/snapshots';
 import { endpaperStill } from '../../render/endpaper';
 import { Glyph } from '../icons';
 import { Portrait } from '../Portrait';
+import { oncePerBook, townBookPictured } from '../chroniclePictures';
 import type { PictureRef } from '../pictures';
 import {
   chapterPatternPages,
@@ -237,12 +238,22 @@ function ChapterBook({
       ]),
       ...townPages.map((p): [PictureRef, null] => [{ book: 'townBook', id: p.id }, null]),
     ];
+    // A picture belongs to its slot's place and moment, and the book prints none twice.
+    const pictured = townBookPictured(townBookOf(m)?.pages ?? []);
+    const byId = new Map(m.chronicle.value.map((e) => [String(e.id), e]));
     void Promise.all(
       asks.map(async ([ref, fallback]) =>
         found.set(slotKey(ref), await withLift(await slotPicture(ref, fallback))),
       ),
     ).then(() => {
-      if (!gone) setPictures(found);
+      if (gone) return;
+      const slots = asks.map(([ref]) => ({
+        key: slotKey(ref),
+        picture: found.get(slotKey(ref)) ?? null,
+        entry: ref.book === 'chronicle' ? byId.get(ref.id) : undefined,
+        pictured: ref.book === 'townBook' ? pictured.has(Number(ref.id)) : undefined,
+      }));
+      setPictures(oncePerBook(slots));
     });
     return () => {
       gone = true;

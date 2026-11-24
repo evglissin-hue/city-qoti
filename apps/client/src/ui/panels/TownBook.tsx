@@ -3,6 +3,7 @@ import { LEANINGS, type Leaning, type SeatView, type TownBookPageView, type Town
 import type { ComponentChildren } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
 import type { Session } from '../../app/session';
+import { townBookPictured } from '../chroniclePictures';
 import { dayDate } from '../format';
 import { pictureFor } from '../pictures';
 import './townBook.css';
@@ -52,6 +53,8 @@ export function TownBookPanel({ session }: { session: Session }) {
   const [current, setCurrent] = useState<number | null>(null);
   const at = order.findIndex((p) => p.id === current);
   const page = at >= 0 ? order[at]! : null;
+  // A page's picture is its place: the first page found at a place shows it, a later one its name.
+  const pictured = townBookPictured(book.pages);
   const close = () => {
     session.ui.panel.value = null;
     session.render?.highlight?.(null);
@@ -110,7 +113,14 @@ export function TownBookPanel({ session }: { session: Session }) {
         <div class="book-spine" aria-hidden="true" />
         <div class="book-page right">
           {page ? (
-            <PageView page={page} folio={at + 1} seats={seats} me={session.seat} session={session} />
+            <PageView
+              page={page}
+              folio={at + 1}
+              seats={seats}
+              me={session.seat}
+              session={session}
+              pictured={pictured.has(page.id)}
+            />
           ) : (
             <Cover book={book} />
           )}
@@ -194,18 +204,19 @@ function Cover({ book }: { book: TownBookView }) {
 }
 
 /** The page's picture: one slot, 240 x 180, an empty inked frame with the name when there is none. */
-function Picture({ page }: { page: TownBookPageView }) {
+function Picture({ page, pictured }: { page: TownBookPageView; pictured: boolean }) {
   const [url, setUrl] = useState<string | null>(null);
   useEffect(() => {
     let live = true;
     setUrl(null);
+    if (!pictured) return;
     void pictureFor({ book: 'townBook', id: String(page.id) }).then((u) => {
       if (live) setUrl(u);
     });
     return () => {
       live = false;
     };
-  }, [page.id]);
+  }, [page.id, pictured]);
   return (
     <div class="tb-picture" data-testid="town-book-picture">
       {url ? (
@@ -250,17 +261,19 @@ function PageView({
   seats,
   me,
   session,
+  pictured,
 }: {
   page: TownBookPageView;
   folio: number;
   seats: readonly SeatView[];
   me: number;
   session: Session;
+  pictured: boolean;
 }) {
   const where = page.placeName || 'a place the town has since forgotten';
   return (
     <article class="book-entry" data-testid="town-book-page">
-      <Picture page={page} />
+      <Picture page={page} pictured={pictured} />
       <p class="book-kicker">
         {page.kind === 'specialty' ? 'Specialty' : 'Custom'} {folio}
       </p>

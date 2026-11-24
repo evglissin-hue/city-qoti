@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { GameUI } from '../ui/GameUI';
+import { setPictureSource } from '../ui/pictures';
 import { DEBUG } from './debug';
 import { MOCK_OVERLAY, overlayMocks } from './fixture';
+import { inkPictureSource } from './inkPictures';
 import { Session, type SessionTarget } from './session';
 
 let current: Session | null = null;
@@ -33,11 +35,15 @@ export function GameView({
 
   useEffect(() => {
     current = session;
+    // The books' pictures (the seam in ui/pictures.ts): V4B's ink and wash of this valley.
+    const source = inkPictureSource(session);
+    setPictureSource(source);
     if (openInvite) session.ui.inviteOpen.value = true;
     if (container.current) void session.start(container.current);
     return () => {
       session.close();
       if (current === session) current = null;
+      setPictureSource(null);
     };
   }, [session, openInvite]);
 

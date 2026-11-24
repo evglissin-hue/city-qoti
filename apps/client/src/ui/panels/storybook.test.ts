@@ -309,6 +309,16 @@ describe('the picture seam', () => {
     });
   });
 
+  it('asks the source for print size (R3X: the seam carries { print: true })', async () => {
+    const asked: unknown[] = [];
+    setPictureSource((ref, opts) => {
+      asked.push(opts);
+      return fake(ref);
+    });
+    await slotPicture(chronicleRef, null);
+    expect(asked).toEqual([{ print: true }]);
+  });
+
   it('falls back when the source throws or the snapshot does', async () => {
     setPictureSource(() => Promise.reject(new Error('no ink today')));
     expect(await slotPicture(chronicleRef, () => Promise.resolve('blob:snap'))).toEqual({
