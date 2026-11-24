@@ -319,11 +319,11 @@ test.describe.serial('one seat, one page', () => {
     const after = await view(page);
     expect(after.goal).toEqual(saved.goal);
     expect(after.pos).toEqual(saved.pos);
-    await expect.poll(() => page.evaluate(() => window.__qoti.ui().panel.value)).toBe('town-book');
+    await expect.poll(() => page.evaluate(() => window.__qoti.ui()?.panel.value)).toBe('town-book');
     await expect(page.locator('.game-ui.tea-break')).toHaveCount(0);
     await expect(page.locator('.toolbar')).toBeVisible();
     await page.keyboard.press('Escape');
-    await expect.poll(() => page.evaluate(() => window.__qoti.ui().panel.value)).toBeNull();
+    await expect.poll(() => page.evaluate(() => window.__qoti.ui()?.panel.value)).toBeNull();
     expect(await state(page)).toBeNull();
     await expect(page.locator('.game-ui.tea-break')).toHaveCount(0);
   });
