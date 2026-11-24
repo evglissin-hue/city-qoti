@@ -9,12 +9,20 @@ import { flameBox, lampGlass } from './lamplight';
 import { CORE_SHADE, limb, toward, trunkInto } from './trees';
 import type { Kit, KitBuildOptions } from './types';
 
+/**
+ * R3X: the ornamental cherry's look through the year (`params.leaf`): blossom in early spring (the
+ * default, so the gallery and old callers are unchanged), in leaf through summer and winter (the
+ * orchard has no bare look yet), turned in autumn. The renderer picks it by calendar day.
+ */
+export type CherryLook = 'blossom' | 'leaf' | 'autumn';
+
 /** A small orchard tree: a sturdy trunk, a lumpy layered canopy and dots of fruit or blossom. */
 export function fruitTree(
   opts: KitBuildOptions | undefined,
   canopy: number,
   dot: number,
   petals: boolean,
+  look: CherryLook = 'blossom',
 ): ShapeBuilder {
   const rnd = seeded(opts?.seed ?? 5);
   const leaf = vary(canopy, rnd);
@@ -39,14 +47,24 @@ export function fruitTree(
     { center: [-0.16, 0.64, -0.12], radii: [0.21, 0.18, 0.21], color: vary(leaf, rnd) },
     { center: [0.03, 0.88, 0.02], radii: [0.2, 0.15, 0.2], color: vary(leaf, rnd, 1.5) },
   ];
-  if (petals) {
+  if (petals && look === 'leaf') {
+    // R3X: in leaf, a fresher clump and a deeper one, so the crown is not one flat green.
+    blobs[1]!.color = mixHex(blobs[1]!.color, 0x7da446, 0.3);
+    blobs[2]!.color = mixHex(blobs[2]!.color, 0x4f7a34, 0.3);
+    blobs[3]!.color = mixHex(blobs[3]!.color, 0xa6bd55, 0.3);
+  } else if (petals && look === 'autumn') {
+    // R3X: turned: crimson main mass, a russet clump, amber on top and a little green left low.
+    blobs[1]!.color = mixHex(blobs[1]!.color, 0xc47a34, 0.55);
+    blobs[2]!.color = mixHex(blobs[2]!.color, 0x7f9a3c, 0.45);
+    blobs[3]!.color = mixHex(blobs[3]!.color, 0xdcaa40, 0.55);
+  } else if (petals) {
     // P3C: blossom is soft, not one loud pink: a deeper pink clump, a paler one near white and
     // fresh leaves coming through low down.
     blobs[1]!.color = mixHex(blobs[1]!.color, 0xd98fa6, 0.3);
     blobs[2]!.color = mixHex(blobs[2]!.color, 0xa5c27a, 0.28);
     blobs[3]!.color = mixHex(blobs[3]!.color, 0xf7efea, 0.4);
   }
-  const shade = petals ? 0x5a3a46 : CORE_SHADE;
+  const shade = petals && look === 'blossom' ? 0x5a3a46 : petals && look === 'autumn' ? 0x5a2a22 : CORE_SHADE;
   s.levels(
     () => {
       const crnd = seeded(seed * 7 + 2);
@@ -74,7 +92,7 @@ export function fruitTree(
         count: 190,
         size: 0.11,
         // P3C: blossom dabs wander more (0.38, was 0.22), so the crown reads as strokes, not paper.
-        tintSpread: petals ? 0.38 : 0.28,
+        tintSpread: petals && look === 'blossom' ? 0.38 : 0.28,
         skyLighten: 0.5,
         gaps: 0.02,
         // V2X: orchard trees thin through autumn like the forest (`params.thin`, default 1).
@@ -183,7 +201,21 @@ export const cherryTree: Kit = {
   id: 'cherry-tree',
   kind: 'decor',
   // P3C: a paler blossom than the swatch (toward white), so a street of them is soft, not loud.
-  build: (opts) => fruitTree(opts, mixHex(palette.blossom, 0xf6eeea, 0.3), 0xe6a2b5, true).build(),
+  // R3X: `params.leaf` follows the year ('blossom' by default; see `CherryLook`).
+  build: (opts) => {
+    const look = opts?.params?.leaf;
+    if (look === 'leaf')
+      return fruitTree(
+        opts,
+        mixHex(mixHex(palette.oakLeaf, palette.birchLeaf, 0.3), 0x9a7a3a, 0.18),
+        0x8f2331,
+        true,
+        'leaf',
+      ).build();
+    if (look === 'autumn')
+      return fruitTree(opts, mixHex(0xa24a2c, 0xbc6a2e, 0.3), 0xf0c060, true, 'autumn').build();
+    return fruitTree(opts, mixHex(palette.blossom, 0xf6eeea, 0.3), 0xe6a2b5, true).build();
+  },
 };
 
 export const crates: Kit = {

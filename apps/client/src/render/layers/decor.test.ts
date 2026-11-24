@@ -110,6 +110,68 @@ describe('orchard thinning in the decor layer', () => {
   });
 });
 
+describe('the ornamental cherry follows the year (R3X)', () => {
+  it('swaps both levels on the swap days only, building each look once', () => {
+    const { layer, env, geo } = setup(1);
+    const far = (): BufferGeometry => decorGeometry('cherry-tree', 'low', undefined, 'leaf');
+    env.shown.season = 0;
+    env.shown.day = 4;
+    layer.frame?.(0.016);
+    const blossom = geo('cherry-tree:high');
+    expect(blossom).toBe(decorGeometry('cherry-tree', 'high'));
+    // Spring day 5: in leaf.
+    env.shown.day = 5;
+    expect(layer.frame?.(0.016)).toBe(true);
+    const leaf = geo('cherry-tree:high');
+    expect(leaf).not.toBe(blossom);
+    expect(leaf).toBe(decorGeometry('cherry-tree', 'high', 1, 'leaf'));
+    expect(far()).not.toBe(decorGeometry('cherry-tree', 'low'));
+    // Summer: no swap, nothing rebuilt.
+    env.shown.season = 1;
+    env.shown.day = 3;
+    expect(layer.frame?.(0.016)).toBe(false);
+    expect(geo('cherry-tree:high')).toBe(leaf);
+    // Autumn day 1 is still in leaf, day 2 turns.
+    env.shown.season = 2;
+    env.shown.day = 1;
+    expect(layer.frame?.(0.016)).toBe(false);
+    env.shown.day = 2;
+    expect(layer.frame?.(0.016)).toBe(true);
+    const autumn = geo('cherry-tree:high');
+    expect(autumn).not.toBe(leaf);
+    // Winter keeps the leaf look, the same geometry as before; the hedge is never swapped.
+    env.shown.season = 3;
+    env.shown.day = 1;
+    expect(layer.frame?.(0.016)).toBe(true);
+    expect(geo('cherry-tree:high')).toBe(leaf);
+    // Spring again: the blossom comes back, the one already built.
+    env.shown.season = 0;
+    env.shown.day = 1;
+    expect(layer.frame?.(0.016)).toBe(true);
+    expect(geo('cherry-tree:high')).toBe(blossom);
+  });
+
+  it('leaves apple and pear alone, and the looks differ in color', () => {
+    const colors = (g: BufferGeometry): string => {
+      const c = g.getAttribute('color');
+      let r = 0;
+      let gr = 0;
+      for (let i = 0; i < c.count; i++) {
+        r += c.getX(i);
+        gr += c.getY(i);
+      }
+      return `${(r / c.count).toFixed(2)},${(gr / c.count).toFixed(2)}`;
+    };
+    const b = colors(decorGeometry('cherry-tree', 'high'));
+    const l = colors(decorGeometry('cherry-tree', 'high', 1, 'leaf'));
+    const a = colors(decorGeometry('cherry-tree', 'high', 1, 'autumn'));
+    expect(new Set([b, l, a]).size).toBe(3);
+    expect(decorGeometry('apple-tree', 'high', 1, 'autumn')).toBe(
+      decorGeometry('apple-tree', 'high', 1, 'autumn'),
+    );
+  });
+});
+
 describe('far off, decor with a far level stays (V2X)', () => {
   it('orchards, planters, benches and the rest of the commonest pieces keep their far level in view', () => {
     for (const def of [

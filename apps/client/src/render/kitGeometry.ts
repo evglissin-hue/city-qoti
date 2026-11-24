@@ -14,6 +14,7 @@ import {
 } from '@qoti/art';
 import { content } from '@qoti/content';
 import { drawDef } from './defs';
+import type { CherryLook } from './thin';
 import {
   DECOR_ROTATIONS,
   footprintSize,
@@ -299,16 +300,25 @@ export function buildingVariantGeometry(b: BuildingView, lod: 'high' | 'low' = '
 }
 
 /** A decor kit's geometry; V1D: `lod` picks the kit's far level (lod.ts chooses which shows). */
-export function decorGeometry(defId: string, lod: 'high' | 'low' = 'high', thin?: number): BufferGeometry {
+export function decorGeometry(
+  defId: string,
+  lod: 'high' | 'low' = 'high',
+  thin?: number,
+  leaf?: CherryLook,
+): BufferGeometry {
   // V2X: `thin` (the orchard trees' dab thinning) is part of the key; 1 or none is the plain build.
-  const t = thin !== undefined && thin !== 1 ? `:t${thin}` : '';
+  // R3X: so is `leaf` (the cherry's look through the year); 'blossom' or none is the plain build.
+  const l = leaf && leaf !== 'blossom' ? `:l${leaf}` : '';
+  const t = (thin !== undefined && thin !== 1 ? `:t${thin}` : '') + l;
   const key = (lod === 'high' ? `decor:${defId}` : `decor:${defId}:${lod}`) + t;
   let g = cache.get(key);
   if (!g) {
     const def = content.decorById.get(defId);
     const kit = def ? kitById.get(artKitId(def.art)) : undefined;
     const base = def?.art.params ? { params: def.art.params } : {};
-    const params = t ? { params: { ...base.params, thin: thin! } } : base;
+    const params = t
+      ? { params: { ...base.params, ...(thin !== undefined ? { thin } : {}), ...(l ? { leaf: leaf! } : {}) } }
+      : base;
     g = kit ? kit.build(lod === 'high' ? params : { ...params, lod }) : missing();
     cache.set(key, g);
   }
@@ -317,6 +327,12 @@ export function decorGeometry(defId: string, lod: 'high' | 'low' = 'high', thin?
 
 /** V2X: the art kits built by `fruitTree`, whose crowns thin through autumn. */
 const FRUIT_KITS: ReadonlySet<string> = new Set(['apple-tree', 'cherry-tree']);
+
+/** R3X: whether a decor def is the ornamental cherry, whose crown follows the year (`cherryLook`). */
+export function isCherryDecor(defId: string): boolean {
+  const def = content.decorById.get(defId);
+  return !!def && artKitId(def.art) === 'cherry-tree';
+}
 
 /** Whether a decor def is an orchard tree (apple, pear or cherry) that thins with the season. */
 export function isFruitDecor(defId: string): boolean {

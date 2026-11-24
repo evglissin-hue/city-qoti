@@ -99,7 +99,9 @@ export const carvedStone: Kit = {
 
 /**
  * A tree a gardener has shaped: two clipped rounds and a little ball on a straight, clean stem in a
- * stone tub, the crowns smooth and tight where a wild tree is ragged.
+ * stone tub, the crowns smooth and tight where a wild tree is ragged. R3X: a topiary of box, an
+ * evergreen, so it stays this green all year (unlike the ornamental cherry, `cherry-tree`, whose
+ * crown follows the calendar through `params.leaf`).
  */
 export const ornamentalTree: Kit = {
   id: 'ornamental-tree',

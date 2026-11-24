@@ -2,9 +2,9 @@ import { artKitId, kitById } from '@qoti/art';
 import { content } from '@qoti/content';
 import { calendar, type EntityId, type RestKind, type SuppliesView } from '@qoti/sim';
 import type { BufferGeometry } from 'three';
-import { decorGeometry, decorMatrix, isFruitDecor } from '../kitGeometry';
+import { decorGeometry, decorMatrix, isCherryDecor, isFruitDecor } from '../kitGeometry';
 import { InstanceField, SMALL_RADIUS, type FieldKind } from '../lod';
-import { StepCache, thinStep } from '../thin';
+import { cherryLook, StepCache, thinStep, type CherryLook } from '../thin';
 import type { LayerContext, RenderLayer } from './types';
 
 /** Whether a geometry carries lit parts (a lantern's flame): those stay in view at night, far or not. */
@@ -50,9 +50,14 @@ export function hasFarLevel(high: BufferGeometry, low: BufferGeometry): boolean 
 }
 
 /** A decor def's two levels, and whether it is a small prop that may shrink away far off. */
-function decorKind(def: string, thin = 1, cache?: StepCache<BufferGeometry>): FieldKind {
+function decorKind(
+  def: string,
+  thin = 1,
+  cache?: StepCache<BufferGeometry>,
+  leaf: CherryLook = 'blossom',
+): FieldKind {
   const high = cache ? cache.get(thin) : decorGeometry(def, 'high');
-  const low = decorGeometry(def, 'low');
+  const low = decorGeometry(def, 'low', undefined, leaf);
   if (!high.boundingSphere) high.computeBoundingSphere();
   if (!high.boundingBox) high.computeBoundingBox();
   const radius = high.boundingSphere?.radius ?? 1;
@@ -130,9 +135,21 @@ export function decorLayer(opts: DecorLayerOptions = {}): RenderLayer {
   const floor = opts.fruitFloor ?? FRUIT_MIN_THIN;
   let field: InstanceField | null = null;
   let ctx: LayerContext | null = null;
-  /** V2X: each orchard def's near geometry by thinning step, and the step on screen. */
-  const fruit = new Map<string, StepCache<BufferGeometry>>();
+  /**
+   * V2X: each orchard def's near geometry by thinning step, and the step on screen. R3X: and by the
+   * cherry's look (each look and step built once and kept), the look on screen.
+   */
+  const fruit = new Map<string, Map<CherryLook, StepCache<BufferGeometry>>>();
   let onScreen = 1;
+  let onLook: CherryLook = 'blossom';
+  const looks = (def: string): CherryLook => (isCherryDecor(def) ? onLook : 'blossom');
+  const stepsOf = (def: string, leaf: CherryLook): StepCache<BufferGeometry> => {
+    let byLook = fruit.get(def);
+    if (!byLook) fruit.set(def, (byLook = new Map()));
+    let cache = byLook.get(leaf);
+    if (!cache) byLook.set(leaf, (cache = new StepCache((t) => decorGeometry(def, 'high', t, leaf))));
+    return cache;
+  };
   /** R3F: the rests the field was last built with, as a key, to rebuild on a change only. */
   let restKey = '';
   let seenView: SuppliesView | null | undefined;
@@ -144,9 +161,8 @@ export function decorLayer(opts: DecorLayerOptions = {}): RenderLayer {
     if (hash >= 0) return lookKind(key.slice(0, hash), key.slice(hash + 1) as Exclude<DecorLook, null>);
     const def = key;
     if (!isFruitDecor(def)) return decorKind(def);
-    let cache = fruit.get(def);
-    if (!cache) fruit.set(def, (cache = new StepCache((t) => decorGeometry(def, 'high', t))));
-    return decorKind(def, onScreen, cache);
+    const leaf = looks(def);
+    return decorKind(def, onScreen, stepsOf(def, leaf), leaf);
   }
 
   function rebuild(): void {
@@ -170,6 +186,7 @@ export function decorLayer(opts: DecorLayerOptions = {}): RenderLayer {
       ctx = c;
       const cal = calendar(c.mirror.tick.value);
       onScreen = fruitStep(cal.season, cal.day, floor);
+      onLook = cherryLook(cal.season, cal.day);
       field = new InstanceField(c.scene, c.material, kindFor);
       rebuild();
     },
@@ -189,9 +206,15 @@ export function decorLayer(opts: DecorLayerOptions = {}): RenderLayer {
       // V2X: the orchard's thinning, a static-layer event that happens when the step changes.
       const step = fruitStep(ctx.env.shown.season, ctx.env.shown.day, floor);
       let swapped = false;
-      if (step !== onScreen) {
+      // R3X: the ornamental cherry's look (blossom, leaf, turned) swaps both levels, by day.
+      const look = cherryLook(ctx.env.shown.season, ctx.env.shown.day);
+      if (step !== onScreen || look !== onLook) {
         onScreen = step;
-        for (const [def, cache] of fruit) field.setGeometry(def, cache.get(step));
+        onLook = look;
+        for (const def of fruit.keys()) {
+          const leaf = looks(def);
+          field.setGeometry(def, stepsOf(def, leaf).get(step), decorGeometry(def, 'low', undefined, leaf));
+        }
         swapped = true;
       }
       const redrew = field.update(ctx.env.camera, ctx.env.focus);

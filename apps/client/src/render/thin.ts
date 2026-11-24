@@ -50,3 +50,20 @@ export class StepCache<T> {
     return this.made.values();
   }
 }
+
+/** R3X: the ornamental cherry's look through the year (art kit `cherry-tree`, `params.leaf`). */
+export type CherryLook = 'blossom' | 'leaf' | 'autumn';
+
+/**
+ * The cherry's look for a season (0 spring to 3 winter) and day: blossom on spring days 1 to 4 (the
+ * woods' blossom, `seasonBlendAt`, is gone by day 5), in leaf from spring day 5 through summer,
+ * turned from autumn day 2 to its end, and in leaf again in winter (orchard trees have no bare look
+ * yet, as `FRUIT_MIN_THIN`). From the calendar's day, never its hour, so it swaps once a day.
+ */
+export function cherryLook(season: number, day: number): CherryLook {
+  const s = ((Math.floor(season) % 4) + 4) % 4;
+  const d = Math.max(1, Math.min(DAYS_PER_SEASON, Math.floor(day)));
+  if (s === 0) return d <= 4 ? 'blossom' : 'leaf';
+  if (s === 2) return d >= 2 ? 'autumn' : 'leaf';
+  return 'leaf';
+}
