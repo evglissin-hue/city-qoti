@@ -196,7 +196,9 @@ await page.screenshot({ path: file('photo-mode') });
 console.log('saved', file('photo-mode'));
 const [download] = await Promise.all([
   page.waitForEvent('download', { timeout: 240000 }),
-  page.getByTestId('photo-save').click(),
+  // Dispatched: Save waits for the developed picture, and Playwright's click would wait on the busy
+  // software-drawn page for its own 30 s.
+  page.getByTestId('photo-save').dispatchEvent('click'),
 ]);
 await download.saveAs(file('photo'));
 console.log('saved', file('photo'));
