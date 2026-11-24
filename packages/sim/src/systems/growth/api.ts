@@ -6,8 +6,9 @@ import { content, type BuildingDef } from '@qoti/content';
 import { MAP_SIZE } from '../../constants';
 import type { Building, EntityId, Lot, TickCtx, WorldState } from '../../contracts';
 import { canPlaceBuilding } from '../../rules/building';
-import { entranceTiles, footprintSize } from '../../rules/footprint';
+import { entranceTiles, footprintSize, footprintTiles } from '../../rules/footprint';
 import { doorFront } from '../../rules/reach';
+import { wouldEnclose } from '../../rules/wall';
 import { findById } from '../../state/entities';
 import { insertBuilding } from '../../state/place';
 import { worldIndex } from '../../state/worldIndex';
@@ -38,7 +39,7 @@ export function lotPlacement(state: WorldState, lot: Lot, def: BuildingDef): [x:
     const { front } = entranceTiles(def, x, z, lot.rot);
     if (!state.map.road[front[1] * MAP_SIZE + front[0]]) continue;
     if (!canPlaceBuilding(reader, def, x, z, lot.rot).ok) continue;
-    if (coversDoor(state, x, z, fw, fd)) continue;
+    if (coversDoor(state, x, z, fw, fd) || sealsDoor(state, def, x, z, fw, fd, lot.rot)) continue;
     return [x, z];
   }
   return null;
@@ -104,6 +105,47 @@ function coversDoor(state: WorldState, x: number, z: number, fw: number, fd: num
   for (let k = 0; k < fw; k++) if (near(x + k, z - 1) || near(x + k, z + fd)) return true;
   for (let k = 0; k < fd; k++) if (near(x - 1, z + k) || near(x + fw, z + k)) return true;
   return false;
+}
+
+/**
+ * R3X: true when a footprint would seal a neighbor's door in without standing on its step: a
+ * fishery's step is open ground with one way in, and the cottage that grew on that way stood the
+ * fishery cut off for days (the audit's building-cut-off on hazel). Doors on a road cannot be sealed
+ * by a lot, so only buildings whose step is open ground near the footprint ask for the real reach
+ * flood (the same rule build.place applies).
+ */
+function sealsDoor(
+  state: WorldState,
+  def: BuildingDef,
+  x: number,
+  z: number,
+  fw: number,
+  fd: number,
+  rot: Lot['rot'],
+): boolean {
+  const reader = worldIndex(state).reader;
+  const S = MAP_SIZE;
+  const seen: number[] = [];
+  let ask = false;
+  for (let tz = Math.max(0, z - 4); tz < Math.min(S, z + fd + 4) && !ask; tz++) {
+    for (let tx = Math.max(0, x - 4); tx < Math.min(S, x + fw + 4); tx++) {
+      const id = reader.occupant(tx, tz);
+      if (!id || seen.includes(id)) continue;
+      seen.push(id);
+      const b = findById(state.buildings, id);
+      if (!b) continue;
+      const step = doorFront(b);
+      const sx = step % S;
+      const sz = (step - sx) / S;
+      if (reader.road(sx, sz) > 0 || sx < x - 3 || sx >= x + fw + 3 || sz < z - 3 || sz >= z + fd + 3)
+        continue;
+      ask = true;
+      break;
+    }
+  }
+  if (!ask) return false;
+  const feet: [number, number, string][] = footprintTiles(def, x, z, rot).map(([tx, tz]) => [tx, tz, def.id]);
+  return wouldEnclose(reader, feet, state.buildings, state.meta.valleyGate).length > 0;
 }
 
 /**

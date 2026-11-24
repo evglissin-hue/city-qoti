@@ -18,7 +18,7 @@ import { villageFixture } from '../fixtures/village';
 import { lotsIn, paintZone, zoneNow } from '../growth/helpers';
 
 const S = MAP_SIZE;
-const flat = { height: () => 0 } as unknown as MapReader;
+const flat = { height: () => 0, water: () => 0, road: () => 0 } as unknown as MapReader;
 
 describe("a door step reached only across the building's own footprint", () => {
   it('is not reached (birch: a garden bed whose step lay inside the storehouse)', () => {

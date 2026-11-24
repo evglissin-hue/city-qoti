@@ -5,6 +5,7 @@ import {
   Flags,
   defaultSettings,
   doorReached,
+  gateTiles,
   inBounds,
   townReach,
   townSources,
@@ -883,7 +884,11 @@ export class Mirror implements MapReader {
     const n = this.buildings.size;
     if (!this.reachCache || this.reachCache.rev !== this.layerRevision || this.reachCache.buildings !== n) {
       const sources = townSources(this.buildings.values());
-      this.reachCache = { rev: this.layerRevision, buildings: n, reach: townReach(this, sources) };
+      this.reachCache = {
+        rev: this.layerRevision,
+        buildings: n,
+        reach: townReach(this, sources, gateTiles(this.buildings.values())),
+      };
     }
     const reach = this.reachCache.reach;
     if (!reach.some((v) => v === 1)) return true;
