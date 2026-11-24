@@ -19,8 +19,11 @@ import { gunzipSync } from 'node:zlib';
 // the merged R3.0 state (residents, decor): oak 62 108, oak 70 111, oak 100 120, willow 70 140 (only
 // 360 decor, the test wants over 500), ash 70 130, ash 85 174, rowan 70 141 (635 decor, a corner shop,
 // eight festivals). Rowan's 70 days clear the floor with a margin; R3X regrows the file on the merged wave.
+// R3X: on the merged and tuned wave rowan grows faster: 70 days land at 228, 60 at 220 (over the
+// ceiling of 180); 50 days land at 167 residents in 63 households, 544 decor, Village rank, eight
+// festivals.
 const SEED = 'rowan';
-const DAYS = 70;
+const DAYS = 50;
 
 const root = fileURLToPath(new URL('../../../', import.meta.url));
 const file = fileURLToPath(new URL('../src/app/fixtures/grown.qoti', import.meta.url));
