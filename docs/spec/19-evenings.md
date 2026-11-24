@@ -150,7 +150,7 @@ Some pieces draw on the town's goods to be at their best, from Village rank on (
 
 ## Masters [R3]
 
-- **Becoming one**: a young or adult resident with 4 or more hearts and 20 working days in one trade (apprentice days count double), in a business of level 2 or more or at a specialized building *(tune)*. One new master a trade a season, apprentices included. A sign over the door, a Chronicle line and a letter.
+- **Becoming one**: a young or adult resident with 4 or more hearts and 16 working days in one trade *(R3X: was 20; see As measured)* (apprentice days count double), in a business of level 2 or more or at a specialized building *(tune)*. One new master a trade a season, apprentices included. A sign over the door, a Chronicle line and a letter.
 - **What a master brings**:
   - their business may reach level 3 (`13-ledger.md`, Levels);
   - a **master's good**, made from the same raw good in the same building and sold like any flavor. Nine in R3 *(content, tune)*: the baker's pies, the dairy's butter, the orchard's jam, the cider maker's cordial, the beekeeper's mead, the weaver's coats, the carpenter's toys, the chandler's soap, and the Fishery's smoked fish;

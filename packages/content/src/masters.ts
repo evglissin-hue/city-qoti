@@ -9,8 +9,11 @@ import type { ChronicleTemplate, MasterDef, MasteryTuning } from './types';
 export const MASTERY: MasteryTuning = {
   // Four hearts...
   hearts: 4,
-  // ...and twenty working days in one trade, an apprentice's day counting twice.
-  days: 20,
+  // ...and sixteen working days in one trade, an apprentice's day counting twice. R3X: was twenty.
+  // Hands move between jobs as food and sites call for them (P3A's ranks), so a town's most
+  // practised hand stalled at 16 to 19 days for weeks (willow, days 21 to 48) and the first master
+  // came 36 days after the Village claim; sixteen is still two thirds of a year on one crew.
+  days: 16,
   apprenticeWeight: 2,
   // In a business of level 2 or more, or at a specialized building.
   level: 2,

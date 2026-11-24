@@ -105,7 +105,7 @@ Years are 24 days. Stages *(tune)*: child 0 to 3 years, young 3 to 5, adult 5 to
 | Births | I2 | a couple with a spare bed and mood 60+ may have a child (chance per season) |
 | Apprenticeships | I2 | young residents learn a trade at a workshop for 1 season, then take skilled jobs. [R3] An apprentice under a master becomes a master sooner (`19-evenings.md`, Masters) |
 | Keeping a business | R1 | every grown business has a keeper (the first hand hired, or the resident whose trait or apprenticeship tipped the trade, `13-ledger.md`), with the family name on the sign, as C5B's named shops had; the seasonal shop-opening above folds into this, so a family may keep more than one kind of business over the years. A keeper who leaves is replaced by the longest-serving hand |
-| Mastery | R3 | four hearts and twenty working days in one trade make a master, who brings the business a level and a good of their own (`19-evenings.md`, Masters) |
+| Mastery | R3 | four hearts and sixteen working days in one trade make a master (R3X: was twenty), who brings the business a level and a good of their own (`19-evenings.md`, Masters) |
 | Opening a shop | I3 | an adult with savings, a fitting trait and a vacant shop lot opens a named shop. As built (C5B): once a season, on day 2 at 10:00 from Village rank, the first grown-up whose household has 40 coins put by and who is Artistic, Cheerful, Generous, Practical, Sweet-toothed or Thrifty grows the shop zone's shop on a free shop lot (`growLot`) with a sign of their family name and their kind of shop ("Thistledown Sweets"), a Chronicle line and a letter; the town's builders put it up, so no money moves; one shop a family |
 | Retiring | I2 | elders stop working |
 | Moving to the seaside | I2 | elders past 20 years may leave to "live by the sea with family" (warm Chronicle entry). Nobody dies in City Qoti. |
@@ -176,7 +176,7 @@ Satisfaction 0 to 100, updated daily at 06:00 (food) or hourly (others).
 
 Effects: 3+ hearts sends letters (tips, gossip, pattern hints); 4+ occasionally gifts a rare decor piece; 2+ can volunteer for the Watch [I3]; bonded households tolerate lean times (departure threshold -10).
 
-[R2] A season of good evenings gives a heart: four of its six evenings at 60 or more *(tune)*, once a season, up to 5 hearts. [R3] Four hearts and twenty working days in a trade make a master. Until then hearts did almost nothing for the Ledger; from R3 they are how its businesses reach their top level and how new flavors arrive, so each lane has a reason to know residents by name.
+[R2] A season of good evenings gives a heart: four of its six evenings at 60 or more *(tune)*, once a season, up to 5 hearts. [R3] Four hearts and sixteen working days (R3X: was twenty) in a trade make a master. Until then hearts did almost nothing for the Ledger; from R3 they are how its businesses reach their top level and how new flavors arrive, so each lane has a reason to know residents by name.
 
 ## Story characters [I2]
 

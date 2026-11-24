@@ -15,10 +15,10 @@ describe('the rule', () => {
   it('keeps the numbers in content: one a trade a season', () => {
     expect(MASTERY.perTradeSeason).toBe(1);
     expect(MASTERY.hearts).toBe(4);
-    expect(MASTERY.days).toBe(20);
+    expect(MASTERY.days).toBe(16);
   });
 
-  it('makes a master of four hearts and twenty days, with the sign, the words and a count', () => {
+  it('makes a master of four hearts and the working days, with the sign, the words and a count', () => {
     const { state, bakery, crew } = masterWorld();
     const r = res(state, crew[1]!);
     qualify(r, 'baker');
