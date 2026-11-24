@@ -26,7 +26,7 @@ async function launch() {
 const live = (page) =>
   page.waitForFunction(() => window.__qoti?.status() === 'live', null, { timeout: 240000 });
 async function dismiss(page) {
-  for (const name of ['Done', 'Back to it', 'Close', 'Later', 'Maybe later']) {
+  for (const name of ['Done', 'Thank you, Tobias', 'Back to it', 'Close', 'Later', 'Maybe later']) {
     const b = page.getByRole('button', { name, exact: true });
     if (await b.count())
       await b
@@ -37,7 +37,7 @@ async function dismiss(page) {
 }
 async function shot(page, n, name) {
   await page.waitForTimeout(500);
-  const file = `${out}/r3x-chair-${n}-${name}.png`;
+  const file = `${out}/${process.env.QOTI_PREFIX ?? 'r3x-chair'}-${n}-${name}.png`;
   await page.screenshot({ path: file, timeout: 240000 });
   console.log('shot', file);
 }
@@ -149,6 +149,11 @@ async function clearUi(page) {
 }
 async function clearCards(page) {
   await clearUi(page);
+  await page.evaluate(() => {
+    for (const b of document.querySelectorAll('button'))
+      if (/Thank you, Tobias/.test(b.textContent ?? '')) b.click();
+  });
+  await page.waitForTimeout(300);
   await dismiss(page);
 }
 /** Runs the sim at `speed` until the clock reads `day` (null: any later day than now) at hour:minute, then holds it. */
@@ -664,6 +669,157 @@ S.thread = async (page) => {
     await page.waitForTimeout(800);
     await say(page, 'a home', '[class*="inspector"]');
     await shot(page, 7, 'home');
+  }
+};
+
+S.grownhall = async (page) => {
+  await openFile(page, `${SNAPS}/grown-1720.qoti`);
+  const hall = await idOf(page, 'town-hall');
+  const [hx, hz] = await posOf(page, hall);
+  await lookAt(page, hx, hz, 22);
+  await q(page, () => window.__qoti.setHour(null));
+  const c = await advanceTo(page, 18, 5, 3, false);
+  console.log('at', stamp(c), JSON.stringify(await supNow(page)));
+  await clearCards(page);
+  await select(page, { kind: 'building', id: hall });
+  await say(page, 'Town Hall inspector 18:05 (grown)', '[class*="inspector"]');
+  await shot(page, 1, 'grown-hall-1805');
+};
+S.lamp = async (page) => {
+  await openFile(page, `${SNAPS}/grown-candles-1720.qoti`);
+  const hall = await idOf(page, 'town-hall');
+  const [hx, hz] = await posOf(page, hall);
+  await lookAt(page, hx, hz, 22);
+  await q(page, () => window.__qoti.setHour(null));
+  await clearCards(page);
+  await select(page, { kind: 'building', id: hall });
+  await say(page, 'Town Hall inspector 17:20 (warm willow)', '[class*="inspector"]');
+  await shot(page, 1, 'warm-hall-1720');
+  await select(page, null);
+  let found = 0;
+  for (const m of [35, 38, 42, 47]) {
+    const c = await advanceTo(page, 17 + Math.floor(m / 60), m % 60, 3, false);
+    const ag = await q(page, () => window.__qoti.agentsWith(8192));
+    console.log('at', stamp(c), 'lamplighter agents', JSON.stringify(ag), JSON.stringify(await supNow(page)));
+    if (ag.length && found < 2) {
+      found++;
+      await clearCards(page);
+      await lookAt(page, ag[0][1], ag[0][2], 9);
+      await page.waitForTimeout(600);
+      await shot(
+        page,
+        1,
+        `lamplighter-${found}-${String(c.hour).padStart(2, '0')}${String(c.minute).padStart(2, '0')}`,
+      );
+    }
+  }
+  await clearCards(page);
+  await lookAt(page, hx, hz, 22);
+  await select(page, { kind: 'building', id: hall });
+  await say(page, 'Town Hall inspector 18:05 (warm willow)', '[class*="inspector"]');
+  await shot(page, 1, 'warm-hall-1805');
+};
+
+const listPlaces = (page) =>
+  q(page, () =>
+    window.__qoti
+      .places()
+      .filter((p) => p.supplies && p.supplies.length)
+      .map((p) => ({
+        id: p.id,
+        n: p.name,
+        rest: (p.resting ?? []).length,
+        pri: p.priority ?? 'normal',
+        pieces: p.supplies.reduce((a, s) => a + s.pieces, 0),
+        goods: p.supplies.map((s) => s.good).join('+'),
+      })),
+  );
+S.before = async (page) => {
+  // 17:20 and 18:06 of the warm willow evening: the same place, before and after the settling.
+  await openFile(page, `${SNAPS}/willow-warm-1720.qoti`);
+  await q(page, () => window.__qoti.setHour(null));
+  const ps = await listPlaces(page);
+  const lw = ps.find((p) => p.id.startsWith('site:lantern-walk'));
+  const fire = ps.find((p) => p.id.startsWith('fire:'));
+  const porch = ps.filter((p) => !p.id.startsWith('fire:') && !p.id.startsWith('site:lantern-walk'));
+  console.log(
+    'places',
+    ps.length,
+    'lw',
+    lw?.id,
+    'fire',
+    fire?.id,
+    'others',
+    porch
+      .slice(0, 8)
+      .map((p) => p.id + ':' + p.n + ':' + p.goods)
+      .join(' | '),
+  );
+  for (const [nm, p] of [
+    ['lanternwalk', lw],
+    ['brazier', fire],
+  ])
+    if (p) await placeCard(page, 3, `before-${nm}-1720`, p.id);
+  await select(page, null);
+  await advanceTo(page, 18, 6, 3, false);
+  await clearCards(page);
+  for (const [nm, p] of [
+    ['lanternwalk', lw],
+    ['brazier', fire],
+  ])
+    if (p) await placeCard(page, 3, `after-${nm}-1806`, p.id);
+  console.log('after places', JSON.stringify((await listPlaces(page)).filter((p) => p.rest > 0).slice(0, 5)));
+};
+S.porch = async (page) => {
+  await openFile(page, `${SNAPS}/willow-warm-1720.qoti`);
+  await q(page, () => window.__qoti.setHour(null));
+  const ps = await listPlaces(page);
+  console.log(ps.map((p) => `${p.id}|${p.n}|${p.goods}|${p.pieces}`).join('\n'));
+  const c = ps.find(
+    (p) => /candle/.test(p.goods) && !p.id.startsWith('site:lantern-walk') && !p.id.startsWith('fire:'),
+  );
+  if (c) await placeCard(page, 6, 'porch-candles', c.id, 12);
+  else console.log('no candle place other than lantern walks');
+};
+S.fresh = async (page) => {
+  await page.goto(`${base}/?debug&quality=low&noguide`);
+  await page.getByTestId('new-solo').click();
+  await live(page);
+  await page.waitForTimeout(2500);
+  await clearCards(page);
+  await q(page, () => window.__qoti.openPanel('town-book'));
+  await page.waitForTimeout(1200);
+  await say(page, 'town book, fresh valley', 'aside.book-slot');
+  await shot(page, 5, 'book-fresh');
+};
+
+S.porch5 = async (page) => {
+  await openFile(page, `${SNAPS}/willow-warm-1720.qoti`);
+  await q(page, () => window.__qoti.setHour(null));
+  await placeCard(page, 6, 'porch-household', 'porch:5', 12);
+};
+
+S.lampshot = async (page) => {
+  // R3X: the lamplighter at a lamp north of the Town Hall, from the north (the hall's roof hid him).
+  await openFile(page, `${SNAPS}/grown-candles-1720.qoti`);
+  await q(page, () => window.__qoti.setHour(null));
+  await clearCards(page);
+  for (const [h, m] of [
+    [17, 46],
+    [17, 52],
+  ]) {
+    const c = await advanceTo(page, h, m, 3, false);
+    const ag = await q(page, () => window.__qoti.agentsWith(8192));
+    console.log('at', stamp(c), 'lamplighter agents', JSON.stringify(ag));
+    if (!ag.length) continue;
+    await clearCards(page);
+    await q(page, ([x, z]) => window.__qoti.look(x, z, 6, Math.PI / 2, 0), [ag[0][1], ag[0][2]]);
+    await page.waitForTimeout(800);
+    await shot(
+      page,
+      1,
+      `lamplighter-north-${String(c.hour).padStart(2, '0')}${String(c.minute).padStart(2, '0')}`,
+    );
   }
 };
 

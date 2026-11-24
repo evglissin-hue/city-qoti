@@ -32,6 +32,22 @@ export function gapLabel(g: Pick<GapView, 'kind'>): string {
   return TAG_WORDS[g.kind];
 }
 
+/**
+ * R3X: each open gap's place in the pile of slips on its tile (0 the lowest, by id). Two gaps on one
+ * tile (a well with nothing to sell and running short) drew one slip over the other and hid it (the
+ * chair, round 2); the tag lifts each slip above the one below it.
+ */
+export function slipStack(gaps: readonly Pick<GapView, 'id' | 'tile'>[]): Map<number, number> {
+  const onTile = new Map<number, number>();
+  const out = new Map<number, number>();
+  for (const g of [...gaps].sort((a, b) => a.id - b.id)) {
+    const k = onTile.get(g.tile) ?? 0;
+    onTile.set(g.tile, k + 1);
+    out.set(g.id, k);
+  }
+  return out;
+}
+
 /** Both lenses' rows for the open gaps and the ones closed today. */
 export function gapAlerts(m: Mirror, who: AlertContext): Alert[] {
   const view = m.gaps.value;

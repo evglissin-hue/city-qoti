@@ -157,8 +157,11 @@ class Money implements Advisor {
     // R1X tried a 300 floor here and oak sat lean for weeks with 100 to 299 of credit unused.
     // R3X: near the line's end, borrow only a sizeable sum, or at the last coin: a growing town's line
     // opens twenty coins a newcomer, and borrowing every hundred that opened sent hazel's Ledger 12
-    // loans in 70 days (the lanes test's limit is 150 decisions).
-    if ((coins < 120 && room >= LOAN_MIN) || (coins < 0 && room >= 100)) {
+    // loans in 70 days (the lanes test's limit is 150 decisions). The winter's food is the exception:
+    // while the larder is short of the winter mark a hundred is worth borrowing, or the cart cannot
+    // buy (hazel waited for its last coin and ate its last pantry on day 48, 53 Food for 100).
+    const smallLoan = coins < 0 || p.winterFood > 0;
+    if ((coins < 120 && room >= LOAN_MIN) || (smallLoan && coins < 120 && room >= 100)) {
       p.do('take a loan', [{ t: 'loan.take', coins: Math.min(room, LOAN_COINS) }]);
     } else if (owed > 0 && coins > 500 + p.winterFood) {
       // P3A: the coins the plan advisor keeps for the carrier's winter food are not spare: repaying

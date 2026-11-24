@@ -55,6 +55,23 @@ const v8json = JSON.parse(
 
 const which = process.argv[3] ?? 'all';
 
+if (which === 'growncandles') {
+  // The grown valley with a stock of candles in its first storehouse: the lamplighter has lamps to light.
+  seat(grown);
+  const g = content.goods.findIndex((x) => x.id === 'candles');
+  let put = false;
+  for (const b of grown.buildings) {
+    if (!b.rt) continue;
+    if (!put && content.buildingById.get(b.def)?.tags?.includes('storehouse') && b.stage === 'built') {
+      b.rt.store[g] = 300;
+      put = true;
+    }
+  }
+  if (!put) throw new Error('no storehouse');
+  to(grown, 17, 20);
+  console.log('grown-candles-1720', stamp(grown));
+  writeFileSync(`${out}/grown-candles-1720.qoti`, serialize(grown));
+}
 if (which === 'all' || which === 'grown') {
   seat(grown);
   console.log('grown starts', stamp(grown), 'v', grown.saveVersion);

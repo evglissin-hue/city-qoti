@@ -57,6 +57,8 @@ import { MAX_BUILDERS_PER_SITE } from '../systems/construction';
 import { available } from '../systems/logistics/tasks';
 import { allowedWork } from '../systems/production/status';
 import { supplyGapClosable } from '../systems/supplies/api';
+import { lamplighterJobs } from '../systems/supplies/lamplighter';
+import { LAMPLIGHTER_RANK, shortages, slotPriority } from '../systems/residents/jobs';
 import { pageUnproducible, supplyUnsuppliable, unproducibleContentPages } from './healthR3';
 import { townStock } from './hamlet';
 
@@ -161,6 +163,13 @@ export type HealthKind =
    */
   | 'master-good-unsold'
   /**
+   * R3X: a Village with lanterns whose lamplighter's job stood open at the 19:00 look on two evenings
+   * running while hands worked below its rank (a workplace's later hands, the remaining builders and
+   * porters, level hands): the round R3F draws never walks. The chair met it on willow's Village,
+   * where the first lamplighter could only come from two ranks below and every hand was a first or a second.
+   */
+  | 'lamplighter-unhired'
+  /**
    * R3E: a Town Book hint, or any content specialty or custom, that content cannot produce: a pattern,
    * host or supply that does not exist, a flavor that is not a Treat, or one no maker can make. Once per page.
    */
@@ -198,6 +207,8 @@ export const DAY_TICKS = TICKS_PER_DAY;
 /** P3A: the hour the hands-spiral check looks (folk at work), and the days running it must hold. */
 export const SPIRAL_HOUR = 12;
 export const SPIRAL_DAYS = 2;
+/** R3X: the hour the lamplighter look reads the job (after the 17:30 settling and the 18:00 job pass). */
+export const LAMP_LOOK_HOUR = 19;
 /** P3A (meals): the hour the meals-missed check looks (an hour after breakfast), and the food need that counts as a missed meal. */
 export const MEALS_HOUR = 8;
 export const MEAL_MISSED_BELOW = 60;
@@ -436,6 +447,9 @@ export class HealthWatch {
   private readonly unshelvedSince = new Map<number, number>();
   private masterHour = -1;
   private r3Day = -1;
+  /** R3X: the day of the last lamplighter look, and how many evenings running the job stood open. */
+  private lampDay = -1;
+  private lampRun = 0;
   /** P3A: the day of the last hands-spiral look, and how many looks running it held. */
   private spiralDay = -1;
   private spiralRun = 0;
@@ -836,6 +850,33 @@ export class HealthWatch {
     this.checkSuppliesR3(state, out);
     this.checkMasterGoodsR3(state, out);
     this.checkPagesR3(state, out);
+    this.checkLamplighter(state, out);
+  }
+
+  /** lamplighter-unhired (R3X): at 19:00, after the settling and the evening's first job passes. */
+  private checkLamplighter(state: WorldState, out: HealthIssue[]): void {
+    const day = dayIndex(state.tick);
+    if (day === this.lampDay || hourOf(state.tick) !== LAMP_LOOK_HOUR) return;
+    this.lampDay = day;
+    if (lamplighterJobs(state) === 0 || state.supplies.lamplighters.length > 0) {
+      this.lampRun = 0;
+      return;
+    }
+    const short = shortages(state);
+    let below = 0;
+    for (const b of state.buildings) {
+      const def = content.buildingById.get(b.def);
+      if (!b.rt || !def) continue;
+      for (let k = 0; k < b.rt.workers.length; k++)
+        if (slotPriority(def, k, short, methodOf(b)) > LAMPLIGHTER_RANK) below++;
+    }
+    this.lampRun = below > 0 ? this.lampRun + 1 : 0;
+    if (this.lampRun >= 2)
+      out.push({
+        kind: 'lamplighter-unhired',
+        id: 0,
+        text: `the lamplighter's job stood open two evenings running while ${below} hands worked below its rank`,
+      });
   }
 
   /** supply-unsuppliable (R3E): once a day from the supplies' rank, each supplied piece def standing in town is looked at once. */

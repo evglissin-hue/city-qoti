@@ -6,7 +6,15 @@ import type { Resident, WorldState } from '../../src/contracts';
 import { findById } from '../../src/state/entities';
 import { worldIndex } from '../../src/state/worldIndex';
 import { masteryKey } from '../../src/systems/masters/api';
-import { assignJobs, auditJobs, rebalanceJobs, release } from '../../src/systems/residents/jobs';
+import {
+  assignJobs,
+  auditJobs,
+  LAMPLIGHTER_RANK,
+  rebalanceJobs,
+  release,
+  shortages,
+  slotPriority,
+} from '../../src/systems/residents/jobs';
 import { scheduleOverrides } from '../../src/systems/residents/overrides';
 import {
   lamplighterJobs,
@@ -219,6 +227,40 @@ describe('lamplighter jobs', () => {
     const lamp = findById(s.residents, s.supplies.lamplighters[0]!)!;
     expect(lamp.jobId).toBe(hall(s).id);
     expect(working()).toBe(before - 1);
+  });
+
+  it('takes a later hand when every hand is a first or later hand at a workplace, never a first hand (R3X)', () => {
+    const s = valley('village');
+    const ctx = createTickCtx(s);
+    assignJobs(s, ctx);
+    for (const r of s.residents) if (!r.jobId) r.stage = 'child';
+    // Willow's Village on the chair's evening: nobody free and no hand below a workplace's later hands
+    // (rank 3). The builders, porters and level hands past them are let go and made children.
+    const rankOf = (b: (typeof s.buildings)[number], k: number) =>
+      slotPriority(content.buildingById.get(b.def)!, k, shortages(s));
+    for (const b of s.buildings) {
+      const rt = b.rt;
+      if (!rt) continue;
+      for (let k = rt.workers.length - 1; k >= 0; k--) {
+        if (rankOf(b, k) <= LAMPLIGHTER_RANK + 1) continue;
+        const r = findById(s.residents, rt.workers[k]!)!;
+        release(s, r, false, ctx);
+        r.stage = 'child';
+      }
+    }
+    // The crews as they stand: who holds a later hand's place (rank 3) and who a first hand's.
+    const later = new Set<number>();
+    const first = new Set<number>();
+    for (const b of s.buildings)
+      for (const [k, id] of (b.rt?.workers ?? []).entries())
+        (rankOf(b, k) > LAMPLIGHTER_RANK ? later : first).add(id);
+    expect(later.size, 'the valley has later hands').toBeGreaterThan(0);
+    decor(s, 'lantern', 50, 50);
+    assignJobs(s, ctx);
+    expect(s.supplies.lamplighters).toHaveLength(1);
+    const id = s.supplies.lamplighters[0]!;
+    expect(later.has(id)).toBe(true);
+    expect(first.has(id)).toBe(false);
   });
 
   it('lets the job go when the lanterns do', () => {

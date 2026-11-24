@@ -425,10 +425,12 @@ function keepLamplighters(state: WorldState, ctx: TickCtx): number {
   }
   // R3X: the first lamplighter ranks with a workplace's first hand (LAMPLIGHTER_RANK). In a town with
   // more jobs than hands nobody was ever jobless, so the job stayed open for good and no player saw
-  // the round R3F draws: with no seeker, the first one comes from the least needed work, two ranks
-  // below (the remaining builders and porters, a stuck workplace, a specialized building's level hands).
+  // the round R3F draws: with no seeker, the first one comes from the least needed work below it (the
+  // remaining builders and porters, a stuck workplace, a specialized building's level hands, and last
+  // a workplace's later hands). Taking only from two ranks below left willow's Village, every hand a
+  // first or second at a workplace, with the job open all evening (the R3X chair, round 2).
   if (list.length === 0 && jobs > 0) {
-    const r = leastNeededHand(state, hallDef, LAMPLIGHTER_RANK + 2);
+    const r = leastNeededHand(state, hallDef, LAMPLIGHTER_RANK + 1);
     if (r) {
       release(state, r, false, ctx);
       r.jobId = hall.id;

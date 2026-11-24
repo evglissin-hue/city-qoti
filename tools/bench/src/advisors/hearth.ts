@@ -122,8 +122,8 @@ class Hearth implements Advisor {
 
   private place(def: string, at: [number, number] | null, why: string): boolean {
     if (!at) return false;
-    // R3X: a player does not keep asking for a piece the town cannot pay for (hazel's Village audit:
-    // "flower-bed by a door" refused on 5 days); it waits until the coins or goods are there.
+    // R3X: a player does not keep asking for a priced piece the town cannot pay for; it waits until
+    // the coins or goods are there.
     const d = content.decorById.get(def);
     if (d && decorBlocked(this.w, d)) return false;
     return this.p.do(`${def} ${why}`, [
@@ -236,7 +236,10 @@ class Hearth implements Advisor {
       const door = doorTile(pick);
       const [x, z] = [door % S, Math.floor(door / S)];
       if (candlesAllow(w)) this.place('lantern', p.decorSpot('lantern', x, z, 2), 'on the lane');
-      this.place(w.decor.length % 2 ? 'flower-bed' : 'planter', p.decorSpot('planter', x, z, 2), 'by a door');
+      // R3X: the spot is found for the piece placed (a planter's spot, on the road, was asked of a
+      // flower bed: hazel's Village audit had "flower-bed by a door" refused on 5 days).
+      const bed = w.decor.length % 2 ? 'flower-bed' : 'planter';
+      this.place(bed, p.decorSpot(bed, x, z, 2), 'by a door');
     }
     this.treePlace();
     this.wellGathering();
