@@ -47,7 +47,8 @@ export interface GoldenScript {
   turns: Turn[];
 }
 
-export const DEBUG = new URLSearchParams(location.search).has('debug');
+import { DEBUG } from './debugFlag';
+export { DEBUG };
 
 /** Tiles around the start area center, nearest first, that are on screen. */
 function nearbyTiles(session: Session, radius: number): [number, number][] {

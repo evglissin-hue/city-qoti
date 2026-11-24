@@ -5,7 +5,7 @@
 // The road table straight from its file (a relative import, so the worker does not pull in all of
 // `@qoti/content`: that index would add about 900 kB); a test checks it equals content's `roads`.
 import * as roadDefs from '../../../../packages/content/src/roads';
-import { endpaperInk as K } from '../../../../packages/art/src/palette';
+import { endpaperInk as K, storybookInk } from '../../../../packages/art/src/palette';
 import type { EndpaperInput, EndpaperRoof } from '../render/endpaper';
 import {
   ENDPAPER_MARGIN,
@@ -765,7 +765,29 @@ function plans(c: Cx): void {
 
 // 9. Inks ------------------------------------------------------------------------------------------
 
-function inkLayer(c: Cx, layer: { tiles: Uint16Array; color: number } | undefined, salt: number): void {
+/** An ink's weight: alpha and line width (in tiles) for its weakest band, and what each band adds. */
+interface InkWeight {
+  alpha: number;
+  alphaStep: number;
+  width: number;
+  widthStep: number;
+}
+
+/** The goods routes: V3D's strokes. */
+const GOODS_WEIGHT: InkWeight = { alpha: 0.3, alphaStep: 0.1, width: 0.3, widthStep: 0.22 };
+/**
+ * V4B (the owner, 2026-11-17: the footfall read heavy and teal over the roofs at 240 tiles): the
+ * evening footfall is a broad, light, warm wash laid under the roofs, so the streets glow where
+ * folk walked and the roofs stay clean.
+ */
+const FOOTFALL_WEIGHT: InkWeight = { alpha: 0.13, alphaStep: 0.06, width: 0.6, widthStep: 0.3 };
+
+function inkLayer(
+  c: Cx,
+  layer: { tiles: Uint16Array; color: number } | undefined,
+  salt: number,
+  weight: InkWeight = GOODS_WEIGHT,
+): void {
   if (!layer) return;
   const { g, tiles, P, sc } = c;
   let max = 0;
@@ -815,8 +837,8 @@ function inkLayer(c: Cx, layer: { tiles: Uint16Array; color: number } | undefine
       P.at(list[i + 2]!, list[i + 3]!);
       g.lineTo(P.x, P.y);
     }
-    ink(g, 'stroke', layer.color, 0.3 + b * 0.1);
-    g.lineWidth = sc * (0.3 + b * 0.22);
+    ink(g, 'stroke', layer.color, weight.alpha + b * weight.alphaStep);
+    g.lineWidth = sc * (weight.width + b * weight.widthStep);
     g.stroke();
   }
 }
@@ -1247,12 +1269,79 @@ export function drawMap(g: Ctx, inp: EndpaperInput, size: number, opts: DrawOpts
   run('gardens', gardens);
   run('woods', woods);
   run('roads', roads);
+  // V4B: the footfall under the roofs, the goods routes over them as V3D drew them.
+  run('footfall', (cx) => inkLayer(cx, cx.inp.inks.footfall, 9, FOOTFALL_WEIGHT));
   run('roofs', roofs);
   run('plans', plans);
-  run('inks', (cx) => {
-    inkLayer(cx, cx.inp.inks.goods, 5);
-    inkLayer(cx, cx.inp.inks.footfall, 9);
-  });
+  run('inks', (cx) => inkLayer(cx, cx.inp.inks.goods, 5));
   run('labels', labels);
   run('border', border);
 }
+
+// 12. The night layer (V4B) -------------------------------------------------------------------------
+// Built in a plain buffer, never on a canvas: a canvas call would wait for the map's queued drawing
+// to finish, and the night would pay for the map.
+
+/** V4B: the night layer's side for a map of `size`: a quarter, since lamplight is soft. */
+export function nightSize(size: number): number {
+  return Math.max(64, Math.round(size / 4));
+}
+
+/**
+ * V4B (the owner, 2026-11-17: a subtle lamplit wash at night): the map's night layer, drawn in the
+ * worker once per town change beside the day map. Grey pools on black where the town's lamps stand
+ * (`inp.lamps`); the final pass takes the red channel as the lamplight's strength,
+ * tints it warm and blends it in by the hour, so the hour never redraws the map. The pools land
+ * where the map's own wobble puts the roofs (the same projection).
+ */
+export function nightPixels(inp: EndpaperInput, size: number): Uint8ClampedArray<ArrayBuffer> {
+  const lamps = inp.lamps;
+  const px = new Uint8ClampedArray(size * size * 4);
+  // Opaque black: no lamplight.
+  for (let i = 3; i < px.length; i += 4) px[i] = 255;
+  if (lamps && lamps.length >= 3) {
+    // Each pool is added into one buffer (a few hundred thousand adds for a grown village), then
+    // put once: far cheaper than a gradient fill per lamp.
+    const glow = new Float32Array(size * size);
+    const span = endpaperSpan(inp.tiles);
+    const P = new Proj(size, span, ENDPAPER_MARGIN);
+    const sc = size / span;
+    for (let i = 0; i + 2 < lamps.length; i += 3) {
+      const s = Math.min(1.5, Math.max(0, lamps[i + 2]!));
+      if (!s) continue;
+      P.at(lamps[i]!, lamps[i + 1]!);
+      const r = sc * (1.3 + 1.5 * s);
+      const peak = 0.42 * s;
+      const x0 = Math.max(0, Math.floor(P.x - r));
+      const x1 = Math.min(size - 1, Math.ceil(P.x + r));
+      const y0 = Math.max(0, Math.floor(P.y - r));
+      const y1 = Math.min(size - 1, Math.ceil(P.y + r));
+      const inv = 1 / (r * r);
+      for (let y = y0; y <= y1; y++) {
+        const dy = y + 0.5 - P.y;
+        for (let x = x0; x <= x1; x++) {
+          const dx = x + 0.5 - P.x;
+          const t = 1 - (dx * dx + dy * dy) * inv;
+          if (t > 0) glow[y * size + x] = glow[y * size + x]! + peak * t * t;
+        }
+      }
+    }
+    for (let i = 0; i < glow.length; i++) {
+      const v = Math.round(Math.min(1, glow[i]!) * 255);
+      px[i * 4] = v;
+      px[i * 4 + 1] = v;
+      px[i * 4 + 2] = v;
+    }
+  }
+  return px;
+}
+
+/** The night layer drawn into a canvas (tests, and any caller that has one). */
+export function drawNight(g: Ctx, inp: EndpaperInput, size: number): void {
+  const img = g.createImageData(size, size);
+  img.data.set(nightPixels(inp, size));
+  g.putImageData(img, 0, 0);
+}
+
+/** V4B: the lamplight's tint on the parchment (a token of `storybookInk`), for tests and the shader. */
+export const LAMP_POOL = storybookInk.lampPool;

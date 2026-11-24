@@ -158,6 +158,7 @@ export {
   PLASTERS,
   ROOFS,
   SEAT_COLORS,
+  storybookInk,
   TERRAIN_COLORS,
   type Palette2Single,
 } from './palette';

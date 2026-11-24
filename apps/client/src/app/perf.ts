@@ -441,11 +441,34 @@ export function sameCounts(a: MirrorCounts, b: MirrorCounts): boolean {
 
 /** About how long a run takes, in seconds: each row settles, moves and rests; showcases load. */
 export function measureSeconds(
-  opts: Pick<MeasureOptions, 'move' | 'rest' | 'settle' | 'settleMax' | 'still'> = {},
+  opts: Pick<
+    MeasureOptions,
+    'move' | 'rest' | 'settle' | 'settleMax' | 'still' | 'presets' | 'nightPresets' | 'scenes'
+  > = {},
 ): number {
   const row = (opts.settle ?? 1.5) + (opts.move ?? 10) + (opts.rest ?? 10) + (opts.still ?? 3) + 1;
   const load = Math.min(opts.settleMax ?? 20, 12) + 3;
-  return measureRowCount() * row + (MEASURE_SCENES.length - 1) * load;
+  const scenes = opts.scenes ?? MEASURE_SCENES;
+  const showcases = scenes.filter((x) => x !== 'valley').length;
+  return measureRowCount(opts.presets, opts.nightPresets, scenes) * row + showcases * load;
+}
+
+/**
+ * The e2e's way to shorten a run (needs `?debug`). `measure=quick`: every row, a second of movement
+ * and of rest. `measure=smoke`: the same short durations, but Medium only, by day and at night, in
+ * each of the three scenes (6 rows instead of 18). No parameter: the full run, for players.
+ */
+export function measureOptionsFromQuery(search: string): MeasureOptions | null {
+  try {
+    const q = new URLSearchParams(search);
+    if (!q.has('debug')) return null;
+    const mode = q.get('measure');
+    if (mode !== 'quick' && mode !== 'smoke') return null;
+    const quick: MeasureOptions = { move: 1, rest: 1, settle: 0.5, settleMax: 4, still: 0.5 };
+    return mode === 'smoke' ? { ...quick, presets: ['medium'], nightPresets: ['medium'] } : quick;
+  } catch {
+    return null;
+  }
 }
 
 /** Rows in a whole run: every preset by day and the night presets at night, in each scene. */

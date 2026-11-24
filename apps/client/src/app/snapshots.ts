@@ -8,7 +8,7 @@
 // drawn, photo mode that only hid the interface) are gone; with no renderer there is no picture.
 import type { ChronicleSnapshot, EntityId } from '@qoti/sim';
 import { snapshotStore, type SnapshotStore } from '../net/images';
-import type { CaptureOptions, RenderApi } from '../render/api';
+import type { CaptureOptions, CaptureStyle, RenderApi } from '../render/api';
 import type { MirrorChange } from '../state/mirror';
 import type { UiState } from '../ui/state';
 
@@ -32,6 +32,8 @@ export type SeasonRender = RenderApi & {
 
 /** A thumbnail's size, the Chronicle's column width at 2x. */
 export const SNAPSHOT_SIZE: [number, number] = [320, 200];
+/** V4B: how the Chronicle's snapshots are drawn. */
+export const SNAPSHOT_STYLE: CaptureStyle = 'ink';
 /** When the other seat looks for the picture, ms after the entry arrives. */
 const FETCH_AFTER = [4000, 15000, 45000];
 
@@ -71,7 +73,11 @@ export function isPhotographer(s: SnapshotSession): boolean {
 
 async function capture(s: SnapshotSession, snap: ChronicleSnapshot): Promise<Blob | null> {
   const r = s.render as SeasonRender | null;
-  return r?.capture ? r.capture({ focus: snap.focus, radius: snap.radius, size: SNAPSHOT_SIZE }) : null;
+  // V4B: new snapshots are drawn in ink and wash, as the books are; old entries keep the plain
+  // picture they were stored with.
+  return r?.capture
+    ? r.capture({ focus: snap.focus, radius: snap.radius, size: SNAPSHOT_SIZE, style: SNAPSHOT_STYLE })
+    : null;
 }
 
 function remember(ui: UiState, entry: EntityId, blob: Blob): void {

@@ -3,23 +3,29 @@ import { calendar, MAP_SIZE, TILE_FP, type SeatId, type WeatherKind } from '@qot
 import {
   Color,
   DirectionalLight,
+  DepthTexture,
+  DoubleSide,
   FloatType,
   Fog,
+  HalfFloatType,
   HemisphereLight,
   MathUtils,
   Mesh,
+  MeshLambertMaterial,
   PCFShadowMap,
   PerspectiveCamera,
   Quaternion,
   Raycaster,
   Scene,
   SRGBColorSpace,
+  UnsignedByteType,
+  UnsignedIntType,
   Vector2,
   Vector3,
   WebGLRenderer,
   WebGLRenderTarget,
   type Material,
-  type MeshLambertMaterial,
+  type Object3D,
 } from 'three';
 import { endpaperStill } from './endpaper';
 import { CameraController, FOV, setFreeCamera } from '../input/camera';
@@ -50,19 +56,49 @@ import {
   type StillKeyParts,
 } from './cache';
 import { GpuTimer } from './gpuTimer';
+import { INK_LEAVES_OUT, InkPass, inkScale } from './ink';
 import { layerRoot, MOVING_LAYER, STATIC_LAYER } from './layerTags';
 import { hazeFor, lightingAt } from './lighting';
 import { LOOK_TONE_MAPPING } from './look';
 import { createWorldMaterial } from './material';
 import { pickTileFromRay } from './picking';
-import { LeanFrame } from './post';
+import { untilDeveloped } from './photoSave';
+import { LeanFrame, type RestLens } from './post';
 import { buildingDetailNow, closeUpNow, pixelRatios, QUALITY_PRESETS, type Quality } from './quality';
-import { refineGoal, refineOffFromUrl, type RefineGovernorInput, type RefineJitter } from './refine';
+import {
+  lensAperture,
+  PHOTO_SAMPLES,
+  refineAllFromUrl,
+  refineGoal,
+  refineJitter,
+  refineOffFromUrl,
+  SampleMeter,
+  sampleProjection,
+  SUN_DISC,
+  type RefineGovernorInput,
+  type RefineJitter,
+} from './refine';
 import { DynamicResolution } from './resolution';
-import { ShadowCache, type ShadowView } from './shadows';
+import {
+  discDirection,
+  halfFor,
+  MAX_HALF,
+  SampleSun,
+  sampleShadowSize,
+  ShadowCache,
+  type ShadowView,
+} from './shadows';
+import { CaptureAccum, captureJitterIndices, captureSampleCount } from './captureAccum';
 import { shadowContentDue, StaticRevisions } from './statics';
 
 export type { Quality } from './quality';
+
+/** V4X: where a developed capture's sample sun fits its shadow frustum (`drawSample`'s `fit`). */
+interface CaptureFit {
+  center: Vector3;
+  half: number;
+  distance: number;
+}
 
 export interface RenderStats {
   fps: number;
@@ -180,8 +216,17 @@ export class Renderer implements RenderApi {
   private keptParts: StillKeyParts | null = null;
   /** V4: `?debug&refine=0`, refinement off on this build (the before for the laptop tables). */
   private readonly refineOff = refineOffFromUrl(location.search);
+  /** V4A: `?debug&refine=all`, the governor without the measured times (tests on software renderers). */
+  private readonly refineAll = refineAllFromUrl(location.search);
   /** V4: what the still-frame cache's `refine` draws a sample with. */
   private readonly refineContext: RefineContext;
+  /** V4A: the GPU ms of sample frames (the governor's `sampleGpuMs`). */
+  private readonly sampleMeter = new SampleMeter();
+  /** V4A: a sample's own sun (inside its disc, or a part of the sky) and shadow map. */
+  private readonly sampleSun = new SampleSun();
+  private readonly sampleDir = new Vector3();
+  private readonly sampleEye = new Vector3();
+  private readonly sampleColor = new Color();
   /** V2A: the static-change counters (statics.ts): the still frame's and the shadow map's. */
   private readonly statics = new StaticRevisions();
   /** When shadows last rendered (ms). */
@@ -268,6 +313,7 @@ export class Renderer implements RenderApi {
       renderer: this.three,
       frame: this.lean,
       draw: (jitter, target) => this.drawSample(jitter, target),
+      drawSky: (jitter, target) => this.drawSky(jitter, target),
     };
     this.lean.useEndpaper(this.env.endpaper);
     this.setQuality(quality);
@@ -647,30 +693,209 @@ export class Renderer implements RenderApi {
     };
   }
 
+  /**
+   * V4X: whether a capture may draw `samples` here: only where a resting frame develops at all (a
+   * preset with the still-frame cache whose governor gives it samples; not on Low, not with
+   * `?debug&refine=0`, not on a laptop whose sample frames the governor found too slow). A laptop
+   * that never refines never pays for a developed picture either.
+   */
+  private captureDevelops(): boolean {
+    return (
+      QUALITY_PRESETS[this.quality].stillCache && refineGoal({ ...this.governorInput(), photo: false }) > 0
+    );
+  }
+
   /** V4: what the refinement's governor reads when a rest keeps a still frame (refine.ts). */
   private governorInput(): RefineGovernorInput {
+    const measured = !this.refineAll;
     return {
       quality: this.quality,
       presetSamples: QUALITY_PRESETS[this.quality].refineSamples,
-      movingFrameMs: this.resolution.movingMs,
+      movingFrameMs: measured ? this.resolution.movingMs : null,
       resolutionStep: this.resolution.stepIndex,
-      gpuMs: this.gpuTimer.ms,
-      sampleGpuMs: null,
+      gpuMs: measured ? this.gpuTimer.ms : null,
+      sampleGpuMs: measured ? this.sampleMeter.read(performance.now(), this.quality) : null,
       photo: this.photoOn,
       off: this.refineOff,
     };
   }
 
   /**
-   * V4: one sample of the static layers into `target` for the still-frame cache's `refine`. V4A
-   * jitters it (the pixel through the camera's view offset, the sun inside its disc with a shadow
-   * render, the lens about the focus, one sample in four lit from the sky); V4.0 draws it plain, and
-   * nothing calls it until V4A's `refine` does. `camera` is the main one but for V4X's developed
-   * captures (`capture`'s `samples`, drawn from the capture camera).
+   * V4: one sample of the static layers into `target` for the still-frame cache's `refine`. V4A:
+   * the pixel moves by a sub-pixel offset of the projection and the eye about the focus (the lens,
+   * refine.ts `sampleProjection`), and the sun moves inside its disc with a shadow map of its own
+   * (shadows.ts `SampleSun`), so the cached map moving layers receive stays as it was. Everything is
+   * put back after. Sky samples are `drawSky`'s. `camera` is the main one but for V4X's developed
+   * captures (`capture`'s `samples`; no lens there). V4X: `which` is 'all' for a capture (residents,
+   * carts and smoke too), and `fit` puts the sun's shadow frustum about the capture's aim, with
+   * sample 0 drawn the same way (the undisturbed sun and pixel) so the mean's samples agree.
+   * Sky-only indices (every fourth) are plain sun-disc samples here: the sky is the cache's.
    */
-  private drawSample(jitter: RefineJitter, target: WebGLRenderTarget, camera = this.camera): void {
-    void jitter;
-    this.scenePass(target, 'static', camera);
+  private drawSample(
+    jitter: RefineJitter,
+    target: WebGLRenderTarget,
+    camera = this.camera,
+    which: 'all' | 'static' = 'static',
+    fit?: CaptureFit,
+  ): void {
+    if (jitter.index <= 0 && !fit) {
+      this.scenePass(target, which, camera);
+      return;
+    }
+    const pm = camera.projectionMatrix.elements;
+    const e8 = pm[8]!;
+    const e9 = pm[9]!;
+    const main = camera === this.camera;
+    const focus = fit ? fit.distance : main ? this.viewDistance : camera.position.distanceTo(this.env.focus);
+    // The lens: true depth of field under the tilt-shift (none for V4X's captures until it asks).
+    const aperture = main
+      ? lensAperture({
+          samples: this.photoOn ? PHOTO_SAMPLES : QUALITY_PRESETS[this.quality].refineSamples,
+          dof: this.lean.depthOfField,
+          tilt: this.lean.tiltStrength,
+          focus,
+          width: target.width,
+          p00: pm[0]!,
+          tanPitch: this.tanPitch(camera),
+          tanHalfFov: Math.tan(MathUtils.degToRad(camera.fov / 2)),
+        })
+      : 0;
+    const { eye, shift } = sampleProjection(
+      jitter,
+      target.width,
+      target.height,
+      aperture,
+      focus,
+      pm[0]!,
+      pm[5]!,
+    );
+    pm[8] = e8 + shift[0];
+    pm[9] = e9 + shift[1];
+    camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert();
+    const moved = eye[0] !== 0 || eye[1] !== 0;
+    if (moved) {
+      this.sampleEye.copy(camera.position);
+      camera.translateX(eye[0]);
+      camera.translateY(eye[1]);
+      camera.updateMatrixWorld();
+    }
+    // The sun inside its disc: never on a frame whose cached map is due (that render must be the
+    // plain one, and the sample then keeps the plain sun).
+    const shadows = this.three.shadowMap;
+    let lit = false;
+    const sun = this.sun;
+    if (shadows.enabled && !shadows.needsUpdate) {
+      const dir = discDirection(this.sunDir, jitter.sun, SUN_DISC, this.sampleDir);
+      lit = this.sampleSun.begin(
+        sun,
+        this.shadowCache,
+        dir,
+        undefined,
+        sampleShadowSize(sun.shadow.mapSize.x, fit ? fit.distance : this.viewDistance),
+        fit,
+      );
+      if (lit) shadows.needsUpdate = true;
+    }
+    this.scenePass(target, which, camera);
+    if (lit) this.sampleSun.end(sun);
+    pm[8] = e8;
+    pm[9] = e9;
+    camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert();
+    if (moved) {
+      camera.position.copy(this.sampleEye);
+      camera.updateMatrixWorld();
+    }
+  }
+
+  /**
+   * V4A: one sky sample for the still-frame cache (cache.ts `RefineContext.drawSky`): the static
+   * layers in plain white (`skyMaterial`), lit only from the sample's part of the sky, in red
+   * through a shadow map from there (`SampleSun`, its filter twice as soft) and in green without
+   * one. The cache adds them up; red over green is how much of the sky a pixel sees. Every light,
+   * the clear color and the override are put back after.
+   */
+  private drawSky(jitter: RefineJitter, target: WebGLRenderTarget): void {
+    const sky = jitter.sky ?? [0, 1, 0];
+    const dir = this.sampleDir.set(sky[0], sky[1], sky[2]).normalize();
+    const three = this.three;
+    const shadows = three.shadowMap;
+    const sun = this.sun;
+    const fill = this.fill;
+    const clear = this.sampleColor;
+    three.getClearColor(clear);
+    const clearAlpha = three.getClearAlpha();
+    three.setClearColor(0xffffff, 1);
+    const lit =
+      shadows.enabled &&
+      !shadows.needsUpdate &&
+      this.sampleSun.begin(
+        sun,
+        this.shadowCache,
+        dir,
+        Math.max(1, sun.shadow.radius) * 2,
+        sampleShadowSize(sun.shadow.mapSize.x, this.viewDistance),
+      );
+    if (!lit) {
+      // Nothing to cast from (or the cached map is due): an open sky, so the sum is unchanged in kind.
+      three.setRenderTarget(target);
+      three.clear();
+      three.setClearColor(clear, clearAlpha);
+      return;
+    }
+    shadows.needsUpdate = true;
+    const saved = {
+      sunIntensity: sun.intensity,
+      fillColor: fill.color.clone(),
+      fillIntensity: fill.intensity,
+      fillPosition: fill.position.clone(),
+      hemi: this.hemi.intensity,
+    };
+    const sunColor = sun.color.clone();
+    sun.color.setRGB(1, 0, 0);
+    sun.intensity = 1;
+    fill.color.setRGB(0, 1, 0);
+    fill.intensity = 1;
+    fill.position.copy(dir).add(fill.target.position);
+    this.hemi.intensity = 0;
+    this.scene.overrideMaterial = this.skyMaterial;
+    this.scenePass(target, 'static');
+    this.scene.overrideMaterial = null;
+    this.sampleSun.end(sun);
+    sun.color.copy(sunColor);
+    sun.intensity = saved.sunIntensity;
+    fill.color.copy(saved.fillColor);
+    fill.intensity = saved.fillIntensity;
+    fill.position.copy(saved.fillPosition);
+    this.hemi.intensity = saved.hemi;
+    three.setClearColor(clear, clearAlpha);
+  }
+
+  /** V4A: what a sky sample draws everything in: plain white, both sides, no fog. */
+  private readonly skyMaterial = new MeshLambertMaterial({ color: 0xffffff, fog: false, side: DoubleSide });
+
+  /** V4A: the view's tilt below level, as a tangent. */
+  private tanPitch(camera: PerspectiveCamera): number {
+    const d = camera.getWorldDirection(this.pitchDir);
+    return -d.y / Math.max(1e-6, Math.hypot(d.x, d.z));
+  }
+
+  private readonly pitchDir = new Vector3();
+
+  /** V4A: the lens at rest for the final pass (post.ts `RestLens`), once the picture develops. */
+  private restLens(): RestLens | undefined {
+    const depth = this.still.depth;
+    const ramp = this.still.lensRamp;
+    if (!depth || ramp <= 0) return undefined;
+    const c = this.camera;
+    return {
+      depth,
+      ramp,
+      near: c.near,
+      far: c.far,
+      focus: this.viewDistance,
+      tanPitch: this.tanPitch(c),
+      tanHalfFov: Math.tan(MathUtils.degToRad(c.fov / 2)),
+    };
   }
 
   /** The lean engine's frame: a moving, still or idle scene pass, then the blur and final pass. */
@@ -720,17 +945,28 @@ export class Renderer implements RenderApi {
         // forced redraw (a quality change, the AO's code arriving) starts over.
         this.still.keep(this.three, lean, target, key, stillChange(this.keptParts, parts) ?? 'targets');
         this.keptParts = parts;
-        this.still.goal = refineGoal(this.governorInput());
+        // V4A: a restart develops from 0, a fold-in develops the governor's samples again on top.
+        this.still.goal = this.still.samples + refineGoal(this.governorInput());
+        this.sampleMeter.start(this.gpuTimer.total);
         mode = 'still';
       } else if (this.still.developing(key) && this.still.refine(1, this.refineContext) > 0) {
         // V4: a sample folded into the kept picture (V4A), then the idle frame over it.
+        this.sampleMeter.sample(this.gpuTimer.total, this.gpuTimer.history, now, this.quality);
         mode = 'sample';
       }
+      // V4A: once developed, the picture goes into the frame's own format (idle frames as before).
+      this.still.settle(lean);
       this.scenePass(target, 'idle');
       // V2X: at rest the night's bloom comes from the still frame, built once and reused; while a
       // moving layer glows (fireflies, fireworks) it is built from the whole frame every few frames.
+      // V4A: from the picture on show, once per still frame and once more when it settles.
       const glowing = this.layers.some((l) => l.glowing?.() === true);
-      lean.finish(target, { picture: this.still.picture, key, glowing });
+      lean.finish(target, {
+        picture: this.still.picture,
+        key: this.still.pictureKey(key),
+        glowing,
+        lens: this.restLens(),
+      });
     }
     this.gpuTimer.end();
     this.needsRender = false;
@@ -778,6 +1014,9 @@ export class Renderer implements RenderApi {
    * still-frame cache), or `idle` (the cache restored, then the moving layers). Layers the pass
    * does not draw are hidden for it, so three does not even walk them.
    */
+  /** V4X: roots a developed ink capture leaves out of every sample (the page's marks and tufts). */
+  private passHidden: Object3D[] | null = null;
+
   private scenePass(
     target: WebGLRenderTarget,
     which: 'all' | 'static' | 'idle',
@@ -787,7 +1026,9 @@ export class Renderer implements RenderApi {
     if (which === 'static') cam.layers.set(STATIC_LAYER);
     else if (which === 'idle') cam.layers.set(MOVING_LAYER);
     for (const r of this.roots)
-      r.root.visible = which === 'all' || (which === 'static' ? !r.moving : r.moving);
+      r.root.visible =
+        (which === 'all' || (which === 'static' ? !r.moving : r.moving)) &&
+        !(this.passHidden !== null && this.passHidden.includes(r.root));
     this.still.restore.visible = which === 'idle';
     this.three.setRenderTarget(target);
     this.three.render(this.scene, cam);
@@ -995,15 +1236,32 @@ export class Renderer implements RenderApi {
   /** V4: photo mode is on (the governor then develops to PHOTO_SAMPLES; V4A and V4B). */
   private photoOn = false;
 
+  /**
+   * C5E: draws the picture at one and a half times the still frame's resolution and saves it.
+   * V4B: when the governor develops photo mode's still (V4A's PHOTO_SAMPLES), it waits until the
+   * samples reach the goal (`untilDeveloped`, at most `PHOTO_DEVELOP_TIMEOUT_MS`), then takes the
+   * developed picture; with no refinement (V4.0's stub, Low) it saves at once, as before.
+   */
   private async savePng(): Promise<Blob> {
     const canvas = this.three.domElement;
     const max = this.three.capabilities.maxTextureSize || 4096;
     const big = Math.max(canvas.width, canvas.height) || 1;
     this.photoBoost = Math.max(1, Math.min(1.5, (max * 0.9) / big));
     this.applyLayout();
-    // Draw the picture now, at rest, and take the canvas in the same task (before it is cleared).
     this.updateLighting();
-    this.drawLean(performance.now(), true, QUALITY_PRESETS[this.quality].stillCache);
+    const cached = QUALITY_PRESETS[this.quality].stillCache;
+    const develops = cached && refineGoal(this.governorInput()) > 0;
+    if (develops && typeof requestAnimationFrame === 'function') {
+      this.invalidate();
+      await untilDeveloped(
+        () => this.stats,
+        () => new Promise((r) => requestAnimationFrame(r)),
+        () => performance.now(),
+      );
+    }
+    // Draw the picture now, at rest, and take the canvas in the same task (before it is cleared):
+    // the developed still as it stands, or a fresh still frame where nothing develops.
+    this.drawLean(performance.now(), !develops, cached);
     const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
     this.photoBoost = 1;
     this.applyLayout();
@@ -1013,6 +1271,14 @@ export class Renderer implements RenderApi {
 
   private captureTarget: WebGLRenderTarget | null = null;
   private readonly captureCamera = new PerspectiveCamera(FOV, 1.6, 0.5, 2000);
+  /** V4B: the ink pass and its two targets, made on the first ink picture. */
+  private inkPass: InkPass | null = null;
+  private inkSource: WebGLRenderTarget | null = null;
+  private inkOut: WebGLRenderTarget | null = null;
+  /** V4B: captures run one at a time, each at a rest. */
+  private captureChain: Promise<unknown> = Promise.resolve();
+  /** V4B: pictures taken, frames waited for a rest, and the last one's cost in ms (main thread). */
+  readonly captures = { taken: 0, waitedFrames: 0, lastMs: 0 };
 
   /**
    * C5E: a small picture of the valley about `focus` (tiles), `radius` tiles across, for the
@@ -1021,20 +1287,101 @@ export class Renderer implements RenderApi {
    * The camera looks from the player's own bearing at 50 degrees. What the main view's culling has
    * put away (far chunks) may be missing from a snapshot of somewhere else.
    *
-   * V4 (`CaptureOptions`): `style: 'ink'` is V4B's ink and wash for the books, and `samples` the
-   * developed picture (V4A's refinement; photo mode and print take PHOTO_SAMPLES). A capture is
-   * taken at rest, never on a moving frame, and costs nothing while no book is open.
+   * V4 (`CaptureOptions`): `style: 'ink'` is V4B's ink and wash for the books (`ink.ts`), and
+   * `samples` the developed picture (V4X wires it through V4A's accumulation). V4B: a capture waits
+   * for the camera to rest (`untilRest`) and captures run one at a time, so a picture never lands
+   * on a moving frame; nothing asks for one while no book is open (`app/inkPictures.ts`).
    */
-  async capture(opts: CaptureOptions): Promise<Blob | null> {
-    // V4.0: `style` and `samples` are typed for V4B and V4A; until they land every capture is the
-    // plain picture in one pass, whatever was asked (an 'ink' capture too).
-    const [w, h] = opts.size;
-    const sw = Math.max(2, Math.round(w * 2));
-    const sh = Math.max(2, Math.round(h * 2));
-    if (!this.captureTarget || this.captureTarget.width !== sw || this.captureTarget.height !== sh) {
-      this.captureTarget?.dispose();
-      this.captureTarget = new WebGLRenderTarget(sw, sh, { type: FloatType, depthBuffer: true });
+  capture(opts: CaptureOptions): Promise<Blob | null> {
+    const run = this.captureChain.then(async () => {
+      await this.untilRest();
+      const t0 = performance.now();
+      const blob = opts.style === 'ink' ? await this.captureInk(opts) : await this.capturePlain(opts);
+      this.captures.taken++;
+      this.captures.lastMs = performance.now() - t0;
+      return blob;
+    });
+    this.captureChain = run.catch(() => null);
+    return run;
+  }
+
+  /**
+   * V4B: resolves on the first frame the camera has held still for three frames (and no resident
+   * is followed). Without animation frames (tests) it resolves at once.
+   */
+  private untilRest(): Promise<void> {
+    if (typeof requestAnimationFrame !== 'function') return Promise.resolve();
+    const last = new Float32Array(16);
+    let still = 0;
+    return new Promise((resolve) => {
+      const step = () => {
+        const m = this.camera.matrixWorld.elements;
+        let same = true;
+        for (let i = 0; i < 16; i++) if (Math.abs(m[i]! - last[i]!) > 1e-5) same = false;
+        last.set(m);
+        still = same && this.followId === null ? still + 1 : 0;
+        if (still >= 3) resolve();
+        else {
+          this.captures.waitedFrames++;
+          requestAnimationFrame(step);
+        }
+      };
+      requestAnimationFrame(step);
+    });
+  }
+
+  private readonly captureAccum = new CaptureAccum();
+  private inkScratch: WebGLRenderTarget | null = null;
+  private readonly captureAim = new Vector3();
+
+  /** V4X: a print's accumulation and scratch targets are large: let them go with the print's. */
+  private releaseCaptureScratch(): void {
+    this.captureAccum.dispose();
+    this.inkScratch?.dispose();
+    this.inkScratch = null;
+  }
+
+  /**
+   * V4X: a developed capture. Sample 0 (the plain pixel and sun) goes into `first`, then the
+   * jittered samples `refineJitter(1..n)` into `scratch` (or `first` again when nothing else of
+   * sample 0 is wanted, as the plain picture), each drawn from the capture camera through
+   * `drawSample` (every layer, no lens, the sun's shadow frustum fitted to the capture's aim) and
+   * folded into a running mean on the GPU. Returns the mean's target; `first` keeps sample 0's depth.
+   * The main view's shadow map, light, camera and render target are as they were after, and the
+   * still frame is not touched (it is not even invalidated: no cache key reads any of this).
+   */
+  private developCapture(
+    cam: PerspectiveCamera,
+    dist: number,
+    n: number,
+    first: WebGLRenderTarget,
+    scratch: WebGLRenderTarget | null,
+    float: boolean,
+    sky: Color | null,
+  ): WebGLRenderTarget {
+    const three = this.three;
+    const shadows = three.shadowMap;
+    const pending = shadows.needsUpdate;
+    shadows.needsUpdate = false;
+    const fit: CaptureFit = {
+      center: this.captureAim,
+      half: Math.min(MAX_HALF * 1.2, halfFor(dist) * 1.2),
+      distance: dist,
+    };
+    const acc = this.captureAccum;
+    acc.begin(first.width, first.height, float);
+    for (const i of captureJitterIndices(n)) {
+      const target = i === 0 || !scratch ? first : scratch;
+      this.drawSample(refineJitter(i), target, cam, 'all', fit);
+      acc.add(three, target.texture, sky);
     }
+    shadows.needsUpdate = pending;
+    return acc.target;
+  }
+
+  /** The capture camera about `opts.focus`, from the player's bearing at 50 degrees: its distance. */
+  private aimCapture(opts: CaptureOptions): number {
+    const [w, h] = opts.size;
     const cam = this.captureCamera;
     cam.aspect = w / h;
     cam.fov = FOV;
@@ -1052,22 +1399,44 @@ export class Renderer implements RenderApi {
       fz - Math.cos(yaw) * Math.cos(pitch) * dist,
     );
     cam.lookAt(fx, y, fz);
+    this.captureAim.set(fx, y, fz);
     cam.near = Math.max(0.5, dist * 0.05);
     cam.far = dist * 6;
     cam.updateProjectionMatrix();
     cam.layers.mask = this.camera.layers.mask;
+    return dist;
+  }
+
+  /** C5E's plain picture, exactly as before V4. */
+  private async capturePlain(opts: CaptureOptions): Promise<Blob | null> {
+    const [w, h] = opts.size;
+    const sw = Math.max(2, Math.round(w * 2));
+    const sh = Math.max(2, Math.round(h * 2));
+    if (!this.captureTarget || this.captureTarget.width !== sw || this.captureTarget.height !== sh) {
+      this.captureTarget?.dispose();
+      this.captureTarget = new WebGLRenderTarget(sw, sh, { type: FloatType, depthBuffer: true });
+    }
+    const cam = this.captureCamera;
+    const dist = this.aimCapture(opts);
     const three = this.three;
     const prev = three.getRenderTarget();
     const fog = this.scene.fog as Fog;
     const fogSave = { near: fog.near, far: fog.far };
     Object.assign(fog, hazeFor(dist));
-    three.setRenderTarget(this.captureTarget);
-    three.clear();
-    three.render(this.scene, cam);
+    const n = this.captureDevelops() ? captureSampleCount(opts.samples, w, h) : 0;
+    let source = this.captureTarget;
+    if (n > 0) {
+      source = this.developCapture(cam, dist, n, this.captureTarget, null, true, this.env.sky.value);
+    } else {
+      three.setRenderTarget(this.captureTarget);
+      three.clear();
+      three.render(this.scene, cam);
+    }
     three.setRenderTarget(prev);
     Object.assign(fog, fogSave);
     const px = new Float32Array(sw * sh * 4);
-    three.readRenderTargetPixels(this.captureTarget, 0, 0, sw, sh, px);
+    three.readRenderTargetPixels(source, 0, 0, sw, sh, px);
+    if (n > 0 && w * h > 1_000_000) this.releaseCaptureScratch();
     const canvas = document.createElement('canvas');
     canvas.width = w;
     canvas.height = h;
@@ -1098,6 +1467,107 @@ export class Renderer implements RenderApi {
         img.data[q + 3] = 255;
       }
     }
+    g.putImageData(img, 0, 0);
+    return new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+  }
+
+  /**
+   * V4B: the ink picture. The valley is drawn once into a half float target with a depth texture
+   * (twice the size for a slot, its own size with MSAA for a print, never a 3200 x 2400 float
+   * buffer), inked on the GPU by `InkPass` into an 8-bit target the picture's size, and only those
+   * bytes are read back (7.7 MB for a 1600 x 1200 print). A print's targets are let go at once.
+   */
+  private async captureInk(opts: CaptureOptions): Promise<Blob | null> {
+    const [w, h] = opts.size.map((v) => Math.max(2, Math.round(v))) as [number, number];
+    const k = inkScale(w, h);
+    const sw = w * k;
+    const sh = h * k;
+    const three = this.three;
+    if (!this.inkSource || this.inkSource.width !== sw || this.inkSource.height !== sh) {
+      this.inkSource?.dispose();
+      const depth = new DepthTexture(sw, sh, UnsignedIntType);
+      this.inkSource = new WebGLRenderTarget(sw, sh, {
+        type: HalfFloatType,
+        depthBuffer: true,
+        depthTexture: depth,
+        samples: k === 1 ? Math.min(4, three.capabilities.maxSamples) : 0,
+      });
+    }
+    if (!this.inkOut || this.inkOut.width !== w || this.inkOut.height !== h) {
+      this.inkOut?.dispose();
+      this.inkOut = new WebGLRenderTarget(w, h, { type: UnsignedByteType, depthBuffer: false });
+    }
+    const cam = this.captureCamera;
+    const dist = this.aimCapture(opts);
+    const prev = three.getRenderTarget();
+    const fog = this.scene.fog as Fog;
+    const fogSave = { near: fog.near, far: fog.far };
+    Object.assign(fog, hazeFor(dist));
+    // The page leaves out the interface's marks and the meadow's tufts (the wash says grass).
+    const hidden = this.layers.flatMap((l, i) =>
+      INK_LEAVES_OUT.includes(l.id) && this.roots[i]!.root.visible ? [this.roots[i]!.root] : [],
+    );
+    for (const root of hidden) root.visible = false;
+    const n = this.captureDevelops() ? captureSampleCount(opts.samples, w, h) : 0;
+    let color: WebGLRenderTarget = this.inkSource;
+    if (n > 0) {
+      if (!this.inkScratch || this.inkScratch.width !== sw || this.inkScratch.height !== sh) {
+        this.inkScratch?.dispose();
+        this.inkScratch = new WebGLRenderTarget(sw, sh, {
+          type: HalfFloatType,
+          depthBuffer: true,
+          samples: k === 1 ? Math.min(4, three.capabilities.maxSamples) : 0,
+        });
+      }
+      this.passHidden = hidden;
+      color = this.developCapture(cam, dist, n, this.inkSource, this.inkScratch, false, null);
+      this.passHidden = null;
+    } else {
+      three.setRenderTarget(this.inkSource);
+      three.clear();
+      three.render(this.scene, cam);
+    }
+    three.setRenderTarget(prev);
+    for (const root of hidden) root.visible = true;
+    Object.assign(fog, fogSave);
+    this.inkPass ??= new InkPass();
+    const [fx, fz] = opts.focus;
+    const light = lightingAt(this.lightHour >= 0 ? this.lightHour : 12);
+    this.inkPass.render(
+      three,
+      {
+        color: color.texture,
+        depth: this.inkSource.depthTexture!,
+        src: [sw, sh],
+        near: cam.near,
+        far: cam.far,
+        fov: cam.fov,
+        focusZ: dist,
+        exposure: this.lean.exposure,
+        seed: Math.floor(fx) * 31 + Math.floor(fz) * 17,
+        night: light.night,
+        warmth: light.warmth,
+      },
+      this.inkOut,
+    );
+    const px = new Uint8Array(w * h * 4);
+    three.readRenderTargetPixels(this.inkOut, 0, 0, w, h, px);
+    if (k === 1) {
+      // A print's targets are large: let them go rather than keep them for the next slot.
+      this.inkSource.dispose();
+      this.inkSource = null;
+      this.inkOut.dispose();
+      this.inkOut = null;
+      this.releaseCaptureScratch();
+    }
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const g = canvas.getContext('2d');
+    if (!g) return null;
+    const img = g.createImageData(w, h);
+    const row = w * 4;
+    for (let j = 0; j < h; j++) img.data.set(px.subarray((h - 1 - j) * row, (h - j) * row), j * row);
     g.putImageData(img, 0, 0);
     return new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
   }
@@ -1154,6 +1624,13 @@ export class Renderer implements RenderApi {
     this.gpuTimer.dispose();
     this.lean.dispose();
     this.still.dispose();
+    this.sampleSun.dispose();
+    this.skyMaterial.dispose();
+    this.inkPass?.dispose();
+    this.inkSource?.dispose();
+    this.inkOut?.dispose();
+    this.inkScratch?.dispose();
+    this.captureAccum.destroy();
     this.three.dispose();
     this.three.domElement.remove();
     this.scene.background = new Color(0);

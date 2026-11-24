@@ -1,13 +1,19 @@
 import { useEffect, useState } from 'preact/hooks';
-import { DEBUG, installDebugHook } from './debug';
+import { DEBUG } from './debugFlag';
+import type { GameView as GameViewType } from './GameView';
 import { createFixtureValley, FIXTURE, FIXTURE_KINDS, type FixtureKind } from './fixture';
-import { currentSession, GameView } from './GameView';
 import { readPlayHash, setPlayHash, takeInviteFromUrl } from './invite';
 import { findRecent } from './recent';
 import type { SessionTarget } from './session';
 import { Title } from './Title';
 
-installDebugHook(currentSession);
+// P3D: the game (Three.js, the renderer, the debug showcases) loads when a valley opens, not with the
+// title, so the menu's entry chunk stays small. The debug hook still installs at load under ?debug.
+if (DEBUG) {
+  void Promise.all([import('./debug'), import('./GameView')]).then(([d, g]) =>
+    d.installDebugHook(g.currentSession),
+  );
+}
 takeInviteFromUrl();
 
 function resumeTarget(): SessionTarget | null {
@@ -29,6 +35,13 @@ export function App() {
     const target = resumeTarget();
     return target ? { target, invite: false } : null;
   });
+
+  // P3D: the game's chunk, fetched when the first valley opens.
+  const [Game, setGame] = useState<typeof GameViewType | null>(null);
+  useEffect(() => {
+    if (!play || Game) return;
+    void import('./GameView').then((m) => setGame(() => m.GameView));
+  }, [play, Game]);
 
   // P1: set by the chapter card's "Found a new valley", so the title opens on a fresh seed.
   const [fresh, setFresh] = useState(false);
@@ -57,8 +70,9 @@ export function App() {
       />
     );
   }
+  if (!Game) return <div class="viewport" aria-busy="true" />;
   return (
-    <GameView
+    <Game
       key={play.target.valleyId}
       target={play.target}
       openInvite={play.invite}

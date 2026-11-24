@@ -1,0 +1,864 @@
+/* P3D: the front door. A menu of choices over the living valley; the form is the second step.
+   One paper page on the left, as tall as its content and centered in the window, in the game's
+   own paper, type and buttons. The town stays clear to its right. */
+
+.title-screen.title-front {
+  --tf-m: clamp(12px, 2.6vh, 30px);
+  position: relative;
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  height: 100%;
+  padding-left: clamp(12px, 2.2vw, 32px);
+  overflow: hidden;
+  background: transparent;
+  --tf-glow: transparent;
+  --tf-card: rgba(255, 251, 241, 0.72);
+  --tf-card-hover: rgba(255, 253, 246, 0.95);
+  --tf-choice: rgba(253, 248, 236, 0.9);
+  /* Muted words on the page need AA on the paper (the game's own muted ink is a touch lighter). */
+  --ink-soft: rgba(74, 54, 38, 0.84);
+}
+
+/* Paper by lamplight: warmer and a touch dimmer than the day paper, with a soft glow around the
+   page. --grain is rebuilt here because a custom property that reads other ones is resolved where
+   it is declared. */
+.title-front.lamplight {
+  --paper: #e6d1ab;
+  --paper-light: #eedcb8;
+  --paper-deep: #d9c095;
+  --grain:
+    radial-gradient(circle at 20% 30%, rgba(140, 100, 60, 0.05) 0 1px, transparent 1.5px),
+    radial-gradient(circle at 70% 80%, rgba(140, 100, 60, 0.045) 0 1px, transparent 1.5px),
+    radial-gradient(ellipse at 50% 0%, rgba(255, 196, 110, 0.22), transparent 62%),
+    linear-gradient(170deg, var(--paper-light), var(--paper) 55%, var(--paper-deep));
+  --tf-glow: rgba(255, 178, 84, 0.42);
+  --tf-card: rgba(255, 238, 206, 0.5);
+  --tf-card-hover: rgba(255, 244, 222, 0.78);
+  --tf-choice: rgba(250, 235, 203, 0.78);
+  --ink-soft: rgba(60, 42, 28, 0.86);
+}
+
+/* ---------- the surface ---------- */
+
+.tf-surface {
+  position: relative;
+  z-index: 1;
+  box-sizing: border-box;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  width: min(432px, 100%);
+  max-height: calc(100% - 2 * var(--tf-m));
+  padding: clamp(14px, 2.6vh, 26px) 26px clamp(12px, 2vh, 20px);
+  background: var(--grain);
+  border: 2px solid var(--ink-line);
+  border-radius: 20px;
+  box-shadow:
+    var(--shadow),
+    0 0 52px var(--tf-glow);
+  animation: tf-in 420ms ease-out;
+}
+
+.tf-surface::before {
+  content: '';
+  position: absolute;
+  inset: 6px;
+  border: 1.5px dashed rgba(90, 66, 49, 0.25);
+  border-radius: 15px;
+  pointer-events: none;
+}
+
+@keyframes tf-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+  }
+}
+
+@keyframes tf-step-in {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+}
+
+/* ---------- the wordmark ---------- */
+
+.tf-head {
+  flex: none;
+  display: grid;
+  justify-items: center;
+  text-align: center;
+}
+
+.tf-wordmark {
+  display: grid;
+  justify-items: center;
+  gap: 0;
+}
+
+.tf-mark {
+  display: flex;
+  margin-bottom: -4px;
+}
+
+.tf-mark svg {
+  height: clamp(44px, 7.4vh, 64px);
+  width: auto;
+}
+
+.tf-wordmark h1 {
+  font-family: 'Alegreya', Georgia, serif;
+  font-weight: 800;
+  font-size: clamp(2.7rem, 6.4vh, 3.5rem);
+  line-height: 1.02;
+  letter-spacing: 0.035em;
+  color: var(--ink);
+  text-shadow:
+    0 1.5px 0 rgba(255, 252, 240, 0.85),
+    0 3px 0 rgba(90, 66, 49, 0.14);
+}
+
+.tf-wordmark h1 .qoti {
+  color: var(--sage-deep);
+  font-style: italic;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.tf-head .tagline {
+  margin: 6px 0 0;
+  font-family: 'Alegreya', Georgia, serif;
+  font-style: italic;
+  font-size: 1.1rem;
+  color: var(--ink-soft);
+}
+
+.tf-head .tagline,
+.tf-head .welcome {
+  text-wrap: balance;
+}
+
+.tf-head .welcome {
+  margin: 4px 0 0;
+  font-style: italic;
+  font-size: 0.95rem;
+  line-height: 1.3;
+}
+
+.tf-head.is-compact .tf-mark svg {
+  height: 34px;
+}
+
+.tf-head.is-compact .tf-wordmark h1 {
+  font-size: 2rem;
+}
+
+/* ---------- the body: the menu or a step ---------- */
+
+.tf-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tf-body {
+  margin-top: clamp(10px, 2vh, 18px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  /* Room for the focus rings the scroller would otherwise clip. */
+  padding: 4px 5px 4px;
+  margin-left: -5px;
+  margin-right: -5px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(90, 66, 49, 0.35) transparent;
+}
+
+.tf-body > * {
+  animation: tf-step-in 260ms ease-out;
+}
+
+.tf-menu {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tf-kicker {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.tf-card {
+  display: grid;
+  gap: 6px;
+  padding: 13px 16px 14px;
+  border: 1.5px solid var(--line);
+  border-radius: 14px;
+  background: var(--tf-card);
+  box-shadow: 0 2px 0 rgba(90, 66, 49, 0.1);
+}
+
+/* Join: the invitation, in the game's own ochre, as heavy as the Continue card. */
+.tf-join {
+  border: 2px solid var(--ochre-deep);
+  background: radial-gradient(ellipse at 12% 0%, rgba(196, 138, 63, 0.26), transparent 62%), var(--tf-card);
+  box-shadow:
+    0 3px 0 rgba(168, 112, 44, 0.3),
+    0 8px 18px rgba(60, 40, 20, 0.1);
+  gap: 8px;
+}
+
+.tf-join .tf-kicker {
+  color: #7a4f17;
+}
+
+.tf-lead {
+  margin: 0;
+  font-family: 'Alegreya', Georgia, serif;
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.tf-go {
+  width: 100%;
+}
+
+.tf-arrive {
+  margin: 0;
+  line-height: 1.35;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.tf-arrive > span {
+  flex: 1;
+  text-wrap: pretty;
+}
+
+.tf-arrive .tf-link {
+  font-size: inherit;
+  padding: 0 1px;
+  white-space: nowrap;
+}
+
+/* Continue: the most recent valley, one click. */
+.tf-continue {
+  display: grid;
+  gap: 4px;
+  justify-items: center;
+}
+
+.tf-continue-card {
+  position: relative;
+  width: 100%;
+  text-align: left;
+  color: var(--ink);
+  font: inherit;
+  gap: 5px;
+  padding-bottom: 12px;
+}
+
+.tf-continue-card.is-primary {
+  border-color: var(--sage-deep);
+  border-width: 2px;
+  background:
+    radial-gradient(ellipse at 12% 0%, rgba(143, 173, 123, 0.28), transparent 60%), var(--tf-card-hover);
+  box-shadow:
+    0 3px 0 rgba(95, 127, 80, 0.3),
+    0 8px 18px rgba(60, 40, 20, 0.1);
+}
+
+.tf-continue-card:hover:not(:disabled) {
+  background:
+    radial-gradient(ellipse at 12% 0%, rgba(143, 173, 123, 0.4), transparent 60%), var(--tf-card-hover);
+  transform: translateY(-1px);
+  box-shadow:
+    0 4px 0 rgba(95, 127, 80, 0.32),
+    0 10px 20px rgba(60, 40, 20, 0.14);
+}
+
+.tf-continue-card:hover:not(:disabled) .tf-continue-go {
+  background: linear-gradient(180deg, #9bb887, #5f7f50);
+}
+
+.tf-continue-card:focus-visible {
+  outline: 3px solid var(--river);
+  outline-offset: 3px;
+}
+
+.tf-valley-name {
+  display: block;
+  font-family: 'Alegreya', Georgia, serif;
+  font-size: 1.85rem;
+  font-weight: 800;
+  line-height: 1.08;
+  padding-right: 5.5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tf-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+}
+
+.tf-chip {
+  padding: 1px 9px;
+  border-radius: 999px;
+  border: 1.5px solid rgba(90, 66, 49, 0.28);
+  background: rgba(253, 248, 236, 0.9);
+  font-size: 0.86rem;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.tf-chip-soft {
+  border-style: dashed;
+  background: transparent;
+  color: var(--ink-soft);
+}
+
+.tf-played {
+  font-size: 0.88rem;
+}
+
+.tf-continue-go {
+  position: absolute;
+  right: 12px;
+  top: 14px;
+  padding: 5px 14px;
+  border-radius: 10px;
+  border: 1.5px solid var(--ink-line);
+  background: linear-gradient(180deg, #8fad7b, var(--sage-deep));
+  color: #fffaf0;
+  font-weight: 700;
+  text-shadow: 0 1px 0 rgba(40, 50, 30, 0.35);
+  box-shadow: 0 2px 0 rgba(90, 66, 49, 0.18);
+}
+
+.tf-new {
+  display: grid;
+  gap: 10px;
+}
+
+.tf-choice {
+  display: grid;
+  gap: 2px;
+  padding: 11px 16px 12px;
+  text-align: left;
+  border-radius: 14px;
+  background: var(--tf-choice);
+}
+
+.tf-choice strong {
+  font-family: 'Alegreya', Georgia, serif;
+  font-size: 1.22rem;
+  line-height: 1.15;
+}
+
+.tf-choice span {
+  font-size: 0.92rem;
+  line-height: 1.25;
+  color: var(--ink-soft);
+}
+
+.tf-choice.primary span {
+  color: rgba(255, 250, 240, 0.88);
+}
+
+.tf-choice.primary strong {
+  text-shadow: 0 1px 0 rgba(40, 50, 30, 0.35);
+}
+
+.tf-menu-error {
+  margin: 0;
+}
+
+/* ---------- the quiet row ---------- */
+
+.tf-quiet {
+  flex: none;
+  margin-top: auto;
+  padding-top: 10px;
+  display: grid;
+  gap: 8px;
+  border-top: 1.5px dashed rgba(90, 66, 49, 0.22);
+}
+
+.tf-quiet-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 2px 18px;
+}
+
+button.tf-link,
+.tf-link {
+  display: inline-block;
+  padding: 3px 2px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  box-shadow: none;
+  color: var(--ink-soft);
+  font: inherit;
+  font-weight: 600;
+  font-size: 0.95rem;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+button.tf-link:hover:not(:disabled),
+.tf-link:hover {
+  background: none;
+  box-shadow: none;
+  transform: none;
+  color: var(--ink);
+  text-decoration-style: solid;
+}
+
+.tf-file {
+  position: relative;
+}
+
+.tf-file input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  padding: 0;
+}
+
+.tf-file:focus-within {
+  outline: 2px solid var(--river);
+  outline-offset: 2px;
+}
+
+.tf-more {
+  font-size: 0.9rem;
+}
+
+.tf-more-alone {
+  align-self: center;
+}
+
+.tf-paste {
+  display: grid;
+  gap: 6px;
+}
+
+.tf-paste-row {
+  display: flex;
+  gap: 6px;
+}
+
+.tf-paste-row button {
+  flex: none;
+  white-space: nowrap;
+}
+
+.tf-paste-error {
+  margin: 0;
+  font-size: 0.92rem;
+}
+
+/* ---------- fields ---------- */
+
+.tf-field {
+  display: grid;
+  gap: 4px;
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.tf-field input {
+  font-weight: 400;
+}
+
+.tf-you {
+  display: grid;
+  gap: 10px;
+}
+
+.tf-you .swatches {
+  flex-wrap: wrap;
+}
+
+.tf-join .tf-you {
+  margin-top: 2px;
+  padding-top: 10px;
+  border-top: 1.5px dashed rgba(168, 112, 44, 0.4);
+}
+
+.tf-check {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.3;
+  cursor: pointer;
+}
+
+.tf-check input {
+  width: auto;
+  flex: none;
+  margin: 3px 0 0;
+  accent-color: var(--sage-deep);
+}
+
+.tf-check-text {
+  display: grid;
+  gap: 1px;
+}
+
+.tf-check-hint {
+  font-size: 0.85rem;
+  font-weight: 400;
+  line-height: 1.3;
+}
+
+/* ---------- steps ---------- */
+
+.tf-step {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+}
+
+.tf-step {
+  flex: 1 1 auto;
+}
+
+.tf-step > * {
+  flex-shrink: 0;
+}
+
+/* The form and the list scroll on their own, so the buttons below them stay in reach. */
+.tf-step > .tf-form,
+.tf-step > .tf-list {
+  flex-shrink: 1;
+  min-height: 0;
+  overflow-y: auto;
+  /* Room for the focus rings the scroller would otherwise clip. */
+  padding: 4px 5px;
+  margin: -4px -5px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(90, 66, 49, 0.35) transparent;
+}
+
+.tf-step h2 {
+  font-size: 1.6rem;
+  line-height: 1.1;
+  outline: none;
+}
+
+.tf-switch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border: 1.5px solid var(--line);
+  border-radius: 11px;
+  overflow: hidden;
+  background: #fffbf1;
+}
+
+.tf-switch button {
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+  padding: 6px 8px;
+  font-weight: 600;
+}
+
+.tf-switch button + button {
+  border-left: 1.5px dashed var(--line);
+}
+
+.tf-switch button.active,
+.tf-switch button.active:hover:not(:disabled) {
+  background: var(--sage);
+  color: #fffaf0;
+}
+
+.tf-form {
+  display: grid;
+  gap: 12px;
+}
+
+.tf-section {
+  margin: 0 0 -4px;
+  font-family: 'Alegreya', Georgia, serif;
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.tf-more-options summary {
+  cursor: pointer;
+  color: var(--ink-soft);
+  font-weight: 700;
+}
+
+.tf-more-options > * + * {
+  margin-top: 10px;
+}
+
+.tf-more-options .tf-dial {
+  margin-top: 14px;
+}
+
+.tf-dial {
+  border: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.tf-dial legend {
+  font-size: 0.92rem;
+  font-weight: 700;
+  padding: 0;
+  margin-bottom: 4px;
+}
+
+.tf-dial:disabled {
+  opacity: 0.55;
+}
+
+.tf-step-actions {
+  flex: none;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-top: 2px;
+}
+
+.tf-step-actions .primary {
+  flex: 1;
+}
+
+.tf-back {
+  background: none;
+  border-color: transparent;
+  box-shadow: none;
+  color: var(--ink-soft);
+  font-weight: 700;
+}
+
+.tf-back:hover:not(:disabled) {
+  background: rgba(253, 248, 236, 0.8);
+  box-shadow: none;
+}
+
+.tf-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.tf-list .continue-row {
+  position: relative;
+  display: block;
+}
+
+.tf-row-open {
+  display: grid;
+  gap: 5px;
+  width: 100%;
+  box-sizing: border-box;
+  text-align: left;
+  padding: 10px 44px 10px 14px;
+  border-radius: 14px;
+  background: var(--tf-card);
+}
+
+.tf-row-open:hover:not(:disabled) {
+  background: var(--tf-card-hover);
+  border-color: var(--sage-deep);
+}
+
+.tf-row-name {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: 'Alegreya', Georgia, serif;
+  font-size: 1.3rem;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.tf-row-open .tf-chip {
+  font-size: 0.8rem;
+  padding-block: 0;
+}
+
+.tf-row-open .tf-played {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 10px;
+  font-size: 0.84rem;
+}
+
+.tf-seed {
+  margin-left: auto;
+  font-size: 0.8rem;
+  letter-spacing: 0.02em;
+  opacity: 0.85;
+}
+
+/* The remove control: a small inked cross, quiet until the row is looked at, but always there. */
+.tf-list .forget {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border-radius: 999px;
+  border-color: transparent;
+  background: none;
+  box-shadow: none;
+  color: var(--ink);
+  opacity: 0.38;
+  transition: opacity 120ms ease-out;
+}
+
+.tf-list .continue-row:hover .forget,
+.tf-list .continue-row:focus-within .forget,
+.tf-list .forget:hover {
+  opacity: 1;
+}
+
+.tf-list .forget:hover:not(:disabled) {
+  background: rgba(168, 60, 44, 0.12);
+  color: #8a3326;
+  transform: translateY(-50%);
+}
+
+.tf-list .forget:active:not(:disabled) {
+  transform: translateY(-50%);
+}
+
+@media (hover: none) {
+  .tf-list .forget {
+    opacity: 0.7;
+  }
+}
+
+.tf-list .continue-old {
+  display: grid;
+  gap: 4px;
+  padding: 9px 12px;
+  border: 1.5px dashed rgba(90, 66, 49, 0.3);
+  border-radius: 10px;
+  opacity: 0.88;
+  filter: grayscale(0.4);
+}
+
+.tf-list .forget-confirm {
+  padding: 9px 12px;
+  border: 1.5px dashed rgba(90, 66, 49, 0.35);
+  border-radius: 10px;
+}
+
+.tf-list .forget-confirm p {
+  margin: 0 0 8px;
+}
+
+.forget-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.tf-plain {
+  background: rgba(253, 248, 236, 0.9);
+  color: var(--ink);
+}
+
+.tf-imported-line {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.tf-imported-actions {
+  display: grid;
+  gap: 8px;
+}
+
+/* ---------- settings ---------- */
+
+.tf-modal-backdrop {
+  position: fixed;
+  z-index: 5;
+}
+
+/* ---------- a narrow window ---------- */
+
+@media (max-width: 640px) {
+  .title-screen.title-front {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+
+  .tf-surface {
+    width: 100%;
+    padding: 14px 16px 12px;
+  }
+}
+
+/* A short window: the wordmark tightens so the choices keep their room. */
+@media (max-height: 720px) {
+  .tf-head .welcome {
+    font-size: 0.88rem;
+  }
+
+  .tf-card,
+  .tf-choice {
+    padding-top: 9px;
+    padding-bottom: 10px;
+  }
+
+  .tf-menu,
+  .tf-new {
+    gap: 8px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tf-surface,
+  .tf-body > * {
+    animation: none;
+  }
+}
+
+:root.reduced-motion .tf-surface,
+:root.reduced-motion .tf-body > * {
+  animation: none;
+}

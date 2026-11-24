@@ -9,8 +9,9 @@ test('New valley makes a standard valley; the books, reports and inspectors open
 }) => {
   await page.route('**/api/**', (route) => route.abort());
   await page.goto(`/${HAMLET_QUERY}`);
-  await expect(page.getByTestId('creative')).not.toBeChecked();
   await page.getByTestId('new-solo').click();
+  await expect(page.getByTestId('creative')).not.toBeChecked();
+  await page.getByTestId('found-valley').click();
   await waitLive(page);
   expect(await page.evaluate(() => window.__qoti.mode())).toBe('standard');
   await expect(page.getByTestId('treasury')).toContainText('500');
@@ -107,8 +108,9 @@ test('a creative valley stays the quiet sandbox: no coins, no books, the house o
 }) => {
   await page.route('**/api/**', (route) => route.abort());
   await page.goto(`/${HAMLET_QUERY}`);
-  await page.getByTestId('creative').check();
   await page.getByTestId('new-solo').click();
+  await page.getByTestId('creative').check();
+  await page.getByTestId('found-valley').click();
   await waitLive(page);
   expect(await page.evaluate(() => window.__qoti.mode())).toBe('sandbox');
   await expect(page.getByTestId('treasury')).toHaveCount(0);

@@ -6,6 +6,7 @@
 // it on (`ENDPAPER_ON`), and adds the renderer's one-line skip of the scene pass on `env.skipScene`.
 import {
   DataTexture,
+  LinearFilter,
   LinearMipmapLinearFilter,
   Matrix4,
   NoColorSpace,
@@ -14,9 +15,13 @@ import {
   Vector2,
   Vector3,
 } from 'three';
+import { artKitId, kitById, storybookInk } from '@qoti/art';
+import { content } from '@qoti/content';
 import { footprintSize } from '@qoti/sim';
 import type { Mirror } from '../state/mirror';
+import { fpToWorld } from './coords';
 import { drawDef } from './defs';
+import { OVEN_KITS, SHOP_KITS } from './layers/lights';
 import { riverCourse } from './layers/water';
 import { flowsOf } from './layers/overlays';
 import { endpaperStreets } from './lots';
@@ -149,6 +154,11 @@ export interface EndpaperInput {
   riverPoints?: Float32Array;
   /** V3C: the river's width in tiles at each point of `riverPoints`, from `riverCourse`. */
   riverWidths?: Float32Array;
+  /**
+   * V4B: where the town's lights stand, for the night layer: x, z (tiles) and a strength (1 a lamp
+   * post) per light, from shared state (`mapLamps`). Absent, the map has no lamplight at night.
+   */
+  lamps?: Float32Array;
 }
 
 /** V3D: the river's course (V3C's): x, z pairs in tiles along the river, and its width in tiles at each point. */
@@ -233,6 +243,8 @@ export interface EndpaperMap {
   ready: boolean;
   /** V3D: the last drawing's time in the worker, ms (the `?debug` overlay). */
   ms: number;
+  /** V4B: the night layer's texture (one black texel until the first drawing). */
+  night?: Texture;
 }
 
 /** The uniforms `ENDPAPER_GLSL` reads. */
@@ -246,9 +258,32 @@ export interface EndpaperUniforms {
   /** The map's world origin (-M on both axes) in x, its span in tiles in y. */
   uEndpaperSpan: { value: Vector2 };
   uEndpaperTable: { value: Vector3 };
+  /** V4B: the night layer (lamplight in red). */
+  tEndpaperNight: { value: Texture };
+  /** V4B: how much of the night shows, 0 by day to 1 at full night (`env.night`, set by the layer). */
+  uEndpaperNight: { value: number };
+  /** V4B: the deeper parchment by night, as a multiplier of the day's, and the lamplight's tint. */
+  uEndpaperNightPaper: { value: Vector3 };
+  uEndpaperLamp: { value: Vector3 };
 }
 
-export function endpaperUniforms(texture: Texture): EndpaperUniforms {
+/** V4B: the night's parchment over the day's (sRGB): a slightly deeper sheet, never a dark filter. */
+export const NIGHT_PAPER: [number, number, number] = [
+  (storybookInk.nightPaper >> 16) / ((PARCHMENT >> 16) & 255),
+  ((storybookInk.nightPaper >> 8) & 255) / ((PARCHMENT >> 8) & 255),
+  (storybookInk.nightPaper & 255) / (PARCHMENT & 255),
+];
+/** V4B: lamplight on the sheet, as a multiplier of the deepened paper (warmer and a little lighter). */
+export const LAMP_TINT: [number, number, number] = [1.17, 1.1, 0.95];
+
+function blankNight(): Texture {
+  const t = new DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1, RGBAFormat);
+  t.colorSpace = NoColorSpace;
+  t.needsUpdate = true;
+  return t;
+}
+
+export function endpaperUniforms(texture: Texture, night: Texture = blankNight()): EndpaperUniforms {
   return {
     tEndpaper: { value: texture },
     uEndpaperCover: { value: 0 },
@@ -256,6 +291,10 @@ export function endpaperUniforms(texture: Texture): EndpaperUniforms {
     uEndpaperGround: { value: 0 },
     uEndpaperSpan: { value: new Vector2(-ENDPAPER_MARGIN, 1) },
     uEndpaperTable: { value: new Vector3(...ENDPAPER_TABLE) },
+    tEndpaperNight: { value: night },
+    uEndpaperNight: { value: 0 },
+    uEndpaperNightPaper: { value: new Vector3(...NIGHT_PAPER) },
+    uEndpaperLamp: { value: new Vector3(...LAMP_TINT) },
   };
 }
 
@@ -274,6 +313,10 @@ export const ENDPAPER_GLSL = /* glsl */ `
   uniform float uEndpaperGround;
   uniform vec2 uEndpaperSpan;
   uniform vec3 uEndpaperTable;
+  uniform sampler2D tEndpaperNight;
+  uniform float uEndpaperNight;
+  uniform vec3 uEndpaperNightPaper;
+  uniform vec3 uEndpaperLamp;
   vec3 endpaperOver(vec3 c, vec2 uv) {
     if (uEndpaperCover <= 0.0) return c;
     vec2 ndc = uv * 2.0 - 1.0;
@@ -286,6 +329,13 @@ export const ENDPAPER_GLSL = /* glsl */ `
     vec3 p = o + d * (hit ? t : 0.0);
     vec2 mapUv = (p.xz - vec2(uEndpaperSpan.x)) / uEndpaperSpan.y;
     vec3 ink = texture2D(tEndpaper, clamp(mapUv, 0.0, 1.0)).rgb;
+    float lampLit = texture2D(tEndpaperNight, clamp(mapUv, 0.0, 1.0)).r;
+    // V4B: by night the parchment deepens a little (the ink barely: the lettering keeps its
+    // contrast) and the lamps pool warm on it.
+    float sheet = smoothstep(0.45, 0.8, dot(ink, vec3(0.299, 0.587, 0.114)));
+    vec3 deep = ink * mix(vec3(0.93), uEndpaperNightPaper, sheet);
+    vec3 lamplit = mix(deep, deep * uEndpaperLamp, clamp(lampLit, 0.0, 1.0) * sheet);
+    ink = mix(ink, lamplit, uEndpaperNight);
     vec2 e = min(mapUv, 1.0 - mapUv);
     float on = hit ? smoothstep(0.0, 0.012, min(e.x, e.y)) : 0.0;
     vec3 m = mix(uEndpaperTable, ink, on);
@@ -300,14 +350,16 @@ export function createEndpaperMap(size = 2048): EndpaperMap {
   const texture = new DataTexture(data, 1, 1, RGBAFormat);
   texture.colorSpace = NoColorSpace;
   texture.needsUpdate = true;
+  const night = blankNight();
   return {
     texture,
     revision: 0,
     size,
     cover: 0,
-    uniforms: endpaperUniforms(texture),
+    uniforms: endpaperUniforms(texture, night),
     ready: false,
     ms: 0,
+    night,
   };
 }
 
@@ -321,8 +373,11 @@ function layerCopy(
   return out;
 }
 
-/** Footfall ink on the map: the Town overlay's sage, deeper, since the ground's light sage washes out on parchment. */
-export const MAP_FOOTFALL_INK = TOWN_COLORS.street;
+/**
+ * Footfall ink on the map. V4B (the owner, 2026-11-17): warm and light, laid under the roofs, where
+ * V3X's was the Town overlay's sage over them (it read heavy and teal from 240 tiles).
+ */
+export const MAP_FOOTFALL_INK = storybookInk.footfall;
 
 /**
  * The map's two inks from the Mirror (V3X follow-up, once R2 landed), as the Town overlay reads them:
@@ -454,7 +509,64 @@ export function endpaperInput(
   if (rows && rows.length) input.rows = rows;
   const gardens = feeds.gardens?.(mirror);
   if (gardens && gardens.length) input.gardens = gardens;
+  const lamps = mapLamps(mirror);
+  if (lamps.length) input.lamps = lamps;
   return input;
+}
+
+/** V4B: a decor kit's lamplight on the map at night (a lamp post 1), by art kit, sorted. */
+const MAP_LAMP_KITS: Readonly<Record<string, number>> = {
+  bonfire: 1.3,
+  'hanging-lantern': 0.75,
+  lantern: 0.7,
+  'lamp-post': 1,
+};
+/** V4B: a decor piece with a light the table does not name (its kit has light anchors). */
+const MAP_LAMP_OTHER = 0.6;
+/** V4B: a shop's door lamp or an oven's glow, and a home's lit windows (a faint warmth). */
+const MAP_LAMP_DOOR = 0.8;
+const MAP_LAMP_HOME = 0.28;
+
+const lampKits = new Map<string, number>();
+
+/** The lamplight a decor def throws on the map (0 for none), cached by def. */
+function decorLamp(defId: string): number {
+  let v = lampKits.get(defId);
+  if (v === undefined) {
+    const def = content.decorById.get(defId);
+    const kitId = def ? artKitId(def.art) : '';
+    const kit = kitById.get(kitId);
+    const lit = !!kit?.anchors?.(def?.art.params ? { params: def.art.params } : {})?.lights?.length;
+    v = MAP_LAMP_KITS[kitId] ?? (lit ? MAP_LAMP_OTHER : 0);
+    lampKits.set(defId, v);
+  }
+  return v;
+}
+
+/**
+ * V4B: the town's lights for the map's night layer, from shared state only: decor lamps where they
+ * stand, a door lamp at every shop and oven, and a faint warmth at every built home (its lit
+ * windows). Triples of x, z (tiles) and strength.
+ */
+export function mapLamps(mirror: Mirror): Float32Array {
+  const out: number[] = [];
+  // Tests pass partial mirrors: a missing map is an empty one.
+  const { decor } = mirror as Partial<Mirror>;
+  for (const d of decor?.values() ?? []) {
+    const s = decorLamp(d.def);
+    if (s > 0) out.push(fpToWorld(d.fx), fpToWorld(d.fz), s);
+  }
+  for (const b of mirror.buildings.values()) {
+    if (b.stage !== 'built') continue;
+    const def = drawDef(b.def);
+    if (!def) continue;
+    const trade = b.trade ? content.tradeById.get(b.trade) : undefined;
+    const kit = trade ? artKitId(trade.look) : artKitId(def.art);
+    const [w, dd] = footprintSize(def, b.rot);
+    const door = SHOP_KITS.includes(kit) || OVEN_KITS.includes(kit);
+    out.push(b.x + w / 2, b.z + dd / 2, door ? MAP_LAMP_DOOR : MAP_LAMP_HOME);
+  }
+  return Float32Array.from(out);
 }
 
 /**
@@ -517,6 +629,7 @@ export function endpaperSignature(inp: EndpaperInput): string {
     num(g.w);
     num(g.d);
   }
+  arr(inp.lamps);
   return `${(a >>> 0).toString(36)}.${(b >>> 0).toString(36)}`;
 }
 
@@ -534,6 +647,10 @@ export interface EndpaperReply {
   id: number;
   bitmap: ImageBitmap | null;
   ms: number;
+  /** V4B: the night layer (lamplight pools, a quarter of the map's size); `ms` includes it. */
+  night?: ImageBitmap | null;
+  /** V4B: how long the night layer took, ms. */
+  nightMs?: number;
 }
 
 /** The part of a Worker the writer uses, so tests can pass a fake. */
@@ -568,6 +685,10 @@ export class EndpaperWriter {
   private askedSize: number;
   /** The bitmap now in the texture, closed when the next one replaces it. */
   private bitmap: { close?: () => void } | null = null;
+  /** V4B: the night layer's bitmap, likewise. */
+  private nightBitmap: { close?: () => void } | null = null;
+  /** V4B: the last night layer's time in the worker, ms (inside `lastMs`). */
+  nightMs = 0;
   private worker: EndpaperWorkerLike | null = null;
   /** The last drawing's time in the worker, ms (for the `?debug` overlay and V3D's budget check). */
   lastMs = 0;
@@ -654,6 +775,21 @@ export class EndpaperWriter {
       this.bitmap?.close?.();
       this.bitmap = r.bitmap;
       this.map.ready = true;
+    }
+    if (r.night) {
+      // V4B: the night layer, its own small texture (linear, no mipmaps: it is all soft pools).
+      const tex = new Texture(r.night as unknown as TexImageSource);
+      tex.flipY = false;
+      tex.colorSpace = NoColorSpace;
+      tex.generateMipmaps = false;
+      tex.minFilter = LinearFilter;
+      tex.needsUpdate = true;
+      this.map.night?.dispose();
+      this.map.night = tex;
+      this.map.uniforms.tEndpaperNight.value = tex;
+      this.nightBitmap?.close?.();
+      this.nightBitmap = r.night;
+      this.nightMs = r.nightMs ?? 0;
     }
     this.map.revision++;
     this.fresh = true;

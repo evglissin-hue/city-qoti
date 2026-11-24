@@ -1,0 +1,94 @@
+/* P3D: the title's backdrop. A fixed layer behind the menu: the painted valley at once, the live
+   renderer fading in over it when its first frame is drawn. It never takes a click or a key. */
+.title-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+  background: #cfe6e6;
+}
+
+.title-backdrop[data-light='dusk'] {
+  background: #2c3a73;
+}
+
+.title-backdrop .painted {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.title-backdrop-live {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.title-backdrop[data-backdrop='live'] .title-backdrop-live {
+  opacity: 1;
+  transition: opacity 1200ms ease-out;
+}
+
+.title-backdrop-live canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.painted-smoke {
+  animation: painted-smoke 9s ease-in-out infinite;
+  transform-box: fill-box;
+}
+
+.painted-cloud {
+  animation: painted-cloud 70s ease-in-out infinite alternate;
+}
+
+.painted-cloud.slow {
+  animation-duration: 110s;
+}
+
+@keyframes painted-smoke {
+  0%,
+  100% {
+    transform: translate(0, 2px);
+    opacity: 0.45;
+  }
+  50% {
+    transform: translate(2px, -3px);
+    opacity: 0.85;
+  }
+}
+
+@keyframes painted-cloud {
+  from {
+    transform: translateX(-18px);
+  }
+  to {
+    transform: translateX(26px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .painted-smoke,
+  .painted-cloud {
+    animation: none;
+  }
+  .title-backdrop[data-backdrop='live'] .title-backdrop-live {
+    transition: none;
+  }
+}
+
+.reduced-motion .painted-smoke,
+.reduced-motion .painted-cloud {
+  animation: none;
+}
+
+.reduced-motion .title-backdrop[data-backdrop='live'] .title-backdrop-live {
+  transition: none;
+}

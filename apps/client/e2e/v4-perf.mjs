@@ -121,6 +121,30 @@ const settling = (page, limit) =>
     };
   }, limit);
 
+/**
+ * Waits until no static layer changed over three looks, each three drawn frames apart (at most
+ * QOTI_SETTLE_MAX ms): the valley streamed in and the levels of detail swapped.
+ */
+async function quiet(page) {
+  const start = Date.now();
+  const revs = [];
+  while (Date.now() - start < Number(process.env.QOTI_SETTLE_MAX ?? 300000)) {
+    revs.push(
+      await page.evaluate(
+        () =>
+          new Promise((resolve) => {
+            let n = 0;
+            const step = () =>
+              ++n >= 3 ? resolve(window.__qoti.renderer()?.staticRevision ?? 0) : requestAnimationFrame(step);
+            requestAnimationFrame(step);
+          }),
+      ),
+    );
+    const last = revs.slice(-3);
+    if (last.length === 3 && last[0] === last[2]) return;
+  }
+}
+
 const HEAD = [
   '| Scene | Preset | Moving GPU ms (avg / p95) | Moving draws, triangles | Settle ms (frames, samples) | Still frame GPU ms (avg / p95), draws | Settled idle GPU ms (avg / p95) | Rest frames moving / still / idle / sample |',
   '|---|---|---|---|---|---|---|---|',
@@ -183,25 +207,8 @@ for (const [scene, def] of Object.entries(SCENES)) {
     [at[0], at[1], def.dist, def.door && info.door ? info.door.yaw : null, def.tilt ?? 0],
   );
   await page.waitForTimeout(Number(process.env.QOTI_SETTLE ?? 12000));
-  // Then until the valley has streamed in (no static layer changed over three looks, three drawn
-  // frames apart), so the parts measure rests and not the last chunks arriving.
-  const settleStart = Date.now();
-  const revs = [];
-  while (Date.now() - settleStart < Number(process.env.QOTI_SETTLE_MAX ?? 300000)) {
-    revs.push(
-      await page.evaluate(
-        () =>
-          new Promise((resolve) => {
-            let n = 0;
-            const step = () =>
-              ++n >= 3 ? resolve(window.__qoti.renderer()?.staticRevision ?? 0) : requestAnimationFrame(step);
-            requestAnimationFrame(step);
-          }),
-      ),
-    );
-    const last = revs.slice(-3);
-    if (last.length === 3 && last[0] === last[2]) break;
-  }
+  // Then until the valley has streamed in, so the parts measure rests and not the last chunks arriving.
+  await quiet(page);
   const presets = process.env.QOTI_PRESETS?.split(',') ?? ['low', 'medium', 'high', 'ultra'];
   for (const preset of presets) {
     // runPerf puts the preset back and the camera home; each preset starts from the same view. Its
@@ -216,6 +223,10 @@ for (const [scene, def] of Object.entries(SCENES)) {
     });
     const row = r.rows[0];
     await page.evaluate((q) => window.__qoti.renderer().setQuality(q), preset);
+    // V4A: runPerf's path ends with a jump home, and the buildings then swap their levels of detail
+    // a few a frame (a static change each, seconds a frame in software), so settling waits for the
+    // valley to go quiet again: otherwise it measures the swaps, and a sample goal never starts.
+    await quiet(page);
     // A software frame can take seconds: settling waits up to QOTI_SETTLE_LIMIT s (60).
     const s = await settling(page, Number(process.env.QOTI_SETTLE_LIMIT ?? 60));
     console.log(

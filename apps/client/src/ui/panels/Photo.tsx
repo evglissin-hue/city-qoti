@@ -52,6 +52,7 @@ export function PhotoStrip({ session }: { session: Session }) {
           value={focus}
           disabled={!api?.setDepthOfField}
           data-testid="photo-dof"
+          style={{ '--fill': `${focus}%` }}
           onInput={(e) => {
             const v = Number((e.target as HTMLInputElement).value);
             setFocus(v);
@@ -68,6 +69,7 @@ export function PhotoStrip({ session }: { session: Session }) {
           value={hour ?? 24}
           disabled={!api?.setTimeOfDay}
           data-testid="photo-time"
+          style={{ '--fill': `${((hour ?? 24) / 24) * 100}%` }}
           onInput={(e) => {
             const v = Number((e.target as HTMLInputElement).value);
             const h = v >= 24 ? null : v;
