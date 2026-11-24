@@ -194,7 +194,8 @@ describe('a specialty', () => {
       events(found, 'notify').some((e) => e.kind === 'letter' && e.text.includes('Orchard Walk Cider')),
     ).toBe(true);
     // Not found again, and no more renown, on later closes.
-    for (let d = EVENINGS; d < DAYS_PER_SEASON; d++) close(s, d, { [id]: { customers: [[CIDER, MARK + 5]] } });
+    for (let d = EVENINGS; d < DAYS_PER_SEASON; d++)
+      close(s, d, { [id]: { customers: [[CIDER, MARK + 5]] } });
     expect(s.townBook.pages).toHaveLength(1);
     expect(s.renown.points).toBe(renown + TOWN_BOOK.pageRenown);
     // The draw, after the place index rebuilds.
@@ -420,7 +421,11 @@ describe('callings', () => {
     expect(s.townBook.callings).toEqual([]);
     expect(s.calling).toBeUndefined();
     // The third comes by example.
-    const ctx = sellCider(s, id, firstDays(EVENINGS).map((d) => d + 1));
+    const ctx = sellCider(
+      s,
+      id,
+      firstDays(EVENINGS).map((d) => d + 1),
+    );
     expect(s.townBook.pages.filter((p) => p.leaning === 'gardens')).toHaveLength(3);
     const garden = content.callings.find((c) => c.leaning === 'gardens')!;
     expect(s.townBook.callings).toEqual([garden.id]);
