@@ -155,7 +155,9 @@ const EXPECT = {
     n: 20,
     kinds:
       '[["balances.updated",4],["budget.updated",4],["notify",4],["town.updated",4],["trade.updated",4]]',
-    sha: '084126526773b5a0',
+    // R3X: the neighbors buy the nine masters' goods now (content neighbors.ts), so the trade view's
+    // prices carry them; the same 20 events of the same kinds (was 084126526773b5a0).
+    sha: 'aa2f6e768edd6a84',
   },
   growth: {
     n: 44,
