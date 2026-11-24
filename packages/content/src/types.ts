@@ -1675,6 +1675,8 @@ export interface PlaceWords {
   wantSeats: string;
   wantLantern: string;
   wantBrazier: string;
+  /** R3X: a place whose fire stands cold (no firewood tonight). */
+  wantFirewood?: string;
 }
 
 // ---------------------------------------------------------------------------------------------

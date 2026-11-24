@@ -34,4 +34,5 @@ export const placeWords: PlaceWords = {
   wantSeats: 'more seats would keep the {n} who came off their feet',
   wantLantern: 'a lantern would see them home after dark',
   wantBrazier: 'a brazier would keep it warm in winter',
+  wantFirewood: 'its fire wants firewood before it warms anyone',
 };
