@@ -5,6 +5,7 @@ import {
   base64ToBytes,
   SIM_VERSION,
   TILE_FP,
+  calendar,
   TICKS_PER_DAY,
   type Command,
   type InspectKind,
@@ -114,8 +115,25 @@ export class Session {
   private readonly onPageHide = () => this.connection?.close();
   /** Leaving the tab is a good moment to keep a snapshot; a closing tab rarely gets the chance. */
   private readonly onVisibility = () => {
-    if (document.visibilityState === 'hidden' && this.phase.value === 'ready') void this.uploadSnapshot();
+    if (document.visibilityState === 'hidden' && this.phase.value === 'ready') {
+      this.rememberClock();
+      void this.uploadSnapshot();
+    }
   };
+
+  /** P3D: the season, day and partner the title's Continue card shows (this device's own record). */
+  private rememberClock(): void {
+    const cal = calendar(this.mirror.tick.value);
+    const partner = this.mirror.seats.value.find(
+      (s) => s.seat !== this.seat && s.name.trim() && !/^Player \d+$/.test(s.name),
+    )?.name;
+    updateRecent(this.target.valleyId, {
+      season: cal.season,
+      day: cal.day,
+      year: cal.year,
+      ...(partner ? { partner } : {}),
+    });
+  }
 
   /** I1: this seat's own undo stack (Ctrl+Z). */
   readonly undo: UndoStack;
@@ -256,6 +274,7 @@ export class Session {
       seed: w.valley.seed,
       ...(view.town?.rank && { rank: view.town.rank }),
     });
+    this.rememberClock();
   }
 
   private mount(): void {
@@ -747,6 +766,7 @@ export class Session {
   close(): void {
     removeEventListener('pagehide', this.onPageHide);
     document.removeEventListener('visibilitychange', this.onVisibility);
+    if (this.phase.value === 'ready') this.rememberClock();
     if (this.presence.timer) clearTimeout(this.presence.timer);
     if (this.presence.away) clearTimeout(this.presence.away);
     this.connection?.close();

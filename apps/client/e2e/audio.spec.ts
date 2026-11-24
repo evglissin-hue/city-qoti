@@ -39,9 +39,10 @@ test('sound starts on the first gesture and follows the sliders', async ({ page 
   expect(audioRequests).toEqual([]);
 
   // A known valley, whose first piece has recordings to fetch (seeds.ts says why a random one may not).
-  await page.locator('details.title-options').evaluate((d) => ((d as HTMLDetailsElement).open = true));
-  await page.getByTestId('seed').fill(AUDIO_SEED);
   await page.getByTestId('new-solo').click();
+  await page.locator('details.tf-more-options').evaluate((d) => ((d as HTMLDetailsElement).open = true));
+  await page.getByTestId('seed').fill(AUDIO_SEED);
+  await page.getByTestId('found-valley').click();
   await waitLive(page);
   // Entering the valley is not yet a gesture inside it: still silent, nothing loaded.
   expect(await page.evaluate(() => window.__qoti.audio.state())).toBe('none');

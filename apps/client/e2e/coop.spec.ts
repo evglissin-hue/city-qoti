@@ -12,6 +12,7 @@ test('two seats build together in one valley', async ({ browser }) => {
   const a = await contextA.newPage();
   await a.goto(`/${DEBUG_QUERY}`);
   await a.getByTestId('new-online').click();
+  await a.getByTestId('found-valley').click();
   await waitLive(a);
   const link = await a.getByTestId('invite-link').inputValue();
   expect(link).toMatch(/#v=[0-9a-f]{32}&s=1&k=[0-9a-f]{32}$/);

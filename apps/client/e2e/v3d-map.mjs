@@ -14,7 +14,10 @@ page.on('pageerror', (e) => console.log('pageerror:', e.message));
 await page.route('**/api/**', (r) => r.abort());
 const fx = fixture === 'fresh' ? '' : `&fixture=${fixture}`;
 await page.goto(`http://localhost:${process.env.QOTI_CLIENT_PORT ?? 5234}/?debug${fx}&clean&quality=low`);
-if (fixture === 'fresh') await page.getByTestId('new-solo').click({ timeout: 240000 });
+if (fixture === 'fresh') {
+  await page.getByTestId('new-solo').click({ timeout: 240000 });
+  await page.getByTestId('found-valley').click();
+}
 await page.waitForFunction(() => window.__qoti?.status() === 'live', null, { timeout: 240000 });
 const res = await page.evaluate(async (sz) => {
   const ep = await import('/src/render/endpaper.ts');

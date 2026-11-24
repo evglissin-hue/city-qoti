@@ -65,6 +65,7 @@ test('Measure this laptop: the table, Copy, kept per seat, the valley put back; 
   page.on('requestfailed', (r) => console.log('requestfailed:', r.url(), r.failure()?.errorText));
   await page.goto(`/${DEBUG_QUERY}&measure=${FULL ? 'quick' : 'smoke'}`);
   await page.getByTestId('new-online').click();
+  await page.getByTestId('found-valley').click();
   await waitLive(page);
   await page.getByRole('button', { name: 'Done' }).click();
 

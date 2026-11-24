@@ -11,8 +11,10 @@ const root = fileURLToPath(new URL('..', import.meta.url));
 
 /** Command types the sim accepts that the client does not send, with why. */
 export const NO_CLIENT_SENDER: Record<string, string> = {
-  // System: only the room sends these (it drops any client-sent sys.*).
-  'sys.seatJoined': 'system command, sent only by RoomCore when a seat connects',
+  // System: only the room sends these (it drops any client-sent sys.*). P3D: `sys.seatJoined` is off
+  // the list because the title's backdrop seats both players in its own local, throwaway copy of a
+  // valley (its worker reads a snapshot and writes nothing back), which is what starts the clock so
+  // folk walk; no room ever sees it.
   'sys.seatLeft': 'system command, sent only by RoomCore when a seat disconnects',
   // Honest gaps: the sim takes them, but no tool or button sends them yet. Each is a feature to
   // build, not a reason to keep the entry; the test says so when a sender appears.

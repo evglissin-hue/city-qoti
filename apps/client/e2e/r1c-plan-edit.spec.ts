@@ -7,6 +7,7 @@ const SHOTS = '/tmp/claude-0/-home-user-city-qoti/b1f93f80-85dc-5dd0-b969-6d447c
 test('a plan can be edited in place', async ({ page }) => {
   await page.goto(`/${DEBUG_QUERY}`);
   await page.getByTestId('new-solo').click();
+  await page.getByTestId('found-valley').click();
   await waitLive(page);
   await takeTool(page, 'plan');
   await page.getByTestId('sketch-start').click();

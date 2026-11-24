@@ -20,6 +20,12 @@ export interface RecentValley {
   rank?: RankId;
   /** R1C: founded under the old rules (save version under 6): listed grayed, never opened. */
   old?: true;
+  /** P3D: where the valley stood when last played, for the title's Continue card (0 spring to 3 winter). */
+  season?: number;
+  day?: number;
+  year?: number;
+  /** P3D: the other seat's name, when there is one. */
+  partner?: string;
 }
 
 const KEY = 'qoti.recent';

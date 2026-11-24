@@ -31,8 +31,9 @@ async function waitLive(page: Page): Promise<void> {
 async function twoSeats(browser: Browser) {
   const a = await (await browser.newContext({ viewport: { width: 1280, height: 800 } })).newPage();
   await a.goto(`/${GUIDE_QUERY}`);
-  await baseExpect(a.getByTestId('guide-new')).toBeChecked();
   await a.getByTestId('new-online').click();
+  await baseExpect(a.getByTestId('guide-new')).toBeChecked();
+  await a.getByTestId('found-valley').click();
   await waitLive(a);
   const link = await a.getByTestId('invite-link').inputValue();
   await a.getByRole('button', { name: 'Done' }).click();
@@ -118,8 +119,9 @@ test('a valley made with the box unticked shows no guide', async ({ browser }) =
   test.setTimeout(600_000);
   const p = await (await browser.newContext()).newPage();
   await p.goto(`/${GUIDE_QUERY}`);
-  await p.getByTestId('guide-new').uncheck();
   await p.getByTestId('new-solo').click();
+  await p.getByTestId('guide-new').uncheck();
+  await p.getByTestId('found-valley').click();
   await waitLive(p);
   await expect.poll(async () => (await guide(p))?.over).toBe(true);
   // Give the interface a moment to have drawn anything it was going to.

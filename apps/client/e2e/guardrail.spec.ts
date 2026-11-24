@@ -14,6 +14,7 @@ test("removing the partner's decor asks first and leaves them a note", async ({ 
   const a = await (await browser.newContext()).newPage();
   await a.goto(`/${DEBUG_QUERY}`);
   await a.getByTestId('new-online').click();
+  await a.getByTestId('found-valley').click();
   await waitLive(a);
   const link = await a.getByTestId('invite-link').inputValue();
   await a.getByRole('button', { name: 'Done' }).click();

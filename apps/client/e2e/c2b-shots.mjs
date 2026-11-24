@@ -10,6 +10,7 @@ async function shot(hour, name, setup) {
   await page.route('**/api/**', (r) => r.abort());
   await page.goto(`${base}/?debug&quality=low&hour=${hour}`);
   await page.getByTestId('new-solo').click();
+  await page.getByTestId('found-valley').click();
   await page.waitForFunction(() => window.__qoti?.status() === 'live', null, { timeout: 90000 });
   await page.evaluate(() => {
     const q = window.__qoti;

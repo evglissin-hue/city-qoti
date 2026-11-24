@@ -174,7 +174,7 @@ function ValleySeed({ session }: { session: Session }) {
 }
 
 /** C5G: a volume per bus and a mute, saved in this browser. */
-function SoundSettings() {
+export function SoundSettings() {
   const a = audioSettings.value;
   const sliders: [keyof Omit<AudioSettings, 'muted'>, string][] = [
     ['master', copy.settings.master],

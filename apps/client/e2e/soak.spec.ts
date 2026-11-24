@@ -50,6 +50,7 @@ test('hashes stay equal through minutes of mixed actions', async ({ browser }) =
   const a = await (await browser.newContext()).newPage();
   await a.goto(`/${DEBUG_QUERY}`);
   await a.getByTestId('new-online').click();
+  await a.getByTestId('found-valley').click();
   await waitLive(a);
   const link = new URL(await a.getByTestId('invite-link').inputValue());
   await a.getByRole('button', { name: 'Done' }).click();
