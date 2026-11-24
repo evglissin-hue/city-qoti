@@ -148,6 +148,8 @@ export class SurfaceTiles {
   private pins = new Uint8Array(0);
   /** 1 when a pinned tile lies within PIN_SPAN tiles of the tile (cached regions only). */
   private nearPins = new Uint8Array(0);
+  /** The pins of the cached block and a PIN_SPAN ring round it (scratch for `nearPins`). */
+  private ringPins = new Uint8Array(0);
   /** Share of water round each tile (5 x 5, binomial weights: the shoreline's smooth mask). */
   private wets = new Float32Array(0);
 
@@ -180,17 +182,32 @@ export class SurfaceTiles {
     for (let z = 0; z < this.ch; z++) {
       for (let x = 0; x < this.cw; x++) this.wets[z * this.cw + x] = this.readWet(x0 + x, z0 + z);
     }
+    // V4X: whether a pin lies within PIN_SPAN tiles, exact for every cached tile: the pins of a
+    // PIN_SPAN ring round the block are read too, so the block's own margin (where slope normals
+    // sample) keeps the fast path in open ground instead of assuming a pin past the block's edge.
+    const s = PIN_SPAN;
+    const ew = this.cw + 2 * s;
+    const eh = this.ch + 2 * s;
+    if (this.ringPins.length < ew * eh) this.ringPins = new Uint8Array(ew * eh);
+    const ring = this.ringPins;
+    for (let z = 0; z < eh; z++) {
+      for (let x = 0; x < ew; x++) {
+        const bx = x - s;
+        const bz = z - s;
+        ring[z * ew + x] =
+          bx >= 0 && bz >= 0 && bx < this.cw && bz < this.ch
+            ? this.pins[bz * this.cw + bx]!
+            : this.reader.occupant(clampTile(x0 + bx), clampTile(z0 + bz))
+              ? 1
+              : 0;
+      }
+    }
     for (let z = 0; z < this.ch; z++) {
       for (let x = 0; x < this.cw; x++) {
         let near = 0;
-        for (let dz = -PIN_SPAN; dz <= PIN_SPAN && !near; dz++) {
-          for (let dx = -PIN_SPAN; dx <= PIN_SPAN && !near; dx++) {
-            const nx = x + dx;
-            const nz = z + dz;
-            // Outside the cached block: assume a pin could be there (the slow path checks).
-            if (nx < 0 || nz < 0 || nx >= this.cw || nz >= this.ch) near = 1;
-            else near = this.pins[nz * this.cw + nx]!;
-          }
+        for (let dz = 0; dz <= 2 * s && !near; dz++) {
+          const row = (z + dz) * ew + x;
+          for (let dx = 0; dx <= 2 * s && !near; dx++) near = ring[row + dx]!;
         }
         this.nearPins[z * this.cw + x] = near;
       }
