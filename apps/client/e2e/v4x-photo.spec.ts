@@ -15,6 +15,7 @@ test('photo mode: open, the hour, Save PNG, back', async ({ page }) => {
   page.on('pageerror', (e) => console.log('pageerror:', e.message));
   await page.goto('/?debug&quality=medium&creative');
   await page.getByTestId('new-online').click();
+  await page.getByTestId('found-valley').click();
   await waitLive(page);
   await page.getByRole('button', { name: 'Done' }).click();
   const clock = () => page.evaluate(() => window.__qoti.clock()?.speed);
