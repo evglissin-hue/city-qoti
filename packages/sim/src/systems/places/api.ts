@@ -138,6 +138,7 @@ export function recordSale(
   const last = row.sold.length - 1;
   if (last < 0) return;
   row.sold[last]! += qty;
+  if (row.served[last] === 0) row.served[last] = 1;
   row.takings[last]! += pennies;
   // R3.0: the Town Book counts customers by good at the place (R3C's body).
   townBookSale(state, row, good);
