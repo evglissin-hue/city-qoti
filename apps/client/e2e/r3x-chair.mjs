@@ -11,18 +11,28 @@ const out = process.env.QOTI_OUT ?? 'docs/build/screenshots';
 async function launch() {
   const browser = await chromium.launch({
     executablePath: process.env.QOTI_CHROMIUM ?? '/opt/pw-browsers/chromium',
-    args: ['--no-sandbox', '--enable-unsafe-swiftshader', '--use-angle=swiftshader', '--ignore-gpu-blocklist'],
+    args: [
+      '--no-sandbox',
+      '--enable-unsafe-swiftshader',
+      '--use-angle=swiftshader',
+      '--ignore-gpu-blocklist',
+    ],
   });
   const page = await browser.newPage({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
   page.on('pageerror', (e) => console.log('pageerror:', e.message));
   await page.route('**/api/**', (r) => r.abort());
   return { browser, page };
 }
-const live = (page) => page.waitForFunction(() => window.__qoti?.status() === 'live', null, { timeout: 240000 });
+const live = (page) =>
+  page.waitForFunction(() => window.__qoti?.status() === 'live', null, { timeout: 240000 });
 async function dismiss(page) {
   for (const name of ['Done', 'Back to it', 'Close', 'Later', 'Maybe later']) {
     const b = page.getByRole('button', { name, exact: true });
-    if (await b.count()) await b.first().click({ timeout: 1500 }).catch(() => {});
+    if (await b.count())
+      await b
+        .first()
+        .click({ timeout: 1500 })
+        .catch(() => {});
   }
 }
 async function shot(page, n, name) {
@@ -34,7 +44,15 @@ async function shot(page, n, name) {
 /** The visible text of a selector (default the whole page), one trimmed line per row. */
 async function say(page, label, sel) {
   const loc = sel ? page.locator(sel) : page.locator('body');
-  const t = (await loc.first().innerText().catch(() => '(none)')).split('\n').map((l) => l.trim()).filter(Boolean);
+  const t = (
+    await loc
+      .first()
+      .innerText()
+      .catch(() => '(none)')
+  )
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean);
   console.log(`--- ${label}`);
   for (const l of t) console.log('  | ' + l);
 }
@@ -51,7 +69,10 @@ S.first = async (page) => {
   await page.waitForTimeout(3000);
   await say(page, 'opening screen');
   await shot(page, 1, 'opening');
-  await page.getByRole('button', { name: 'Back to it' }).click().catch(() => {});
+  await page
+    .getByRole('button', { name: 'Back to it' })
+    .click()
+    .catch(() => {});
   await page.evaluate(() => window.__qoti.focusStart(26, true));
   // Take the lane north 12 tiles, zone beside it, set a quarry and a fishery down, as P3A's newcomers do.
   const ext = await q(page, () => {
@@ -68,7 +89,11 @@ S.first = async (page) => {
   const submit = (c) => q(page, (c) => window.__qoti.submit(c), c);
   await submit({ t: 'road.paint', kind: 'lane', tiles: ext });
   await page.waitForTimeout(1500);
-  await submit({ t: 'zone.paint', zone: 'crafts', tiles: ext.flatMap(([x, z]) => [1, 2, 3].map((d) => [x - d, z])) });
+  await submit({
+    t: 'zone.paint',
+    zone: 'crafts',
+    tiles: ext.flatMap(([x, z]) => [1, 2, 3].map((d) => [x - d, z])),
+  });
   for (const def of ['quarry', 'fishery']) {
     const s = await q(page, (d) => window.__qoti.findRoadSpot(d), def);
     if (s) await submit({ t: 'build.place', def, x: s.x, z: s.z, rot: s.rot });
@@ -104,8 +129,22 @@ async function open(page, query = GROWN) {
 }
 async function clearUi(page) {
   await q(page, () => {
-    for (const [name, value] of [['festivalCard', null], ['raidCard', null], ['almanac', null], ['edition', null], ['chapter', false], ['letter', null], ['rankUp', null], ['storyLetter', null], ['seasonCard', null]])
-      try { window.__qoti.setUi(name, value); } catch { /* not a signal here */ }
+    for (const [name, value] of [
+      ['festivalCard', null],
+      ['raidCard', null],
+      ['almanac', null],
+      ['edition', null],
+      ['chapter', false],
+      ['letter', null],
+      ['rankUp', null],
+      ['storyLetter', null],
+      ['seasonCard', null],
+    ])
+      try {
+        window.__qoti.setUi(name, value);
+      } catch {
+        /* not a signal here */
+      }
   });
 }
 async function clearCards(page) {
@@ -116,11 +155,19 @@ async function clearCards(page) {
 async function advanceTo(page, hour, minute, speed = 3, nextDay = true) {
   const c0 = await clock(page);
   // The canvas hidden, the sim runs about ten times faster on this machine (rendering is the bottleneck).
-  await page.evaluate(() => { const s = document.createElement('style'); s.id = 'chair-fast'; s.textContent = 'canvas,.game-ui{display:none!important}'; document.head.append(s); });
+  await page.evaluate(() => {
+    const s = document.createElement('style');
+    s.id = 'chair-fast';
+    s.textContent = 'canvas,.game-ui{display:none!important}';
+    document.head.append(s);
+  });
   await submit(page, { t: 'time.setSpeed', speed });
   for (let i = 0; i < 4000; i++) {
     await page.waitForTimeout(100);
-    const c = await clock(page).catch((e) => { if (i % 100 === 0) console.log('clock error', e.message.slice(0, 200)); return c0; });
+    const c = await clock(page).catch((e) => {
+      if (i % 100 === 0) console.log('clock error', e.message.slice(0, 200));
+      return c0;
+    });
     const past = !nextDay || c.day !== c0.day || c.season !== c0.season || c.year !== c0.year;
     if (past && c.hour * 60 + c.minute >= hour * 60 + minute) break;
     if (i % 100 === 0) await clearUi(page);
@@ -132,20 +179,37 @@ async function advanceTo(page, hour, minute, speed = 3, nextDay = true) {
   return clock(page);
 }
 const stamp = (c) => `day ${c.day} ${String(c.hour).padStart(2, '0')}:${String(c.minute).padStart(2, '0')}`;
-async function hideHud(page, on) {
+async function _hideHud(page, on) {
   await page.evaluate((on) => {
     let s = document.getElementById('chair-hide');
-    if (!s) { s = document.createElement('style'); s.id = 'chair-hide'; document.head.append(s); }
+    if (!s) {
+      s = document.createElement('style');
+      s.id = 'chair-hide';
+      document.head.append(s);
+    }
     s.textContent = on ? '.game-ui{visibility:hidden!important}' : '';
   }, on);
 }
 /** The first building of a def, or its screen spot. */
 const idOf = (page, def) => q(page, (d) => window.__qoti.buildingsOf(d)[0] ?? null, def);
 const lookAt = (page, x, z, d) => q(page, ([x, z, d]) => window.__qoti.focusTile(x, z, d), [x, z, d]);
-const posOf = (page, id) => q(page, (id) => { const b = window.__qoti.mirror().buildings.get(id); return b ? [b.x, b.z] : null; }, id);
+const posOf = (page, id) =>
+  q(
+    page,
+    (id) => {
+      const b = window.__qoti.mirror().buildings.get(id);
+      return b ? [b.x, b.z] : null;
+    },
+    id,
+  );
 const select = async (page, sel) => {
   await q(page, (s) => window.__qoti.select(s), sel);
-  if (sel) await page.locator('[class*="inspector"]').first().waitFor({ timeout: 15000 }).catch(() => console.log('(no inspector)'));
+  if (sel)
+    await page
+      .locator('[class*="inspector"]')
+      .first()
+      .waitFor({ timeout: 15000 })
+      .catch(() => console.log('(no inspector)'));
   await page.waitForTimeout(500);
 };
 
@@ -159,14 +223,34 @@ S.evening = async (page) => {
   const [hx, hz] = await posOf(page, hall);
   await lookAt(page, hx, hz, 22);
   await q(page, () => window.__qoti.setHour(null));
-  const sup = () => q(page, () => { const s = window.__qoti.supplies(); const t = window.__qoti.clock().tick; return { tick: t, night: s.night, lit: s.lamps.filter((l) => l.out <= t).length, reached: s.lamps.filter((l) => l.reach <= t).length, lamps: s.lamps.length, resting: s.resting.length, candles: s.candles.length, cu: s.candleUntil, lamplighters: s.lamplighters }; });
+  const sup = () =>
+    q(page, () => {
+      const s = window.__qoti.supplies();
+      const t = window.__qoti.clock().tick;
+      return {
+        tick: t,
+        night: s.night,
+        lit: s.lamps.filter((l) => l.out <= t).length,
+        reached: s.lamps.filter((l) => l.reach <= t).length,
+        lamps: s.lamps.length,
+        resting: s.resting.length,
+        candles: s.candles.length,
+        cu: s.candleUntil,
+        lamplighters: s.lamplighters,
+      };
+    });
   console.log('supplies 17:20', JSON.stringify(await sup()));
   await select(page, { kind: 'building', id: hall });
   await page.waitForTimeout(800);
   await say(page, 'Town Hall inspector 17:20', '[class*="inspector"]');
   await shot(page, 2, 'hall-1720');
   await select(page, null);
-  for (const [i, [h, m]] of [[17, 35], [17, 45], [17, 55], [18, 5]].entries()) {
+  for (const [i, [h, m]] of [
+    [17, 35],
+    [17, 45],
+    [17, 55],
+    [18, 5],
+  ].entries()) {
     c = await advanceTo(page, h, m, 3, false);
     console.log('at', stamp(c), JSON.stringify(await sup()));
     await shot(page, 2, `lamps-${i}-${String(c.hour).padStart(2, '0')}${String(c.minute).padStart(2, '0')}`);
@@ -181,7 +265,9 @@ async function saveValley(page, path) {
   await (await dl).saveAs(path);
   return path;
 }
-const SNAPS = process.env.QOTI_SNAPS ?? '/tmp/claude-0/-home-user-city-qoti/f5ca3bcd-c351-53bd-a2bc-00aa2b3c6d7a/scratchpad';
+const SNAPS =
+  process.env.QOTI_SNAPS ??
+  '/tmp/claude-0/-home-user-city-qoti/f5ca3bcd-c351-53bd-a2bc-00aa2b3c6d7a/scratchpad';
 /** Opens a saved valley file solo (as the title's file opener does). */
 async function openFile(page, file) {
   await page.goto(`${base}/?debug&quality=low&noguide`);
@@ -201,12 +287,19 @@ S.snap1720 = async (page) => {
   console.log('saved', await saveValley(page, `${SNAPS}/grown-1720.qoti`));
 };
 
-
 const supNow = (page) =>
   q(page, () => {
     const s = window.__qoti.supplies();
     const t = window.__qoti.clock().tick;
-    return { tick: t, night: s.night, lamps: s.lamps.length, lit: s.lamps.filter((l) => l.out <= t).length, resting: s.resting.length, candleHomes: s.candles.length, lamplighters: s.lamplighters };
+    return {
+      tick: t,
+      night: s.night,
+      lamps: s.lamps.length,
+      lit: s.lamps.filter((l) => l.out <= t).length,
+      resting: s.resting.length,
+      candleHomes: s.candles.length,
+      lamplighters: s.lamplighters,
+    };
   });
 const tileXZ = (t) => [t % 192, Math.floor(t / 192)];
 /** Opens a place's card with the camera on it and says and shoots it. */
@@ -217,11 +310,23 @@ async function placeCard(page, n, name, id, dist = 16) {
   await lookAt(page, x, z, dist);
   await select(page, { kind: 'place', id });
   await page.waitForTimeout(900);
-  console.log(`place ${id} "${p.name}" priority=${p.priority ?? 'normal'} resting=${JSON.stringify(p.resting ?? [])}`);
+  console.log(
+    `place ${id} "${p.name}" priority=${p.priority ?? 'normal'} resting=${JSON.stringify(p.resting ?? [])}`,
+  );
   await say(page, `place card ${name}`, '[class*="inspector"]');
   await shot(page, n, name);
 }
-async function eveningRun(page, file, tag, n, times = [[17, 40], [18, 6], [21, 45]]) {
+async function eveningRun(
+  page,
+  file,
+  tag,
+  n,
+  times = [
+    [17, 40],
+    [18, 6],
+    [21, 45],
+  ],
+) {
   await openFile(page, `${SNAPS}/${file}`);
   const hall = await idOf(page, 'town-hall');
   const [hx, hz] = await posOf(page, hall);
@@ -237,14 +342,30 @@ async function eveningRun(page, file, tag, n, times = [[17, 40], [18, 6], [21, 4
   for (const [h, m] of times) {
     c = await advanceTo(page, h, m, 3, false);
     console.log('at', stamp(c), JSON.stringify(await supNow(page)));
-    await shot(page, n, `${tag}-lamps-${String(c.hour).padStart(2, '0')}${String(c.minute).padStart(2, '0')}`);
+    await shot(
+      page,
+      n,
+      `${tag}-lamps-${String(c.hour).padStart(2, '0')}${String(c.minute).padStart(2, '0')}`,
+    );
   }
   await select(page, { kind: 'building', id: hall });
   await page.waitForTimeout(700);
   await say(page, `Town Hall inspector ${stamp(c)}`, '[class*="inspector"]');
   await shot(page, n, `${tag}-hall-1805`);
   await select(page, null);
-  const places = await q(page, () => window.__qoti.places().filter((p) => p.supplies && p.supplies.length).map((p) => ({ id: p.id, n: p.name, rest: (p.resting ?? []).length, pri: p.priority ?? 'normal', pieces: p.supplies.reduce((a, s) => a + s.pieces, 0), goods: p.supplies.map((s) => s.good).join('+') })));
+  const places = await q(page, () =>
+    window.__qoti
+      .places()
+      .filter((p) => p.supplies && p.supplies.length)
+      .map((p) => ({
+        id: p.id,
+        n: p.name,
+        rest: (p.resting ?? []).length,
+        pri: p.priority ?? 'normal',
+        pieces: p.supplies.reduce((a, s) => a + s.pieces, 0),
+        goods: p.supplies.map((s) => s.good).join('+'),
+      })),
+  );
   console.log('places with supplies', places.length, 'resting ones', places.filter((p) => p.rest).length);
   for (const p of places.slice(0, 40)) console.log('  ', JSON.stringify(p));
   return places;
@@ -255,29 +376,51 @@ S.willow = async (page) => {
   const places = await eveningRun(page, 'willow-1720.qoti', 'dark', 2);
   const big = places.find((p) => p.id.startsWith('site:lantern-walk'));
   const fire = places.find((p) => p.id.startsWith('fire:'));
-  for (const [nm, p] of [['lanternwalk', big], ['brazier', fire]]) if (p) await placeCard(page, 2, `dark-card-${nm}`, p.id);
+  for (const [nm, p] of [
+    ['lanternwalk', big],
+    ['brazier', fire],
+  ])
+    if (p) await placeCard(page, 2, `dark-card-${nm}`, p.id);
 };
 S.short = async (page) => {
   const places = await eveningRun(page, 'willow-short-1720.qoti', 'short', 2);
   const rest = places.filter((p) => p.rest > 0).sort((a, b) => b.rest - a.rest);
   const kept = places.filter((p) => p.rest === 0).sort((a, b) => b.pieces - a.pieces);
   const mid = places.filter((p) => p.rest > 0 && p.rest < p.pieces);
-  for (const [nm, p] of [['resting', rest[0]], ['kept', kept[0]], ['partly', mid[0]]]) if (p) await placeCard(page, 2, `short-card-${nm}`, p.id);
+  for (const [nm, p] of [
+    ['resting', rest[0]],
+    ['kept', kept[0]],
+    ['partly', mid[0]],
+  ])
+    if (p) await placeCard(page, 2, `short-card-${nm}`, p.id);
 };
 S.nowood = async (page) => {
   const places = await eveningRun(page, 'willow-nowood-2145.qoti', 'nowood', 3, []);
-  for (const p of places.filter((p) => p.id.startsWith('fire:')).slice(0, 2)) await placeCard(page, 3, `nowood-card-${p.id.replace(':', '')}`, p.id);
+  for (const p of places.filter((p) => p.id.startsWith('fire:')).slice(0, 2))
+    await placeCard(page, 3, `nowood-card-${p.id.replace(':', '')}`, p.id);
 };
 S.warm = async (page) => {
   // 60 candles and plenty of wood: some lamps lit, the rest resting (candles short), braziers burning.
-  const places = await eveningRun(page, 'willow-warm-1720.qoti', 'warm', 2, [[17, 40], [18, 6]]);
-  const rest = places.filter((p) => p.rest > 0 && !p.id.startsWith('fire:')).sort((a, b) => b.rest - a.rest)[0];
-  const kept = places.filter((p) => p.rest === 0 && !p.id.startsWith('fire:')).sort((a, b) => b.pieces - a.pieces)[0];
-  for (const [nm, p] of [['kept', kept], ['resting', rest]]) if (p) await placeCard(page, 2, `warm-card-${nm}`, p.id);
+  const places = await eveningRun(page, 'willow-warm-1720.qoti', 'warm', 2, [
+    [17, 40],
+    [18, 6],
+  ]);
+  const rest = places
+    .filter((p) => p.rest > 0 && !p.id.startsWith('fire:'))
+    .sort((a, b) => b.rest - a.rest)[0];
+  const kept = places
+    .filter((p) => p.rest === 0 && !p.id.startsWith('fire:'))
+    .sort((a, b) => b.pieces - a.pieces)[0];
+  for (const [nm, p] of [
+    ['kept', kept],
+    ['resting', rest],
+  ])
+    if (p) await placeCard(page, 2, `warm-card-${nm}`, p.id);
 };
 S.warmfire = async (page) => {
   const places = await eveningRun(page, 'willow-warm-2145.qoti', 'warmfire', 3, []);
-  for (const p of places.filter((p) => p.id.startsWith('fire:')).slice(0, 2)) await placeCard(page, 3, `warm-card-${p.id.replace(':', '')}`, p.id);
+  for (const p of places.filter((p) => p.id.startsWith('fire:')).slice(0, 2))
+    await placeCard(page, 3, `warm-card-${p.id.replace(':', '')}`, p.id);
 };
 S.nowood = async (page) => {
   // Candles but no firewood at all: the braziers are cold.
@@ -291,7 +434,14 @@ async function lookBuilding(page, n, name, id, dist = 11) {
   const [x, z] = await posOf(page, id);
   await lookAt(page, x, z, dist);
   await select(page, { kind: 'building', id });
-  const def = await q(page, (id) => { const b = window.__qoti.mirror().buildings.get(id); return `${b.def}/${b.trade ?? '-'} level ${b.level ?? '-'}`; }, id);
+  const def = await q(
+    page,
+    (id) => {
+      const b = window.__qoti.mirror().buildings.get(id);
+      return `${b.def}/${b.trade ?? '-'} level ${b.level ?? '-'}`;
+    },
+    id,
+  );
   console.log(`building ${id} ${def}`);
   await say(page, `inspector ${name}`, '[class*="inspector"]');
   await shot(page, n, name);
@@ -317,7 +467,12 @@ S.masters = async (page) => {
   await lookBuilding(page, 10, 'shop-level3', 565);
   await lookBuilding(page, 5, 'lodge-specialized', 27, 14);
   // A home's Next tier line: the first residential building.
-  const home = await q(page, () => { const m = window.__qoti.mirror(); for (const b of m.buildings.values()) if (/cottage|townhouse|house/.test(b.def) && b.stage === 'built') return b.id; return null; });
+  const home = await q(page, () => {
+    const m = window.__qoti.mirror();
+    for (const b of m.buildings.values())
+      if (/cottage|townhouse|house/.test(b.def) && b.stage === 'built') return b.id;
+    return null;
+  });
   if (home) await lookBuilding(page, 10, 'home-next-tier', home, 12);
   // The default camera, off a specialized building: the level pole from the default distance.
   const [lx, lz] = await posOf(page, 27);
@@ -331,7 +486,10 @@ S.book = async (page) => {
   await openFile(page, `${SNAPS}/willow-book-0605.qoti`);
   await bookPanel(page, 6, 'town-book-hints', 'town-book');
   // Turn the page: the right-hand leaf.
-  await page.getByTestId('town-book-next').click({ timeout: 3000 }).catch(() => console.log('(no next page)'));
+  await page
+    .getByTestId('town-book-next')
+    .click({ timeout: 3000 })
+    .catch(() => console.log('(no next page)'));
   await page.waitForTimeout(600);
   await say(page, 'town book, after next', 'aside.book-slot');
 };
@@ -345,7 +503,8 @@ S.gone = async (page) => {
   await shot(page, 4, 'feed-gone');
 };
 
-const prio = (page, id) => q(page, (id) => window.__qoti.places().find((p) => p.id === id)?.priority ?? 'normal', id);
+const prio = (page, id) =>
+  q(page, (id) => window.__qoti.places().find((p) => p.id === id)?.priority ?? 'normal', id);
 const undoSize = (page) => q(page, () => window.__qoti.undoSize());
 S.priority = async (page) => {
   await openFile(page, `${SNAPS}/willow-warm-1720.qoti`);
@@ -362,19 +521,33 @@ S.priority = async (page) => {
   console.log('after Keep first on A:', await prio(page, A), 'undo', await undoSize(page));
   await say(page, 'place card A after Keep first', '[class*="inspector"]');
   await shot(page, 8, 'priority-keep');
-  const pb = await q(page, (id) => window.__qoti.places().find((p) => p.id === id), B);
+  await q(page, (id) => window.__qoti.places().find((p) => p.id === id), B);
   await select(page, { kind: 'place', id: B });
   await page.getByTestId('place-priority').getByRole('radio', { name: 'Let it rest' }).click();
   await page.waitForTimeout(2500);
   console.log('after Let it rest on B:', await prio(page, B), 'undo', await undoSize(page));
   await shot(page, 8, 'priority-rest');
   // Undo both, with the keyboard.
-  await page.locator('body').click({ position: { x: 5, y: 5 } }).catch(() => {});
+  await page
+    .locator('body')
+    .click({ position: { x: 5, y: 5 } })
+    .catch(() => {});
   for (let i = 0; i < 2; i++) {
     await page.keyboard.press('Control+z');
     await page.waitForTimeout(2500);
-    console.log(`after Ctrl+Z #${i + 1}:`, 'A', await prio(page, A), 'B', await prio(page, B), 'undo', await undoSize(page));
-    console.log('toasts:', JSON.stringify(await q(page, () => window.__qoti.ui().toasts.value)).slice(0, 300));
+    console.log(
+      `after Ctrl+Z #${i + 1}:`,
+      'A',
+      await prio(page, A),
+      'B',
+      await prio(page, B),
+      'undo',
+      await undoSize(page),
+    );
+    console.log(
+      'toasts:',
+      JSON.stringify(await q(page, () => window.__qoti.ui().toasts.value)).slice(0, 300),
+    );
   }
   await shot(page, 8, 'priority-undone');
   // The carrier's places switch in Balances, and undone.
@@ -384,14 +557,28 @@ S.priority = async (page) => {
   const sw = page.getByTestId('carrier-places-wares');
   console.log('switch present', await sw.count());
   if (await sw.count()) {
-    const state = async () => q(page, () => window.__qoti.mirror().balances.value.lines.filter((l) => l.family === 'wares' || l.family === 'fuel').map((l) => `${l.family}:${l.forPlaces}`));
+    const state = async () =>
+      q(page, () =>
+        window.__qoti
+          .mirror()
+          .balances.value.lines.filter((l) => l.family === 'wares' || l.family === 'fuel')
+          .map((l) => `${l.family}:${l.forPlaces}`),
+      );
     console.log('before', await state());
     await say(page, 'Balances wares line', '[data-testid="families"]');
-    await sw.getByRole('checkbox').or(sw).first().click().catch((e) => console.log('click failed', e.message.slice(0, 100)));
+    await sw
+      .getByRole('checkbox')
+      .or(sw)
+      .first()
+      .click()
+      .catch((e) => console.log('click failed', e.message.slice(0, 100)));
     await page.waitForTimeout(2500);
     console.log('after switch', await state(), 'undo', await undoSize(page));
     await shot(page, 8, 'balances-places-on');
-    await page.locator('body').click({ position: { x: 5, y: 400 } }).catch(() => {});
+    await page
+      .locator('body')
+      .click({ position: { x: 5, y: 400 } })
+      .catch(() => {});
     await page.keyboard.press('Control+z');
     await page.waitForTimeout(2500);
     console.log('after Ctrl+Z', await state(), 'undo', await undoSize(page));
@@ -405,20 +592,35 @@ S.balances = async (page) => {
   await q(page, () => window.__qoti.openPanel('balances'));
   await page.waitForTimeout(1500);
   await say(page, 'Balances', 'aside.book-slot');
-  await page.locator('aside.book-slot').getByText('Wares', { exact: true }).first().click({ timeout: 5000 }).catch((e) => console.log('no Wares row', e.message.slice(0, 80)));
+  await page
+    .locator('aside.book-slot')
+    .getByText('Wares', { exact: true })
+    .first()
+    .click({ timeout: 5000 })
+    .catch((e) => console.log('no Wares row', e.message.slice(0, 80)));
   await page.waitForTimeout(1000);
   const sw = page.getByTestId('carrier-places-wares');
   console.log('switch present', await sw.count());
   await say(page, 'Balances, Wares open', 'aside.book-slot');
   await shot(page, 8, 'balances-wares');
-  const state = () => q(page, () => window.__qoti.mirror().balances.value.lines.filter((l) => l.family === 'wares').map((l) => `${l.family}:${l.forPlaces}`));
+  const state = () =>
+    q(page, () =>
+      window.__qoti
+        .mirror()
+        .balances.value.lines.filter((l) => l.family === 'wares')
+        .map((l) => `${l.family}:${l.forPlaces}`),
+    );
   if (await sw.count()) {
     console.log('before', await state());
     await sw.click();
     await page.waitForTimeout(2500);
     console.log('after switch', await state(), 'undo', await undoSize(page));
     await shot(page, 8, 'balances-places-on');
-    await page.locator('.top-bar, body').first().click({ position: { x: 5, y: 5 } }).catch(() => {});
+    await page
+      .locator('.top-bar, body')
+      .first()
+      .click({ position: { x: 5, y: 5 } })
+      .catch(() => {});
     await page.keyboard.press('Control+z');
     await page.waitForTimeout(2500);
     console.log('after Ctrl+Z', await state(), 'undo', await undoSize(page));
@@ -432,7 +634,7 @@ S.thread = async (page) => {
   const scene = await q(page, () => window.__qoti.threadScene());
   if (!scene) return console.log('no thread scene in this valley');
   console.log('scene', JSON.stringify(scene));
-  const { press, place, placeName, at } = scene;
+  const { press, at } = scene;
   await lookAt(page, at[0], at[1], 40);
   await select(page, { kind: 'building', id: press });
   await page.waitForTimeout(800);
@@ -440,13 +642,23 @@ S.thread = async (page) => {
   console.log('ground layer', await q(page, () => window.__qoti.groundHighlight()));
   await shot(page, 7, 'cider-maker');
   // A name in the sentence is a link: the place.
-  await page.getByTestId('thread').getByRole('button', { name: /Pickering/ }).first().click({ timeout: 8000 }).catch((e) => console.log('link click failed', e.message.slice(0, 80)));
+  await page
+    .getByTestId('thread')
+    .getByRole('button', { name: /Pickering/ })
+    .first()
+    .click({ timeout: 8000 })
+    .catch((e) => console.log('link click failed', e.message.slice(0, 80)));
   await page.waitForTimeout(1200);
   await say(page, 'place card by the link', '[class*="inspector"]');
   console.log('ground layer', await q(page, () => window.__qoti.groundHighlight()));
   await shot(page, 7, 'place-by-link');
   // A home: the first household home.
-  const home = await q(page, () => { const m = window.__qoti.mirror(); for (const b of m.buildings.values()) if (b.stage === 'built' && /cottage|townhouse/.test(b.def)) return b.id; return null; });
+  const home = await q(page, () => {
+    const m = window.__qoti.mirror();
+    for (const b of m.buildings.values())
+      if (b.stage === 'built' && /cottage|townhouse/.test(b.def)) return b.id;
+    return null;
+  });
   if (home) {
     await select(page, { kind: 'building', id: home });
     await page.waitForTimeout(800);

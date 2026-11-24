@@ -34,14 +34,21 @@ function run(s: WorldState, until: (c: ReturnType<typeof calendar>) => boolean) 
   }
 }
 /** Runs on to hour:minute of a day that satisfies `day` (default: the first one coming). */
-function to(s: WorldState, hour: number, minute: number, day: (c: ReturnType<typeof calendar>) => boolean = () => true) {
+function to(
+  s: WorldState,
+  hour: number,
+  minute: number,
+  day: (c: ReturnType<typeof calendar>) => boolean = () => true,
+) {
   // Out of the current evening first, then on to the target.
   const c0 = calendar(s.tick);
   run(s, (c) => c.day !== c0.day || c.season !== c0.season || c.year !== c0.year);
   run(s, (c) => day(c) && c.hour * 60 + c.minute >= hour * 60 + minute && c.hour < 23);
 }
 
-const grown = deserialize(readFileSync(fileURLToPath(new URL('../../../apps/client/src/app/fixtures/grown.qoti', import.meta.url))));
+const grown = deserialize(
+  readFileSync(fileURLToPath(new URL('../../../apps/client/src/app/fixtures/grown.qoti', import.meta.url))),
+);
 const v8json = JSON.parse(
   readFileSync(fileURLToPath(new URL('../test/golden/v8-willow-day70.json', import.meta.url)), 'utf8'),
 ) as { save: string };
@@ -94,7 +101,14 @@ if (which === 'all' || which === 'willow') {
   const book = deserialize(serialize(w));
   seat(book);
   to(book, 6, 5);
-  console.log('willow-book-0605', stamp(book), 'pages', book.townBook.pages.length, 'hints', book.townBook.hints.length);
+  console.log(
+    'willow-book-0605',
+    stamp(book),
+    'pages',
+    book.townBook.pages.length,
+    'hints',
+    book.townBook.hints.length,
+  );
   writeFileSync(`${out}/willow-book-0605.qoti`, serialize(book));
   // Households take their candles first (24 here), then the places draw what stands above the floor.
   const cold = deserialize(serialize(w));
@@ -108,7 +122,10 @@ if (which === 'all' || which === 'willow') {
   setStock(warm, 'firewood', 400);
   writeFileSync(`${out}/willow-warm-1720.qoti`, serialize(warm));
   // The same two evenings at 21:45, after the 21:30 draw of the firewood.
-  for (const [name, st] of [['warm', warm], ['nowood', cold]] as const) {
+  for (const [name, st] of [
+    ['warm', warm],
+    ['nowood', cold],
+  ] as const) {
     run(st, (c) => c.hour * 60 + c.minute >= 21 * 60 + 45);
     console.log(`willow-${name}-2145`, stamp(st));
     writeFileSync(`${out}/willow-${name}-2145.qoti`, serialize(st));
