@@ -108,11 +108,16 @@ function close(
   return ctx;
 }
 
-/** Four evenings of cider (the first four days of the season 0). */
+/** The first n days of season 0. */
+const firstDays = (n: number): number[] => Array.from({ length: n }, (_, i) => i);
+const MARK = TOWN_BOOK.specialtyCustomers;
+const EVENINGS = TOWN_BOOK.specialtyEvenings;
+
+/** A specialty's evenings of cider (the first `specialtyEvenings` days of season 0). */
 function sellCider(
   s: WorldState,
   id: PlaceId,
-  days = [0, 1, 2, 3],
+  days = firstDays(EVENINGS),
   customers = TOWN_BOOK.specialtyCustomers,
 ): SimCtx {
   let ctx!: SimCtx;
@@ -132,14 +137,14 @@ describe('the counts', () => {
     expect(row.customers).toHaveLength(content.goods.length);
   });
 
-  it('the close turns ten customers into an evening of the season, resets a stale season, and clears customers', () => {
+  it('the close turns the mark of customers into an evening of the season, resets a stale season, and clears customers', () => {
     const s = town();
     const { id, row } = site(s, 'orchard-path', 60, 60);
     close(s, 0, {
       [id]: {
         customers: [
-          [CIDER, 10],
-          [HONEY, 9],
+          [CIDER, MARK],
+          [HONEY, MARK - 1],
         ],
       },
     });
@@ -147,10 +152,10 @@ describe('the counts', () => {
     expect(row.goodEvenings).toEqual({ season: 0, n: expect.any(Array) });
     expect(row.goodEvenings!.n[CIDER]).toBe(1);
     expect(row.goodEvenings!.n[HONEY]).toBe(0);
-    close(s, 1, { [id]: { customers: [[CIDER, 12]] } });
+    close(s, 1, { [id]: { customers: [[CIDER, MARK + 2]] } });
     expect(row.goodEvenings!.n[CIDER]).toBe(2);
     // A new season starts the count again.
-    close(s, DAYS_PER_SEASON, { [id]: { customers: [[CIDER, 10]] } });
+    close(s, DAYS_PER_SEASON, { [id]: { customers: [[CIDER, MARK]] } });
     expect(row.goodEvenings!.season).toBe(1);
     expect(row.goodEvenings!.n[CIDER]).toBe(1);
   });
@@ -165,11 +170,11 @@ describe('a specialty', () => {
       s.hearth.discovered.push({ pattern: p.id, tick: 0, seat: 0, together: false, anchor: 0 });
     const { id } = site(s, 'orchard-path', 70, 70);
     const renown = s.renown.points;
-    const ctx = sellCider(s, id, [0, 1, 2]);
+    const ctx = sellCider(s, id, firstDays(EVENINGS - 1));
     expect(s.townBook.pages).toEqual([]);
     expect(placeSpecialty(s, placeById(s, id)!)).toBe(0);
     expect(specialtyGood(s, CIDER)).toBe(false);
-    const found = close(s, 3, { [id]: { customers: [[CIDER, 10]] } }, ctx);
+    const found = close(s, EVENINGS - 1, { [id]: { customers: [[CIDER, MARK]] } }, ctx);
     expect(s.townBook.pages).toHaveLength(1);
     const page = s.townBook.pages[0]!;
     expect(page).toMatchObject({
@@ -180,7 +185,7 @@ describe('a specialty', () => {
       leaning: 'gardens',
     });
     expect(page.name).toBe('Orchard Walk Cider');
-    expect(page.day).toBe(3);
+    expect(page.day).toBe(EVENINGS - 1);
     expect(page.seats).toEqual([0]);
     expect(s.renown.points).toBe(renown + TOWN_BOOK.pageRenown);
     expect(events(found, 'townBook.updated')).toHaveLength(1);
@@ -189,7 +194,7 @@ describe('a specialty', () => {
       events(found, 'notify').some((e) => e.kind === 'letter' && e.text.includes('Orchard Walk Cider')),
     ).toBe(true);
     // Not found again, and no more renown, on later closes.
-    for (let d = 4; d < 6; d++) close(s, d, { [id]: { customers: [[CIDER, 15]] } });
+    for (let d = EVENINGS; d < DAYS_PER_SEASON; d++) close(s, d, { [id]: { customers: [[CIDER, MARK + 5]] } });
     expect(s.townBook.pages).toHaveLength(1);
     expect(s.renown.points).toBe(renown + TOWN_BOOK.pageRenown);
     // The draw, after the place index rebuilds.
@@ -415,7 +420,7 @@ describe('callings', () => {
     expect(s.townBook.callings).toEqual([]);
     expect(s.calling).toBeUndefined();
     // The third comes by example.
-    const ctx = sellCider(s, id, [1, 2, 3, 4]);
+    const ctx = sellCider(s, id, firstDays(EVENINGS).map((d) => d + 1));
     expect(s.townBook.pages.filter((p) => p.leaning === 'gardens')).toHaveLength(3);
     const garden = content.callings.find((c) => c.leaning === 'gardens')!;
     expect(s.townBook.callings).toEqual([garden.id]);
