@@ -8,7 +8,7 @@ import { base64ToBytes, peekSaveVersion, type SeatedCommand, type Turn, type Vie
 import { IdbStorage } from '../../net/idb';
 import type { CameraView } from '../../input/camera';
 import { isQuality, type Quality } from '../../render/quality';
-import { Renderer } from '../../render/renderer';
+import { Renderer, type RenderStats } from '../../render/renderer';
 import { Mirror } from '../../state/mirror';
 import { SimHost } from '../../worker/host';
 import { findRecent, listRecent } from '../recent';
@@ -197,6 +197,10 @@ export function startBackdrop(opts: BackdropOptions): LiveBackdrop {
       return false;
     }
     renderer = r;
+    // V4X: `?debug` lets the shot scripts read the backdrop's own frames (does a still backdrop
+    // develop, does a drifting one stay a moving frame); nothing for players.
+    if (new URLSearchParams(location.search).has('debug'))
+      (globalThis as { __qotiBackdropStats?: () => RenderStats }).__qotiBackdropStats = () => r.stats;
     backdropStats.liveRenderers++;
     r.canvas.tabIndex = -1;
     r.canvas.setAttribute('aria-hidden', 'true');

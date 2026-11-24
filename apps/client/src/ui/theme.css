@@ -1048,11 +1048,154 @@ input::placeholder {
   font-weight: 700;
 }
 
-.settings input[type='range'] {
-  accent-color: var(--sage-deep);
+/* V4X: one slider for the whole interface (Settings and photo mode). The component sets --fill
+   (a percentage) from the value; WebKit paints the filled part with a gradient, Firefox with
+   -moz-range-progress. The colors are the paper tokens, so lamplight warms it with the rest. */
+.settings input[type='range'],
+.photo-slider input[type='range'] {
+  --fill: 0%;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 22px;
   padding: 0;
+  margin: 0;
   border: none;
   background: transparent;
+  box-shadow: none;
+  cursor: pointer;
+}
+.settings input[type='range']::-webkit-slider-runnable-track,
+.photo-slider input[type='range']::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: linear-gradient(to right, var(--sage-deep) var(--fill), var(--paper-deep) var(--fill));
+}
+.settings input[type='range']::-moz-range-track,
+.photo-slider input[type='range']::-moz-range-track {
+  height: 6px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--paper-deep);
+}
+.settings input[type='range']::-moz-range-progress,
+.photo-slider input[type='range']::-moz-range-progress {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--sage-deep);
+}
+.settings input[type='range']::-webkit-slider-thumb,
+.photo-slider input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  margin-top: -7px;
+  border-radius: 50%;
+  border: 2px solid var(--ink-line);
+  background: var(--paper-light);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.7) inset,
+    0 2px 3px rgba(60, 40, 20, 0.3);
+}
+.settings input[type='range']::-moz-range-thumb,
+.photo-slider input[type='range']::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid var(--ink-line);
+  background: var(--paper-light);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.7) inset,
+    0 2px 3px rgba(60, 40, 20, 0.3);
+}
+.settings input[type='range']:focus-visible,
+.photo-slider input[type='range']:focus-visible {
+  outline: none;
+}
+.settings input[type='range']:focus-visible::-webkit-slider-thumb,
+.photo-slider input[type='range']:focus-visible::-webkit-slider-thumb {
+  outline: 2px solid var(--river);
+  outline-offset: 2px;
+}
+.settings input[type='range']:focus-visible::-moz-range-thumb,
+.photo-slider input[type='range']:focus-visible::-moz-range-thumb {
+  outline: 2px solid var(--river);
+  outline-offset: 2px;
+}
+.settings input[type='range']:disabled,
+.photo-slider input[type='range']:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* V4X: the tea break. The interface steps back to the town's name and the clock and comes back
+   with the view. Opacity and visibility only: nothing leaves the DOM or reflows. Going out is a
+   slow fade (visibility follows at its end); coming back is quick. The quick fade is a
+   zero-specificity default, so any element with its own transition keeps it and simply returns. */
+:where(.game-ui > *, .topbar > *) {
+  transition: opacity 0.2s ease;
+}
+.game-ui.tea-break > *:not(.topbar),
+.game-ui.tea-break .topbar > *:not(.topbar-town):not(.topbar-clock) {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 1.2s ease,
+    visibility 0s linear 1.2s;
+}
+.game-ui .topbar {
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    backdrop-filter 0.2s ease;
+}
+.game-ui.tea-break .topbar {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  pointer-events: none;
+  transition-duration: 1.2s;
+}
+/* The name block and the clock keep a soft paper backing: one plain rounded shape per label, its
+   own background. Each label always carries 6px of padding that a -6px margin cancels, so its place
+   and size in the bar never change and its text never reads as overflowing; only the background
+   fades in and out. */
+.game-ui .topbar-town,
+.game-ui .topbar-clock {
+  padding: 6px;
+  margin: -6px;
+  border-radius: 16px;
+  background-color: transparent;
+  transition: background-color 0.2s ease;
+}
+.game-ui.tea-break .topbar-town,
+.game-ui.tea-break .topbar-clock {
+  background-color: color-mix(in srgb, var(--paper-light) 82%, transparent);
+  transition-duration: 1.2s;
+}
+/* The weather glyph stays in the clock's cluster, but is not a button for the while. */
+.game-ui.tea-break .topbar-clock {
+  pointer-events: none;
+}
+:root.reduced-motion .game-ui > *,
+:root.reduced-motion .game-ui .topbar,
+:root.reduced-motion .game-ui .topbar > *,
+:root.reduced-motion .game-ui .topbar-town,
+:root.reduced-motion .game-ui .topbar-clock {
+  transition: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .game-ui > *,
+  .game-ui .topbar,
+  .game-ui .topbar > *,
+  .game-ui .topbar-town,
+  .game-ui .topbar-clock {
+    transition: none !important;
+  }
 }
 
 .settings fieldset.sound {

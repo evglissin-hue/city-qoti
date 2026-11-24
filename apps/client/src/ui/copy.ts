@@ -106,6 +106,9 @@ export const copy = {
     uiScale: 'Interface size',
     reducedMotion: 'Calm motion',
     reducedMotionHint: 'Fewer wiggles and slides',
+    teaBreak: 'Tea break',
+    teaBreakHint:
+      'After a minute and a half of quiet the camera wanders the valley. Any touch brings it back.',
     // R2D: the evening.
     editionInFeed: 'Evening edition in the feed',
     editionInFeedHint: 'A line in the left feed at 21:00 instead of a card. The rest is in its hover.',

@@ -26,7 +26,15 @@ export function GameUI({ session, onLeave }: { session: Session; onLeave: () => 
   // I3 (C5F): photo mode hides everything but its own strip.
   if (session.ui.photo.value) {
     const strip = panels.find((p) => p.id === 'photo');
-    return <div class="game-ui photo-mode">{strip && <strip.component session={session} />}</div>;
+    // V4X: the strip takes the season's paper and the lamplight like the rest of the interface.
+    const photoTick = session.mirror.tick.value;
+    return (
+      <div
+        class={`game-ui photo-mode season-${seasonKey(photoTick)} ${lamplit(photoTick) ? 'lamplight' : ''}`}
+      >
+        {strip && <strip.component session={session} />}
+      </div>
+    );
   }
   // I3 (C5F): the paper takes a faint tint of the season.
   const tick = session.mirror.tick.value;
@@ -37,7 +45,7 @@ export function GameUI({ session, onLeave }: { session: Session; onLeave: () => 
   const waits = (id: string) => waitsBehind(id, front);
   return (
     <div
-      class={`game-ui season-${season} ${lamplit(tick) ? 'lamplight' : ''} ${minimapShown(session) ? 'with-minimap' : ''}`}
+      class={`game-ui season-${season} ${lamplit(tick) ? 'lamplight' : ''} ${minimapShown(session) ? 'with-minimap' : ''} ${session.ui.teaBreak.value ? 'tea-break' : ''}`}
     >
       {panels
         .filter((p) => p.side === 'world')

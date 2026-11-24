@@ -3,6 +3,7 @@
 // Hearth's page and the Ledger's page, from SeasonReportView. Paper tinted by the season.
 import { TICKS_PER_DAY, type SeasonCardView, type SeasonReportLine, type SeasonReportView } from '@qoti/sim';
 import type { ComponentChildren } from 'preact';
+import { seasonPicture } from '../../app/inkPictures';
 import type { Session } from '../../app/session';
 import { closeAlmanac } from '../../app/seasonsHook';
 import { CompassArrow, SeasonVignette, Stars, WeatherGlyph } from '../art';
@@ -18,6 +19,7 @@ import {
 } from '../seasons';
 import { toggleBook } from '.';
 import { creditedText } from './Edition';
+import { InkSlot } from './InkSlot';
 import { SeasonPlanQuestions } from './SeasonPlan';
 
 const TRACK_MARK: Record<SeasonReportLine['track'], string> = {
@@ -68,6 +70,13 @@ export function SeasonCard({
       <SeasonVignette season={view.season} class="almanac-art" />
       <p class="kicker">The almanac</p>
       <h2>{view.name}</h2>
+      <InkSlot
+        render={session.render}
+        pictureKey={`season:${view.year}:${view.season}`}
+        ask={() => seasonPicture(session, view.season, view.year)}
+        label={`${session.mirror.settings.value.townName} as ${view.name} begins`}
+        testid="season-card-picture"
+      />
       <div class="almanac-grid">
         <section class="almanac-box" data-testid="card-festival">
           <h4>The festival</h4>

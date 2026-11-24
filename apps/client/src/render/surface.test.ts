@@ -12,6 +12,7 @@ import { buildTerrainChunk } from './layers/terrain';
 import {
   RIM_TILES,
   rimLevel,
+  pinReach,
   surfaceY,
   SurfaceTiles,
   tileSurfaceY,
@@ -69,13 +70,58 @@ describe('ground surface', () => {
     // eases back to the hill behind.
     expect(tileSurfaceY(t, 3, 0, 3.5, 0.85)).toBeCloseTo(pad, 6);
     expect(surfaceY(t, 3, 0.9) - pad).toBeLessThan(0.08);
+    // The ease reaches up to 1.5 tiles (it wobbles), so the hill is whole again past that.
     expect(surfaceY(t, 3, 0.5)).toBeGreaterThan(pad);
-    expect(surfaceY(t, 3, 0.05)).toBeCloseTo(levelY(2), 1);
+    expect(surfaceY(t, 3, 0.9)).toBeLessThan(surfaceY(t, 3, 0.5));
     // Neighbors agree with the pad along its edges: no step to close.
     for (let k = 0; k <= 8; k++) {
       const along = 1 + k / 4;
       expect(tileSurfaceY(t, 1, Math.floor(along - 1e-9), 2, along)).toBeCloseTo(pad, 6);
     }
+  });
+
+  it('wobbles how far the ground eases from a pad, deterministically and within bounds', () => {
+    let lo = Infinity;
+    let hi = -Infinity;
+    for (let z = 0; z < 60; z++) {
+      for (let x = 0; x < 60; x++) {
+        const r = pinReach(x * 0.5, z * 0.5);
+        expect(pinReach(x * 0.5, z * 0.5)).toBe(r);
+        lo = Math.min(lo, r);
+        hi = Math.max(hi, r);
+      }
+    }
+    expect(lo).toBeGreaterThanOrEqual(0.7);
+    expect(hi).toBeLessThanOrEqual(1.3);
+    // It varies from place to place (the terrace's foot meanders) ...
+    expect(hi - lo).toBeGreaterThan(0.3);
+    // ... but smoothly: neighboring grid points never jump.
+    for (let x = 0; x < 59; x++)
+      expect(Math.abs(pinReach(x * 0.5 + 0.5, 3) - pinReach(x * 0.5, 3))).toBeLessThan(0.3);
+  });
+
+  it('eases away from a pad at a different distance along each side of it', () => {
+    // A 3 x 3 pad at level 1 cut into a hill of level 2: the foot of the ease is not on one line.
+    const levels = Array.from({ length: 16 }, () => Array.from({ length: 16 }, () => 2));
+    const pins = Array.from({ length: 16 }, (_, z) =>
+      Array.from({ length: 16 }, (_, x) => (x >= 6 && x <= 8 && z >= 6 && z <= 8 ? 7 : 0)),
+    );
+    const reader: SurfaceReader = {
+      ...grid(levels, [], pins),
+      padLevel: (x, z) => (pins[z]?.[x] ? 1 : levels[z]![x]!),
+    };
+    const t = new SurfaceTiles(reader);
+    const hill = levelY(2);
+    // The drawn grid is half a tile, so look at its vertices along the pad's north side: how far
+    // each has eased back to the hill differs from place to place, not one line of equal heights.
+    const rises = new Set<number>();
+    for (let x = 5; x <= 9; x += 0.5) {
+      for (const z of [5.5, 5, 4.5]) rises.add(Math.round((hill - surfaceY(t, x, z)) * 1000));
+    }
+    expect(rises.size).toBeGreaterThan(3);
+    const fifth = new Set<number>();
+    for (let x = 6.5; x <= 8.5; x += 0.5) fifth.add(Math.round((hill - surfaceY(t, x, 5)) * 1000));
+    expect(fifth.size).toBeGreaterThan(1);
   });
 
   it('puts every land tile center at its level', () => {

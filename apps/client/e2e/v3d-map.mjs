@@ -25,6 +25,7 @@ const res = await page.evaluate(async (sz) => {
   const input = ep.endpaperInput(mirror);
   const w = new Worker(new URL('/src/worker/endpaper.worker.ts', location.href), { type: 'module' });
   const times = [];
+  const nightTimes = [];
   let bitmap = null;
   for (let i = 0; i < 7; i++) {
     const r = await new Promise((done) => {
@@ -32,13 +33,31 @@ const res = await page.evaluate(async (sz) => {
       w.postMessage({ type: 'draw', id: i + 1, size: sz, input });
     });
     times.push(Math.round(r.ms));
+    // V4B: the night layer is drawn in the same message (its ms is inside r.ms).
+    nightTimes.push(Math.round((r.nightMs ?? 0) * 10) / 10);
     bitmap = r.bitmap;
   }
   const c = document.createElement('canvas');
   c.width = c.height = sz;
   c.getContext('2d').drawImage(bitmap, 0, 0);
-  return { times, url: c.toDataURL('image/png'), roofs: input.roofs.length };
+  return {
+    times,
+    nightTimes,
+    lamps: (input.lamps?.length ?? 0) / 3,
+    url: c.toDataURL('image/png'),
+    roofs: input.roofs.length,
+  };
 }, Number(size));
 writeFileSync(out, Buffer.from(res.url.split(',')[1], 'base64'));
-console.log(out, 'worker ms', res.times, 'roofs', res.roofs);
+console.log(
+  out,
+  'worker ms',
+  res.times,
+  'of which night',
+  res.nightTimes,
+  'roofs',
+  res.roofs,
+  'lamps',
+  res.lamps,
+);
 await browser.close();

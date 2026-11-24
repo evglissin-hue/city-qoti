@@ -277,3 +277,27 @@ export const endpaperInk = {
   /** The parchment halo behind lettering. */
   halo: 0xf5ecd2,
 } as const;
+
+/**
+ * V4B: the storybook pictures' ink and wash (`apps/client/src/render/ink.ts`; 17-presentation.md,
+ * Storybook pictures) and the endpaper map's night (`render/endpaper.ts`). Appended; P3C holds the
+ * values. The wash is a handful of watercolor tones a picture's colors are drawn toward, so every
+ * page reads as one book; the lines are warm sepia, never black.
+ */
+export const storybookInk = {
+  /** The page the wash is laid on, and its deeper grain. */
+  paper: 0xf4ead2,
+  paperGrain: 0xd9c8a4,
+  /** The pen: warm sepia lines, and the fainter one for far things and window panes. */
+  line: 0x5a4130,
+  lineSoft: 0x8a6c52,
+  /** The wash tones: grass, leaves, straw, roof tile, slate, water, plaster, the shadow umber and plum. */
+  wash: [0xa3b47c, 0x6f8a5a, 0xd9b978, 0xc47a57, 0x8d98a2, 0x8fb4b8, 0xecdfc2, 0x8b705a, 0x9a6e80] as const,
+  /** The sky where nothing stands: a breath of blue on the paper. */
+  sky: 0xc9d8da,
+  /** The endpaper at night: the deeper parchment, and the lamplight pooling on it. */
+  nightPaper: 0xd5c4a2,
+  lampPool: 0xffc46e,
+  /** The map's evening footfall, warmer and lighter than the old sage, laid under the roofs. */
+  footfall: 0xc08a5c,
+} as const;
