@@ -28,44 +28,5 @@ Everything, but only to merge, fix and tune; plus the seam with V4B's pictures (
 6. **Determinism and co-op**: R3.0's skating spots fix and its place index check hold on the merged branch, with R3A's rests and R3C's specialties and customs among the moving parts (`test/r3-0/placeIndex.test.ts`, the joining-seat tests); a year hashes the same in Node and a browser worker, the lamplighter's walk included; two browsers play a year online (`c5x-year`, `QOTI_YEAR=1`); a version 8 save opens (`v8-willow-day70.json`) and `v6-hazel-day3.json` through every step.
 7. **The grown fixture**: regrow `apps/client/src/app/fixtures/grown.qoti` with R3E's seed or day count (`npm run fixture:grown -w @qoti/client`) so `grownFixture.test` passes at version 9.
 8. **The dead-end hunt and the player's chair** (two rounds): every gap (the fourth too), wish, twist (the pie contest, a custom's), feat, page and hint can be met; the audit is quiet or each flag explained. Play the first lamplit Village evening with candles short, a winter evening with and without firewood for the brazier, a master leaving town, both seats founding a page together, the Thread from a cider to its drinkers, a priority set and undone, the storybook printed.
-9. **The seams with V4**: R3F's look with V4A's rest frame (lamps coming on one by one do not pop the still frame); V4B's pictures in the Town Book and the storybook if V4X has landed (one `setPictureSource` call), else the data ready and a note for V4X.
-10. **Ship**: one PR from `cycle/r3x-integration` into `main`; update the spec where the build differs (never the design's intent without the owner), `CHANGELOG.md`, the board; write I4's briefs (I4.0 first; V5 runs inside I4, `31-parallel-development.md`; the worldgen rim and the bandstand with the theater and the inn are I4's) and the playtest notes file (`docs/playtests/R3.md`); tell V4X what R3 left it.
-
-## Acceptance criteria
-
-- [ ] `30-roadmap.md`, R3, Acceptance, and the R3 list in `19-evenings.md`: every line with its evidence in the PR (test, bench table or screenshot).
-- [ ] The lanes test passes on every bench seed; the evening goal and R2's Craftsfolk lines hold; the storybook prints from the browser with the valley's own pictures.
-- [ ] No `R3 stand-in` left; `OWED_SENDERS` and `OWED_FIELDS` hold no R3 entry; any skip in the wave notes back on or rewritten.
-- [ ] A version 8 save opens and plays on the merged branch; a year hashes the same in Node and a browser worker; two browsers play a year online.
-- [ ] Typecheck, lint, unit tests, build, e2e (two browsers) and bench pass; budgets hold, including gaps, supplies, masters and the Town Book under 1 ms an hour together.
-- [ ] The wave reaches `main` in one merge.
-
-## Out of scope
-
-New design (I4 and later); V4's look work beyond merging it and the seams the rulings name.
-
-## Notes
-
-- `SAVE_VERSION` is 9 (R3.0). If a wave cycle bumped it again, keep one version for the merge and say so.
-- Arrivals draw from their own generator; R3 needs no dice (settling by priority, distance and id; masters by days and id; pages by day and id). If a cycle added a draw, it must have its own stream.
-- The place index's check was the main evening cost at City scale; R3.0 kept every R3 input a moving part of the draw. Read R3E's line before tuning anything that adds work to `refreshDraws`.
-- R2C's "a shop nobody passes" reads visitors near the shop until task 4.
-- Keep a list of what each cycle's PR left for you, and close it before the merge.
-- If R2's tuning moved a number this wave reads (the draw's parts, the baskets, the tiers), say so in the PR.
-- A Hamlet's lanterns light for nothing and do not count for the Lamplighter's Round or the custom of a kept supply (the rulings).
-- Runs as the build and review loop (`31-parallel-development.md`): two rounds of quality check, dead-end hunt and player's chair before the PR, each round's findings in it.
-
-## As built (R3X, 2026-11-24)
-
-The PR (#78) is the full report: before and after tables, both rounds' findings, contract additions and the honest misses. In short, by task:
-
-1. **Merged**: the wave (R3.0, R3A to R3H) and `main` (P3A #61, the forest floor #76), conflicts kept both sides; `.github/workflows/ci.yml` byte for byte. P3A's level words ask a master for level 3.
-2. **Stand-ins**: `R3 stand-in` greps empty; `PENDING` holds no R3 feat; `OWED_SENDERS` and `OWED_FIELDS` hold no R3 entry.
-3. **Tuned** (every number in content): masters after 16 working days (`MASTERY.days`, was 20); masters' goods sold to neighbors on their own surplus (`MasteryTuning.exportKeep` 8, carrier step 5b, never into a family's reserve); the Town Book's marks a Village's size (`townBook.specialtyCustomers` 4 on `specialtyEvenings` 3, `customVisitors` 12); a Treats room on market shelves and a tavern's pouring stock (`PLACES.treatsRoom` 12); `PlaceState.served` written at last. Measured in `19-evenings.md`, Acceptance, As measured (R3X), and `13-ledger.md`, What holds (R3X).
-4. **"A shop nobody passes"** reads the outlet's own evening customers (`Building.roundSales`; `19-evenings.md`, Gaps, As built (R3X)).
-5. **P3A's and R2's lines**: the lanes test passes on every seed; no lean day; one Hamlet morning without breakfast (an arrival with an empty pantry, willow newcomer, day 14); the worst fair evening and the Craftsfolk third are misses with their numbers.
-6. **Determinism and co-op**: the golden year re-recorded each time the rules or the autoplayer changed, each commit saying which (the PR lists them); the version 8 willow opens; CI's e2e (two browsers, a year online) green.
-7. **The grown fixture**: regrown at rowan, 50 days (167 residents, 544 decor, Village).
-8. **Two rounds** of quality check, dead-end hunt and player's chair (shots `docs/build/screenshots/r3x-chair-*`, `r3x-chair2-*`; scripts `apps/client/e2e/r3x-chair.mjs`, `packages/sim/scripts/r3x-chair-make.ts`). Classes found and checked: doors walled in (`building-cut-off`), a lamplighter never hired (`lamplighter-unhired`), the Chronicle's counts at one (a class test over every kind).
-9. **The seams with V4**: R3X lands before V4X; V4X makes the one `setPictureSource` call for the Town Book and the storybook, and keeps the lamps from popping the rest frame (the handshake with V4A).
+9. **The seams with V4** (V4X landed first, so R3X made them; second session): `main` (P3D #77, V4X #79) merged with four conflicts, both sides kept. The picture seam is wired where a valley opens (`app/GameView.tsx`: `setPictureSource(inkPictureSource(session))`); `pictureFor(ref, { print: true })` is an additive option, and the storybook asks print size only when the player presses Print (on screen it shows the slot-size pictures the books keep; a slot waits at most 20 s). A picture belongs to its place and moment and is never shown twice (`townBookPictured`, `oncePerBook` in `ui/chroniclePictures.ts`). The lamplighter's lamps fold into V4A's developing picture (samples never fall back to zero at 1x or 3x; `r3f-walk.mjs` with `QOTI_WALK_REAL`); a tea break waits on R3's cards (`v4c-tea-break.spec.ts`). The ornamental cherry follows the year (`cherryLook`), the clipped topiary stays green. The specialty mark became a Treat sold at one place on three evenings of a season (out of reach before even if every Treat a household wants were sold on the round). `coop.spec.ts`: no stall and no R3 cost found (snapshot, tick, reload to live match `main`); the host. Shots `r3x-autumn-*`, `r3x-lamps-*`, `r3x-pictures-*`.
 10. **Shipped**: spec notes, `CHANGELOG.md`, the board, `docs/playtests/R3.md`, and I4's briefs and wave notes (`i4-wave-notes.md`, Starting after R3X).

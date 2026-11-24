@@ -64,7 +64,7 @@ What "fold in" means is V4A's to build and tune: one way is to draw the new stil
 | Stand-in | Where | Replaced by | When |
 |---|---|---|---|
 | No lamplighter: lamps light all at once at dusk, as V2's lights layer does | `render/layers/lights.ts` (R3F's) | R3F's lamps one by one from `SuppliesView` | R3X (V4A tests against `lampSequence` meanwhile) |
-| No picture seam: `ui/pictures.ts` does not exist on V4's branches | V4B's structural copy of `PictureRef` in `app/inkPictures.ts` | R3D's module, wired with one `setPictureSource` call | whichever of R3X and V4X lands second |
+| No picture seam: `ui/pictures.ts` does not exist on V4's branches | V4B's structural copy of `PictureRef` in `app/inkPictures.ts` | R3D's module, wired with one `setPictureSource` call | whichever of R3X and V4X lands second (R3X did, in `app/GameView.tsx`) |
 | `refineGoal` returns 0, `refine` adds nothing | `render/refine.ts`, `render/cache.ts` | V4A's refinement | V4A |
 | `capture({ style: 'ink' })` returns the plain picture | `renderer.ts` `capture` | V4B's ink pass | V4B |
 | `capture`'s `samples` ignored | `renderer.ts` `capture` | V4A's accumulation from the capture camera | V4X |
