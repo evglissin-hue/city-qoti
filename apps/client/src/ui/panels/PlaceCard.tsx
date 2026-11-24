@@ -211,7 +211,15 @@ export function restingWords(session: Session, p: Pick<PlaceView, 'resting'>): s
     g.n++;
     groups.set(key, g);
   }
-  if (groups.size === 0) return 'Everything is supplied tonight.';
+  if (groups.size === 0) {
+    // R3X: before the 17:30 settling nothing has been decided yet (the card read "Everything is
+    // supplied tonight." at 17:21, the morning after a dark night). Mornings count as tonight to come.
+    const { hour, minute } = calendar(session.mirror.tick.value);
+    const S = content.supplies;
+    const settled = hour * 60 + minute >= S.settleHour * 60 + S.settleMinute || hour < S.outHour;
+    const at = `${S.settleHour}:${String(S.settleMinute).padStart(2, '0')}`;
+    return settled ? 'Everything is supplied tonight.' : `Tonight's supplies are settled at ${at}.`;
+  }
   const bits = [...groups.values()].map((g) =>
     g.n === 1 ? `the ${g.name} ${REST_WORD[g.kind]}` : `${g.n} ${pluralWord(g.name)} ${REST_WORD[g.kind]}`,
   );

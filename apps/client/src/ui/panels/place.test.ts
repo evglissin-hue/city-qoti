@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { content } from '@qoti/content';
-import { Flags, MAP_SIZE, RoundFlags, type ResidentDetail } from '@qoti/sim';
+import { Flags, MAP_SIZE, RoundFlags, START_HOUR, TICKS_PER_HOUR, type ResidentDetail } from '@qoti/sim';
 import { h } from 'preact';
 import { act } from 'preact/test-utils';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -389,6 +389,16 @@ describe('the place card, supplies (R3D)', () => {
     expect(words).toContain('Its 2 bunting take 4 cloth a season.');
     expect(words).toContain('Its cafe table is served by a stall or shop within 3 tiles.');
     expect(words).toContain('Its fountain needs a well within 8 tiles.');
+    session.mirror.tick.value = (19 - START_HOUR) * TICKS_PER_HOUR;
+    expect(restingWords(session, { resting: [] })).toBe('Everything is supplied tonight.');
+  });
+
+  it('says nothing is settled yet before 17:30 (R3X)', () => {
+    const { session } = mockSession();
+    const at = (hour: number) => (hour - START_HOUR) * TICKS_PER_HOUR;
+    session.mirror.tick.value = at(16);
+    expect(restingWords(session, { resting: [] })).toBe("Tonight's supplies are settled at 17:30.");
+    session.mirror.tick.value = at(19);
     expect(restingWords(session, { resting: [] })).toBe('Everything is supplied tonight.');
   });
 });
