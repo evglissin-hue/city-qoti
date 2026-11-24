@@ -350,7 +350,9 @@ export function rowTavernTreats(seed: string, r3: R3Record, gaps: readonly SeenG
   const base = {
     outcome: "The tavern's Treats: nothing-to-sell opens and closes",
     seed,
-    target: 'opened >= 1 and closed >= 1 with a tavern standing',
+    // R3X: with `PlaceState.served` written (it never was), a town whose tavern and stalls serve its
+    // busy places never opens the gap at all (willow); none left open is the player's goal.
+    target: 'every nothing-to-sell gap that opens closes, with a tavern standing (none opened counts)',
     needs: 'R3A (the tavern pours Treats)',
   };
   if (r3.tavernDay === 0)
@@ -362,7 +364,7 @@ export function rowTavernTreats(seed: string, r3: R3Record, gaps: readonly SeenG
   return {
     ...base,
     measured: `tavern from day ${r3.tavernDay}: opened ${m.opened}, closed ${m.closed}`,
-    verdict: m.opened >= 1 && m.closed >= 1 ? 'PASS' : 'MISS',
+    verdict: m.closed >= m.opened ? 'PASS' : 'MISS',
   };
 }
 
