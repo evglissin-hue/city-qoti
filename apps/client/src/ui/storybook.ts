@@ -320,14 +320,43 @@ export function printLift(mean: number | null): number | null {
 }
 
 /**
+ * R3X: how long a slot waits for its picture before the book sets it without one. A capture is drawn
+ * at rest and a slow device takes a while over a big one; the book never hangs on it ("Setting the
+ * type..." forever), and the capture still lands in the album for the next time the book opens.
+ */
+export const PICTURE_WAIT_MS = 20_000;
+
+/** The promise's value, or null when it has not come within `ms`. */
+function within<T>(p: Promise<T | null>, ms: number): Promise<T | null> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(null), ms);
+    void p.then(
+      (v) => {
+        clearTimeout(timer);
+        resolve(v);
+      },
+      () => {
+        clearTimeout(timer);
+        resolve(null);
+      },
+    );
+  });
+}
+
+/**
  * The picture for a slot: the registered source's first (V4B's ink and wash), then the valley's own
- * Chronicle snapshot through `snapshot` (the panel's fallback), else null. Never throws.
+ * Chronicle snapshot through `snapshot` (the panel's fallback), else null. Never throws. On screen the
+ * source is asked at the slot's size; `print` asks for print size (at least 1600 x 1200).
  */
 export async function slotPicture(
   ref: PictureRef,
   snapshot: (() => Promise<string | null>) | null,
+  opts: { print?: boolean; waitMs?: number } = {},
 ): Promise<SlotPicture | null> {
-  const url = await pictureFor(ref, { print: true });
+  const url = await within(
+    pictureFor(ref, opts.print ? { print: true } : undefined),
+    opts.waitMs ?? PICTURE_WAIT_MS,
+  );
   if (url) return { url, from: 'source' };
   if (!snapshot) return null;
   try {

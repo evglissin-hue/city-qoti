@@ -309,14 +309,25 @@ describe('the picture seam', () => {
     });
   });
 
-  it('asks the source for print size (R3X: the seam carries { print: true })', async () => {
+  it('asks the source at the slot size, and at print size for print (R3X)', async () => {
     const asked: unknown[] = [];
     setPictureSource((ref, opts) => {
       asked.push(opts);
       return fake(ref);
     });
     await slotPicture(chronicleRef, null);
-    expect(asked).toEqual([{ print: true }]);
+    await slotPicture(chronicleRef, null, { print: true });
+    // On screen the slot's size; print size only when printing.
+    expect(asked).toEqual([undefined, { print: true }]);
+  });
+
+  it('sets a slot without its picture when the capture does not come (never a hang)', async () => {
+    setPictureSource(() => new Promise(() => {}));
+    expect(await slotPicture(chronicleRef, () => Promise.resolve('blob:snap'), { waitMs: 20 })).toEqual({
+      url: 'blob:snap',
+      from: 'snapshot',
+    });
+    expect(await slotPicture(chronicleRef, null, { waitMs: 20 })).toBeNull();
   });
 
   it('falls back when the source throws or the snapshot does', async () => {

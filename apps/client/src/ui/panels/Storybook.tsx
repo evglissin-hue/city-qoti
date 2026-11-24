@@ -200,6 +200,9 @@ function ChapterBook({
   const [paper, setPaper] = useState<Paper>(savedPaper);
   const [map, setMap] = useState<string | null | undefined>(undefined);
   const [pictures, setPictures] = useState<Pictures>(new Map());
+  /** Print-size pictures being inked; laid in (a second print needs no inking). */
+  const [inking, setInking] = useState(false);
+  const [inked, setInked] = useState(false);
   const entries = seasons.flatMap((s) => s.entries);
 
   // The cover's map: a still of the endpaper at print resolution, through the render API when the
@@ -219,9 +222,10 @@ function ChapterBook({
     };
   }, [chapter.id]);
 
-  // Every slot's picture: the registered source's (V4B), else the valley's own snapshot.
-  useEffect(() => {
-    let gone = false;
+  // Every slot's picture: the registered source's (V4B), else the valley's own snapshot. On screen the
+  // book shows the slot-size pictures the Town Book and Pattern Book keep; the print-size ones (1600 x
+  // 1200, a heavy capture each) are inked only when the player prints (R3X).
+  const gather = async (print: boolean): Promise<Pictures> => {
     const found = new Map<string, SlotPicture | null>();
     const snapshot = (id: EntityId, notable: boolean) => async () => {
       if (!session.ui.snapshots.value.has(id) && notable) await fetchSnapshot(session, id);
@@ -241,24 +245,46 @@ function ChapterBook({
     // A picture belongs to its slot's place and moment, and the book prints none twice.
     const pictured = townBookPictured(townBookOf(m)?.pages ?? []);
     const byId = new Map(m.chronicle.value.map((e) => [String(e.id), e]));
-    void Promise.all(
+    await Promise.all(
       asks.map(async ([ref, fallback]) =>
-        found.set(slotKey(ref), await withLift(await slotPicture(ref, fallback))),
+        found.set(slotKey(ref), await withLift(await slotPicture(ref, fallback, { print }))),
       ),
-    ).then(() => {
-      if (gone) return;
-      const slots = asks.map(([ref]) => ({
+    );
+    return oncePerBook(
+      asks.map(([ref]) => ({
         key: slotKey(ref),
         picture: found.get(slotKey(ref)) ?? null,
         entry: ref.book === 'chronicle' ? byId.get(ref.id) : undefined,
         pictured: ref.book === 'townBook' ? pictured.has(Number(ref.id)) : undefined,
-      }));
-      setPictures(oncePerBook(slots));
+      })),
+    );
+  };
+  useEffect(() => {
+    let gone = false;
+    setInked(false);
+    void gather(false).then((found) => {
+      if (!gone) setPictures(found);
     });
     return () => {
       gone = true;
     };
   }, [chapter.id, entries.length, patterns.length, townPages.length]);
+
+  // Print: ink the print-size pictures, lay them in and decode them, then the browser's dialog.
+  const printBook = async () => {
+    setInking(true);
+    try {
+      setPictures(await gather(true));
+      setInked(true);
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+      for (const img of document.querySelectorAll<HTMLImageElement>('.storybook-print img')) {
+        await img.decode().catch(() => {});
+      }
+    } finally {
+      setInking(false);
+    }
+    window.print();
+  };
 
   const choosePaper = (p: Paper) => {
     setPaper(p);
@@ -343,10 +369,12 @@ function ChapterBook({
           type="button"
           class="primary"
           data-testid="storybook-print-button"
-          disabled={!ready}
-          onClick={() => window.print()}
+          disabled={!ready || inking}
+          data-inked={inked ? 'yes' : 'no'}
+          onClick={() => void (inked ? window.print() : printBook())}
         >
-          <Glyph id="chronicle" /> {ready ? 'Print the storybook' : 'Setting the type...'}
+          <Glyph id="chronicle" />{' '}
+          {inking ? 'Inking the pictures...' : ready ? 'Print the storybook' : 'Setting the type...'}
         </button>
       </div>
       <PrintRoot session={session}>
