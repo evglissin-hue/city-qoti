@@ -2507,3 +2507,9 @@ button.gap-tag:hover {
 .game-ui.lamplight button.gap-tag.lane-hearth {
   --slip: #eccfc2;
 }
+
+/* R3X: a gap slip never shows through the open book's page-turn row. */
+.game-ui:has(> .book-slot) .gap-layer {
+  opacity: 0;
+  visibility: hidden;
+}

@@ -45,6 +45,9 @@ describe('the Town Book panel', () => {
     expect(text).toContain('Nothing is written yet');
     expect(view.root.querySelectorAll('[data-testid="town-book-page"]')).toHaveLength(0);
     expect(text).toContain('Industry: 0 of 3 toward Mill Town');
+    expect(view.get('town-book-note').textContent).toContain(
+      '3 pages of one leaning and the town earns a calling',
+    );
   });
 
   it('lists found pages by leaning, the hints and the callings on the cover', async () => {
@@ -57,6 +60,11 @@ describe('the Town Book panel', () => {
     expect(heads).toEqual(['Industry', 'Gardens']);
     expect(view.root.querySelectorAll('[data-testid="town-book-hint"]')).toHaveLength(3);
     expect(text).toContain('Not yet found');
+    for (const e of view.root.querySelectorAll('[data-testid="town-book-hint"]')) {
+      // The leaning is its own tag, never run into the hint's words.
+      expect(e.querySelector('.tb-hint-words')!.textContent).not.toMatch(/(Industry|Gardens|Pilgrimage)$/);
+      expect(e.querySelector('.tb-hint-leaning')).not.toBeNull();
+    }
     expect(view.root.querySelectorAll('[data-testid="town-book-calling"]')).toHaveLength(1);
     expect(text).toContain('Mill Town, earned');
     expect(text).toContain('Gardens: 1 of 3 toward Garden Village');

@@ -34,6 +34,11 @@ export function tallyWords(book: TownBookView, leaning: Leaning): string {
   return earned ? `${name}, earned` : `${Math.min(n, need)} of ${need} toward ${name}`;
 }
 
+/** What the tally means: pages of one leaning earn a calling. */
+export function tallyNote(need: number): string {
+  return `${need} pages of one leaning and the town earns a calling: a name, and a small perk, for what it does best.`;
+}
+
 /**
  * The Town Book as a two-page spread, like the Pattern Book: contents on the left, the cover or the
  * open page on the right. Pages are found by the town's habits, never built; no button opens it but
@@ -98,6 +103,9 @@ export function TownBookPanel({ session }: { session: Session }) {
               </li>
             ))}
           </ul>
+          <p class="tb-tally-note small muted" data-testid="town-book-note">
+            {tallyNote(content.townBook.pagesForCalling)}
+          </p>
         </div>
         <div class="book-spine" aria-hidden="true" />
         <div class="book-page right">
@@ -152,7 +160,10 @@ function Cover({ book }: { book: TownBookView }) {
             {book.hints.map((h) => (
               <li key={h.def} data-testid="town-book-hint">
                 <span class="tb-hint-words">{h.hint}</span>{' '}
-                <span class="tb-hint-leaning">{LEANING_NAMES[h.leaning]}</span>
+                <span class="tb-hint-leaning" title="The leaning this page would count toward">
+                  <span class="sr-only">Leaning: </span>
+                  {LEANING_NAMES[h.leaning]}
+                </span>
               </li>
             ))}
           </ul>

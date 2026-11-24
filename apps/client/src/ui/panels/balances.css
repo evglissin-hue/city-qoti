@@ -25,7 +25,7 @@
 
 .family-head {
   display: grid;
-  grid-template-columns: 7.6em 1fr 2.4em 4.2em;
+  grid-template-columns: 7.6em 1fr 4.2em 4.2em;
   grid-template-areas:
     'name bar days price'
     'pips pips carried spark';
@@ -64,9 +64,17 @@
   font-variant-numeric: tabular-nums;
 }
 
-.family-head > .price {
+.family-head > .price-cell {
   grid-area: price;
   justify-self: end;
+}
+
+.family-head .days .unit {
+  font-weight: 400;
+}
+
+.family-key {
+  margin: 0 0 6px;
 }
 
 .family-head .pips {

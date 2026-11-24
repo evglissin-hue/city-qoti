@@ -325,6 +325,14 @@ describe('the place card, supplies (R3D)', () => {
     expect(view.find('place-priority')).toBeNull();
   });
 
+  it('shows the control when the view lists supplies though no member is a supplied piece (R3X)', async () => {
+    const { session } = rig('village', ['bench'], {
+      supplies: [{ kind: 'nightly', good: 'candles', pieces: 2, wants: 2, resting: 0 }],
+    });
+    view = await mount(h(InspectorPanel, { session }));
+    expect(view.find('place-priority')).not.toBeNull();
+  });
+
   it('shows three options with the chosen one checked, and sends a change once', async () => {
     const { session, submitted } = rig('village', ['lantern']);
     view = await mount(h(InspectorPanel, { session }));
@@ -364,7 +372,9 @@ describe('the place card, supplies (R3D)', () => {
     const text = view.get('place-supplies').textContent!;
     expect(text).toContain('Its 3 lanterns take a candle a night.');
     expect(text).toContain('Its brazier takes firewood on an evening someone comes.');
-    expect(text).toContain('Resting tonight: 2 lanterns unlit, the brazier cold.');
+    expect(text).toContain(
+      'Resting tonight: 2 lanterns unlit (no candles to spare), the brazier cold (no firewood tonight).',
+    );
   });
 
   it('gets singular and plural right, and says when everything is supplied', () => {
@@ -391,6 +401,22 @@ describe('the place card, supplies (R3D)', () => {
     expect(words).toContain('Its fountain needs a well within 8 tiles.');
     session.mirror.tick.value = (19 - START_HOUR) * TICKS_PER_HOUR;
     expect(restingWords(session, { resting: [] })).toBe('Everything is supplied tonight.');
+  });
+
+  it('says why each kind of piece rests (R3X)', () => {
+    const { session } = mockSession();
+    session.mirror.decor.set(700, { id: 700, def: 'lantern', fx: 40.5, fz: 41.5, rot: 0, builtBy: 0 });
+    const why: Record<string, string> = {
+      unlit: 'no candles to spare',
+      cold: 'no firewood tonight',
+      bare: 'no Treats on a shelf in reach',
+      faded: 'no cloth this season',
+      dry: 'no well in reach',
+    };
+    for (const [kind, reason] of Object.entries(why)) {
+      const text = restingWords(session, { resting: [{ id: 700, kind: kind as never }] });
+      expect(text).toBe(`Resting tonight: the lantern ${kind} (${reason}).`);
+    }
   });
 
   it('says nothing is settled yet before 17:30 (R3X)', () => {

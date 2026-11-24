@@ -30,6 +30,6 @@ export const villagePhrases = {
     social: 'a tavern nearby',
     health: 'a herbalist nearby',
     education: 'a school nearby',
-    home: 'a home that can grow',
+    home: 'a cottage to grow into a townhouse (a flat over a shop stays a flat)',
   } as Readonly<Record<string, string>>,
 } as const;
