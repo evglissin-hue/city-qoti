@@ -43,6 +43,16 @@ describe('nextLevelLine', () => {
       'A poor day: 3 more in a row and it shrinks to level 2.',
     );
   });
+  it('says a level 3 is held while its master is away, and a master on the crew is met', () => {
+    expect(nextLevelLine({ level: 3, levelDays: 0, graceDays: 4 }, trade('dairy'))).toBe(
+      'Level 3 while its master is away: 4 days before it slides to level 2, unless a master of the trade joins the crew.',
+    );
+    expect(nextLevelLine({ level: 3, levelDays: 0, graceDays: 1 }, trade('dairy'))).toContain('1 day before');
+    expect(nextLevelLine({ level: 2, levelDays: 1, masterId: 7 }, trade('baker'))).toContain(
+      'and its master on the crew already.',
+    );
+  });
+
   it('is content at the top', () => {
     expect(nextLevelLine({ level: 3, levelDays: 0 }, trade('baker'))).toBe('Level 3, the top of its trade.');
   });

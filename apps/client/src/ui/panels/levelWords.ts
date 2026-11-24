@@ -32,11 +32,17 @@ function roomWords(trade: TradeDef, to: number): string {
  * room it wants. Null when the trade is unknown. Numbers come from the sim's own constants.
  */
 export function nextLevelLine(
-  view: Pick<BusinessView, 'level' | 'levelDays'>,
+  view: Pick<BusinessView, 'level' | 'levelDays' | 'graceDays' | 'masterId'>,
   trade: TradeDef | undefined,
 ): string | null {
   if (!trade) return null;
   const { level, levelDays } = view;
+  // R3X: a level 3 whose master has gone keeps its level a few days, then slides (R3B's grace); the
+  // inspector said "the top of its trade" through it.
+  if (level >= 3 && view.graceDays !== undefined && !view.masterId) {
+    const d = view.graceDays;
+    return `Level 3 while its master is away: ${d} ${d === 1 ? 'day' : 'days'} before it slides to level 2, unless a master of the trade joins the crew.`;
+  }
   if (levelDays < 0) {
     const left = Math.max(1, LEVEL_DOWN_DAYS + levelDays);
     return `A poor day: ${left} more in a row and it shrinks to level ${level - 1}.`;
@@ -56,7 +62,13 @@ export function nextLevelLine(
   } else {
     good = `A good day brings ${plural(SHOP_CUSTOMERS[level - 1]!, 'customer', 'customers')}`;
   }
-  const keeper = to >= 3 ? ', and a master of the trade on its crew' : '';
+  // R3X: a master already on the crew is said as met, not asked for.
+  const keeper =
+    to >= 3
+      ? view.masterId
+        ? ', and its master on the crew already'
+        : ', and a master of the trade on its crew'
+      : '';
   return `${head} ${good}, with ${roomWords(trade, to)}${keeper}.`;
 }
 
