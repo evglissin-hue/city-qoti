@@ -29,6 +29,7 @@ import {
   placesNear,
   placesView,
   RANKS,
+  rankAtLeast,
   seasonAt,
   START_HOUR,
   suppliesView,
@@ -72,6 +73,8 @@ export interface EveningSample {
   outAny: number;
   /** Places standing. */
   places: number;
+  /** R3X: the town was a Village or more that evening (R2's evening goal is "in an autoplayed Village"). */
+  village?: boolean;
   treatsAtStops: number;
   treatsPassing: number;
   treatsDoorstep: number;
@@ -217,7 +220,9 @@ export function measureOut(evenings: readonly EveningSample[]): OutMeasure {
   let worst = 1;
   let worstDay = -1;
   for (const e of evenings) {
-    if (e.weather !== 'fair' || e.eligible <= 0) continue;
+    // R3X: a Village's evenings only, as R2's acceptance reads; the first Hamlet evenings (three
+    // grown-ups, one out) put willow's worst at 33% on day 1.
+    if (e.weather !== 'fair' || e.eligible <= 0 || e.village === false) continue;
     const share = e.out / e.eligible;
     n++;
     sum += share;
@@ -566,6 +571,7 @@ export function sampleEvening(w: WorldState): EveningSample {
     out,
     outAny,
     places: placesView(w).places.length,
+    village: rankAtLeast(w, 'village'),
     treatsAtStops: t?.treatsAtStops ?? 0,
     treatsPassing: t?.treatsPassing ?? 0,
     treatsDoorstep: t?.treatsDoorstep ?? 0,
