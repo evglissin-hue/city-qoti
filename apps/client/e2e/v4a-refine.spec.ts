@@ -53,6 +53,31 @@ async function open(page: Page, query = '&refine=all'): Promise<void> {
   });
 }
 
+/**
+ * Waits until the valley has streamed in and gone quiet: the renderer's static revision is the same
+ * over three checks of three animation frames each. A condition with a generous deadline, never a
+ * fixed sleep (a slow host takes longer to stream, not a fixed time).
+ */
+async function quiet(page: Page): Promise<void> {
+  const ok = await page.evaluate(async () => {
+    const rev = () =>
+      (window.__qoti as unknown as { renderer(): { staticRevision?: number } }).renderer().staticRevision ??
+      0;
+    const frames3 = async () => {
+      for (let i = 0; i < 3; i++) await new Promise((res) => requestAnimationFrame(res));
+      return rev();
+    };
+    const t0 = performance.now();
+    const seen: number[] = [];
+    while (performance.now() - t0 < 300_000) {
+      seen.push(await frames3());
+      if (seen.length >= 3 && seen[seen.length - 1] === seen[seen.length - 3]) return true;
+    }
+    return false;
+  });
+  expect(ok, 'the valley went quiet').toBe(true);
+}
+
 /** Starts a fresh rest (the camera nudged and put back) and waits until it has settled. */
 async function settle(page: Page): Promise<Shot> {
   return page.evaluate(async () => {
@@ -91,7 +116,7 @@ test.describe('V4A: the developing picture', () => {
   }) => {
     await open(page);
     // Let the valley stream in before measuring a rest.
-    await page.waitForTimeout(10_000);
+    await quiet(page);
     const settled = await settle(page);
     expect(settled.goal).toBeGreaterThanOrEqual(16);
     expect(settled.samples).toBe(settled.goal);
@@ -116,7 +141,7 @@ test.describe('V4A: the developing picture', () => {
     await open(page);
     await page.setViewportSize({ width: 640, height: 400 });
     await page.evaluate(() => (window.__qoti as unknown as Debug).setHour(22.3));
-    await page.waitForTimeout(10_000);
+    await quiet(page);
     const settled = await settle(page);
     expect(settled.samples).toBeGreaterThan(0);
     const seen = await page.evaluate(async (from: number) => {
@@ -160,7 +185,7 @@ test.describe('V4A: the developing picture', () => {
 
   test('?debug&refine=0 keeps the plain still frame', async ({ page }) => {
     await open(page, '&refine=0');
-    await page.waitForTimeout(10_000);
+    await quiet(page);
     const settled = await settle(page);
     expect(settled).toMatchObject({ mode: 'idle', samples: 0, goal: 0 });
   });

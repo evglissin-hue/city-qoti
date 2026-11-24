@@ -9,6 +9,7 @@ import {
   MEASURE_NIGHT_HOUR,
   MEASURE_NIGHT_PRESETS,
   measureMarkdown,
+  measureOptionsFromQuery,
   measureRowCount,
   measureSeconds,
   MEASURE_PRESETS,
@@ -164,6 +165,22 @@ describe('Measure this laptop', () => {
     expect(measureState.value.k).toBe('closed');
     expect(m.find('measure')).toBeNull();
     m.unmount();
+  });
+
+  it('reads the e2e parameter: players get the full run, quick and smoke shorten it', () => {
+    expect(measureOptionsFromQuery('')).toBeNull();
+    expect(measureOptionsFromQuery('?measure=quick')).toBeNull();
+    expect(measureOptionsFromQuery('?debug&measure=slow')).toBeNull();
+    const quick = measureOptionsFromQuery('?debug&measure=quick')!;
+    expect(quick.move).toBe(1);
+    expect(quick.presets).toBeUndefined();
+    const smoke = measureOptionsFromQuery('?debug&measure=smoke')!;
+    expect(smoke.move).toBe(1);
+    expect(smoke.presets).toEqual(['medium']);
+    expect(smoke.nightPresets).toEqual(['medium']);
+    expect(measureRowCount(smoke.presets, smoke.nightPresets)).toBe(6);
+    expect(measureSeconds(smoke)).toBeLessThan(measureSeconds(quick));
+    expect(estimateText(measureSeconds(smoke))).toBe('under a minute');
   });
 
   it('writes no em dashes', () => {
