@@ -119,14 +119,14 @@ class Supplies implements Advisor {
   }
 
   /** Businesses of a zone that a pin can spare: built, unpinned, of a trade the town has two or more of. */
-  private spare(zone: 'farms' | 'crafts', keep: string): Building[] {
+  private spare(zone: 'farms' | 'crafts', keep: string, least = 3): Building[] {
     const of = this.w.buildings.filter(
       (b) => b.stage === 'built' && b.trade && !b.pinned && content.tradeById.get(b.trade)?.zone === zone,
     );
     const counts = new Map<string, number>();
     for (const b of of) counts.set(b.trade!, (counts.get(b.trade!) ?? 0) + 1);
-    // A trade must have three before one is spared (a pin must not thin a larder or a street's trade).
-    const least = 3;
+    // A trade must have `least` (three; two while a place is short of supplies) before one is spared
+    // (a pin must not thin a larder or a street's trade).
     return of.filter((b) => b.trade !== keep && counts.get(b.trade!)! >= least).sort((a, b) => a.id - b.id);
   }
 
@@ -138,6 +138,9 @@ class Supplies implements Advisor {
     if (lanterns === 0) return;
     const per = content.decorById.get('lantern')?.supply?.per ?? 4;
     const draw = Math.ceil(lanterns / per);
+    // R3X: an open shortOfSupplies gap is the town asking for them: hazel's gaps stood open for forty days
+    // with honey in hand, because no trade had three businesses to spare one; two leave one standing.
+    const least = w.gaps.open.some((g) => g.kind === 'shortOfSupplies') ? 2 : 3;
     if (draw <= candleStock(w) + candlesMadeDaily(w)) return;
     const built = (trade: string) =>
       w.buildings.filter((b) => b.trade === trade && (b.stage === 'built' || b.stage === 'construction'))
@@ -147,7 +150,7 @@ class Supplies implements Advisor {
     if (built('hives') < hivesWanted && this.hiveTries.length < HIVE_TRIES) {
       const flowers = content.tradeById.get('hives')?.wants.pollinators ?? 0;
       // A farmstead whose chunk's pollinators already meet the want: the sim would retool a pin that fails it.
-      const at = this.spare('farms', 'hives').find((b) => habitatAt(w, b.x, b.z, 'pollinator') >= flowers);
+      const at = this.spare('farms', 'hives', least).find((b) => habitatAt(w, b.x, b.z, 'pollinator') >= flowers);
       if (at && !this.hiveTries.includes(at.id)) {
         this.hiveTries.push(at.id);
         this.p.do(`pin hives at business ${at.id} for candles`, [
@@ -159,7 +162,7 @@ class Supplies implements Advisor {
     // nothing and costs the town what it made before: oak stalled for ten days on it).
     const honey = (townStock(w)[G('honey')] ?? 0) >= HONEY_MIN;
     if (honey && built('chandler') < chandlers) {
-      const at = this.spare('crafts', 'chandler')[0];
+      const at = this.spare('crafts', 'chandler', least)[0];
       if (at)
         this.p.do(`pin a chandler at business ${at.id} for candles`, [
           { t: 'build.pinRecipe', id: at.id, trade: 'chandler' },

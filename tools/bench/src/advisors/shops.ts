@@ -30,6 +30,8 @@ const PLACE_PULL = 60;
 const PLACE_SHOP_TILES = 27;
 /** Tiles of lot depth behind the road. */
 const SHOP_DEPTH = 3;
+/** Coins in hand before a stall is built by a place (the stall costs 10 coins and 6 timber). */
+const STALL_COINS = 60;
 /** An evening street is at most this many road tiles. */
 export const MAX_STRETCH = 8;
 /** At most this many evening stretches in town. */
@@ -283,12 +285,31 @@ class Shops implements Advisor {
     for (const place of lacking) {
       if (shopsLotNear(w, place)) continue;
       const tiles = shopsNear(w, place);
-      if (!tiles) continue;
+      if (!tiles) {
+        // R3X: no open ground by a road for shops (hazel's tree and well places stood hemmed in for
+        // fifty days, their nothing-to-sell gaps never closing): a stall by the road beside the place
+        // is the gap's other remedy ("a shop or stall with treats on the shelf within three tiles").
+        if (this.stallBy(place)) {
+          this.paintedDay = day;
+          return;
+        }
+        continue;
+      }
       if (this.p.do(`zone shops by ${place.name}`, [{ t: 'zone.paint', zone: 'shops', tiles }])) {
         this.paintedDay = day;
         return;
       }
     }
+  }
+
+  /** A market stall within the place's reach, when none stands or is going up there and the coffers allow. */
+  private stallBy(place: PlaceView): boolean {
+    const w = this.p.w;
+    const reach = PLACES.serveRadius;
+    if (w.buildings.some((b) => b.def === 'market-stall' && cheb(b.z * S + b.x, place.tile) <= reach + 1))
+      return false;
+    if (this.p.coins() < STALL_COINS) return false;
+    return !!this.p.build('market-stall', (x, z) => cheb(z * S + x, place.tile) <= reach - 1);
   }
 
   /** A busy place's stretch of road becomes an evening street when carts can go round; one a visit, three in town. */
