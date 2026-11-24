@@ -28,7 +28,11 @@ await page.goto(
 await page.waitForFunction(() => window.__qoti?.status() === 'live', null, { timeout: 240000 });
 for (const name of ['Done', 'Close', 'Later']) {
   const b = page.getByRole('button', { name, exact: true });
-  if (await b.count()) await b.first().click().catch(() => {});
+  if (await b.count())
+    await b
+      .first()
+      .click()
+      .catch(() => {});
 }
 await page.addStyleTag({ content: '.game-ui { display: none !important; }' });
 await page.evaluate(() => window.__qoti.submit({ t: 'time.setSpeed', speed: 0 }));
@@ -60,7 +64,8 @@ await page.evaluate(
       const t0 = performance.now();
       const step = () => {
         const s = window.__qoti.stats();
-        if (s.mode !== 'moving' && (quick || s.samples >= s.sampleGoal) && performance.now() - t0 > 4000) res();
+        if (s.mode !== 'moving' && (quick || s.samples >= s.sampleGoal) && performance.now() - t0 > 4000)
+          res();
         else if (performance.now() - t0 > 500000) res();
         else requestAnimationFrame(step);
       };
@@ -107,6 +112,7 @@ const run = (style, size, samples, keep) =>
 const show = (r) => ({ ...r, data: undefined });
 
 if (mode === 'times') {
+  const reps = Number(process.env.QOTI_REPS ?? 3);
   const rows = [];
   for (const [style, size, samples] of [
     ['ink', SLOT, 0],
@@ -118,11 +124,19 @@ if (mode === 'times') {
     ['ink', PRINT, 0],
     ['ink', PRINT, 8],
   ]) {
-    const r = await run(style, size, samples, false);
-    rows.push(`| ${style} | ${size.join('x')} | ${samples} | ${Math.round(r.ms)} |`);
-    console.log(JSON.stringify({ style, size, samples, ...show(r) }));
+    const ms = [];
+    for (let i = 0; i < reps; i++) {
+      const r = await run(style, size, samples, false);
+      ms.push(Math.round(r.ms));
+      if (r.after.stillRenders !== r.before.stillRenders) console.log('still frame restarted!');
+    }
+    const med = [...ms].sort((x, y) => x - y)[Math.floor(ms.length / 2)];
+    rows.push(`| ${style} | ${size.join('x')} | ${samples} | ${ms.join(', ')} | ${med} |`);
+    console.log(rows[rows.length - 1]);
   }
-  console.log('\n| Style | Size | Samples | ms |\n|---|---|---|---|\n' + rows.join('\n'));
+  console.log(
+    '\n| Style | Size | Samples | runs ms | median ms |\n|---|---|---|---|---|\n' + rows.join('\n'),
+  );
 } else if (mode === 'probe') {
   const by = () => page.evaluate(() => Object.fromEntries(window.__qoti.renderer().statics.bySource));
   for (let i = 0; i < 6; i++) {
@@ -135,7 +149,12 @@ if (mode === 'times') {
   const a = await st();
   await page.waitForTimeout(30000);
   const b = await st();
-  console.log(JSON.stringify({ a: [a.stillRenders, a.samples, a.sampleGoal, a.drawn, a.stillChange], b: [b.stillRenders, b.samples, b.sampleGoal, b.drawn, b.stillChange] }));
+  console.log(
+    JSON.stringify({
+      a: [a.stillRenders, a.samples, a.sampleGoal, a.drawn, a.stillChange],
+      b: [b.stillRenders, b.samples, b.sampleGoal, b.drawn, b.stillChange],
+    }),
+  );
 } else if (mode === 'check') {
   const r = await run('ink', SLOT, 4, false);
   const p = await run('plain', SLOT, 4, false);
