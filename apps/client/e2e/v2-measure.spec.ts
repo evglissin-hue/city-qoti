@@ -59,6 +59,10 @@ test('Measure this laptop: the table, Copy, kept per seat, the valley put back; 
   const context = await browser.newContext({ permissions: ['clipboard-read', 'clipboard-write'] });
   const page = await context.newPage();
   page.on('pageerror', (e) => console.log('pageerror:', e.message));
+  page.on('console', (m) => {
+    if (m.type() === 'error' || m.type() === 'warning') console.log(`console.${m.type()}:`, m.text());
+  });
+  page.on('requestfailed', (r) => console.log('requestfailed:', r.url(), r.failure()?.errorText));
   await page.goto(`/${DEBUG_QUERY}&measure=${FULL ? 'quick' : 'smoke'}`);
   await page.getByTestId('new-online').click();
   await waitLive(page);
@@ -93,8 +97,20 @@ test('Measure this laptop: the table, Copy, kept per seat, the valley put back; 
   await expect(page.getByTestId('measure-progress')).toBeVisible();
   await expect(page.getByTestId('measure-progress')).toContainText(new RegExp(`of ${ROWS}`));
 
+  // A run that tripped says so at once; no sense waiting out the table's timeout for it.
+  const tableTimeout = FULL ? 1_500_000 : 750_000;
+  const tripped = page
+    .getByTestId('measure-failed')
+    .waitFor({ timeout: tableTimeout })
+    .then(async () => {
+      throw new Error(`Measure failed: ${await page.getByTestId('measure-failed').textContent()}`);
+    });
+  tripped.catch(() => {});
   // The table: every preset by day and the night presets at night, in three scenes.
-  await expect(page.getByTestId('measure-row')).toHaveCount(ROWS, { timeout: FULL ? 1_500_000 : 750_000 });
+  await Promise.race([
+    expect(page.getByTestId('measure-row')).toHaveCount(ROWS, { timeout: tableTimeout }),
+    tripped,
+  ]);
   await expect(page.getByTestId('measure-done')).toContainText('back as it was');
   const table = page.getByTestId('measure-table');
   for (const scene of ['This valley', 'Village showcase', 'Town showcase'])
@@ -121,8 +137,22 @@ test('Measure this laptop: the table, Copy, kept per seat, the valley put back; 
   await expect(page.getByTestId('measure-kept-run').first()).toContainText('You');
 
   // Copy puts the Markdown table on the clipboard.
+  // The button says "Copied" for under two seconds, and a software-rendered page can take longer than
+  // that between two polls: watch the button's text change in the page instead of polling for it.
+  await page.evaluate(() => {
+    const el = document.querySelector('[data-testid="measure-copy"]')!;
+    const w = window as unknown as { __said: string[] };
+    w.__said = [];
+    new MutationObserver(() => w.__said.push(el.textContent ?? '')).observe(el, {
+      childList: true,
+      characterData: true,
+      subtree: true,
+    });
+  });
   await page.getByTestId('measure-copy').click();
-  await expect(page.getByTestId('measure-copy')).toHaveText('Copied');
+  await expect
+    .poll(() => page.evaluate(() => (window as unknown as { __said: string[] }).__said), { timeout: 60_000 })
+    .toContain('Copied');
   const text = await page.evaluate(() => navigator.clipboard.readText());
   expect(text).toContain('| Scene | Preset | Hour | Moving frame ms (avg / p95) |');
   expect(text.split('\n').filter((l) => /^\| (valley|village|town) \|/.test(l))).toHaveLength(ROWS);
