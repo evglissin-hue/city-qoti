@@ -426,6 +426,35 @@ S.balances = async (page) => {
   }
 };
 
+S.thread = async (page) => {
+  await open(page, GROWN);
+  await q(page, () => window.__qoti.setHour(13));
+  const scene = await q(page, () => window.__qoti.threadScene());
+  if (!scene) return console.log('no thread scene in this valley');
+  console.log('scene', JSON.stringify(scene));
+  const { press, place, placeName, at } = scene;
+  await lookAt(page, at[0], at[1], 40);
+  await select(page, { kind: 'building', id: press });
+  await page.waitForTimeout(800);
+  await say(page, 'cider maker inspector', '[class*="inspector"]');
+  console.log('ground layer', await q(page, () => window.__qoti.groundHighlight()));
+  await shot(page, 7, 'cider-maker');
+  // A name in the sentence is a link: the place.
+  await page.getByTestId('thread').getByRole('button', { name: /Pickering/ }).first().click({ timeout: 8000 }).catch((e) => console.log('link click failed', e.message.slice(0, 80)));
+  await page.waitForTimeout(1200);
+  await say(page, 'place card by the link', '[class*="inspector"]');
+  console.log('ground layer', await q(page, () => window.__qoti.groundHighlight()));
+  await shot(page, 7, 'place-by-link');
+  // A home: the first household home.
+  const home = await q(page, () => { const m = window.__qoti.mirror(); for (const b of m.buildings.values()) if (b.stage === 'built' && /cottage|townhouse/.test(b.def)) return b.id; return null; });
+  if (home) {
+    await select(page, { kind: 'building', id: home });
+    await page.waitForTimeout(800);
+    await say(page, 'a home', '[class*="inspector"]');
+    await shot(page, 7, 'home');
+  }
+};
+
 const names = process.argv.slice(2);
 for (const name of names) {
   const { browser, page } = await launch();
