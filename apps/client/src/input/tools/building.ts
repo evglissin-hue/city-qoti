@@ -6,12 +6,14 @@ import {
   FIELD_GOOD_FERTILITY,
   FIELD_MIN_FERTILITY,
   footprintSize,
+  footprintTiles,
   MAP_SIZE,
   reachRoadTiles,
   TERRAFORM_COST,
   soilPermille,
   TREE_MATURE,
   type Rot4,
+  wouldEnclose,
 } from '@qoti/sim';
 import type { TilePick } from '../../render/api';
 import type { Mirror } from '../../state/mirror';
@@ -210,7 +212,14 @@ export function buildingTool(ctx: ToolContext): Tool {
     const cutOff =
       place.ok &&
       ctx.mirror.settings.value.mode === 'standard' &&
-      !ctx.mirror.townReaches({ def: def.id, x, z, rot });
+      (!ctx.mirror.townReaches({ def: def.id, x, z, rot }) ||
+        // R3X: nor may it shut a neighbor's only way to their door (the sim says CUT_OFF here too).
+        wouldEnclose(
+          ctx.mirror,
+          footprintTiles(def, x, z, rot).map(([tx, tz]): [number, number, string] => [tx, tz, def.id]),
+          [...ctx.mirror.buildings.values()],
+          ctx.mirror.meta.valleyGate,
+        ).length > 0);
     const blocked = place.ok ? (cutOff ? 'CUT_OFF' : costBlock(ctx.mirror, def.cost)) : null;
     const check = blocked ? { ok: false, reason: blocked } : place;
     ctx.render.setGhost({ kind: 'building', def: def.id, x, z, rot, valid: check.ok });

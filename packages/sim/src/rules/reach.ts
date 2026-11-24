@@ -90,9 +90,11 @@ export function reachesTile(
 ): boolean {
   const S = MAP_SIZE;
   if (tile < 0 || tile >= S * S) return false;
-  if (reach[tile]) return true;
   const x = tile % S;
   const z = (tile - x) / S;
+  // R3X: a step on open water (no bridge) is no place to stand, whoever walks beside it.
+  if (reader.water(x, z) > 0 && reader.road(x, z) === 0) return false;
+  if (reach[tile]) return true;
   const h = reader.height(x, z);
   for (let k = 0; k < 4; k++) {
     const nx = k === 0 ? x + 1 : k === 1 ? x - 1 : x;

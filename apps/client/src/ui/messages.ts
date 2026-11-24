@@ -28,7 +28,7 @@ export const REJECT_TEXT: Record<RejectReason, string> = {
   NO_RAID: 'There is no raid on. The bell can rest.',
   // Playtest round three
   CUT_OFF:
-    'Nobody can walk to that door: a cliff or the river is in the way. Turn it, or build where a path can reach.',
+    'Somebody would be left with no way to a door: a cliff, the river, or a neighbor in the way. Turn it, or build where a path can reach.',
   // P1 (playtest)
   HALL_STAYS:
     'The town hall stays. Its builders raise everything else, and nobody wants to learn who would raise a new one.',

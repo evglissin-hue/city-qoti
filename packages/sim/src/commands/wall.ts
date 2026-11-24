@@ -52,9 +52,9 @@ export const paint: HandlerFor<'wall.paint'> = {
   },
   apply(state, seat, cmd, ctx) {
     const plan = planFor(state, cmd.def, cmd.tiles);
-    for (const [x, z, d] of plan.pieces) {
+    for (const [i, [x, z, d]] of plan.pieces.entries()) {
       const def = content.buildingById.get(d)!;
-      const b = insertBuilding(state, ctx, def, x, z, 0, seat);
+      const b = insertBuilding(state, ctx, def, x, z, plan.rots?.[i] ?? 0, seat);
       if (b.rt && def.defense?.hp) b.rt.hp = def.defense.hp;
       if (b.rt && def.defense?.passable === 'gate') b.rt.open = true;
       chargePlacement(state, ctx, b, def);

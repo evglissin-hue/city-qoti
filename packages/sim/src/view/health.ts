@@ -29,6 +29,7 @@ import { canPlaceBuilding } from '../rules/building';
 import { canPlaceDecor } from '../rules/decor';
 import { entranceTiles, footprintSize } from '../rules/footprint';
 import { doorFront, reachesTile, townReach } from '../rules/reach';
+import { isWallDef } from '../rules/wall';
 import { gateTiles } from '../rules/wall';
 import { canPlantTree } from '../rules/tree';
 import { isMasterGood } from '../state/masters';
@@ -810,7 +811,8 @@ export class HealthWatch {
     this.cutOffHour = hour;
     const live = new Set<number>();
     for (const b of state.buildings) {
-      if (b.stage !== 'built' || townReachesDoor(state, b)) continue;
+      // R3X: nobody has business at a finished wall's step; a piece going up is a site-cut-off.
+      if (b.stage !== 'built' || isWallDef(b.def) || townReachesDoor(state, b)) continue;
       live.add(b.id);
       const since = this.cutOffSince.get(b.id) ?? now;
       this.cutOffSince.set(b.id, since);
