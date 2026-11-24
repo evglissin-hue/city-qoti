@@ -37,6 +37,7 @@ import {
   type WorldState,
 } from '@qoti/sim';
 import { findById } from '../../../packages/sim/src/state/entities';
+import { placeState } from '../../../packages/sim/src/state/evenings';
 import { moneyBalance } from '../../../packages/sim/src/systems/economy/money';
 import { placesFloor } from '../../../packages/sim/src/systems/carrier/places';
 import { balanceStock, familyStock } from '../../../packages/sim/src/systems/market/balances';
@@ -134,8 +135,9 @@ function runToClock(h: Hamlet, hour: number, minute = 0): void {
 const goodIdx = (id: string): number => content.goods.findIndex((g) => g.id === id);
 
 /**
- * Outcome 1's scene: at 17:00 the town holds candles for half a night's lanterns (every other store
- * emptied of them), one place is marked `keep`, and the settling at 17:30 reads stock and priority.
+ * Outcome 1's scene: at 17:29 the town holds candles for half a night's lanterns (every other store
+ * emptied of them), one place is marked `keep` and every other is `normal`, and the settling at 17:30
+ * reads stock and priority.
  * R3X: "for half" is above the places' floor: places draw only on what the town holds over its
  * reserves and winter marks (19-evenings.md, Supplies), so the storehouse is topped up past the Wares
  * floor first. Seeded with half the need in all, hazel's settling lit 0 of 124 lanterns (its Wares
@@ -158,6 +160,26 @@ export function candlesScene(h: Hamlet): CandlesRun {
   if (!storehouse) return { ...base, skipped: 'no storehouse stands' };
   try {
     runToClock(h, 17);
+    // The place with the most lanterns is the one kept first.
+    const ids = new Set(lanterns.map((d) => d.id));
+    let kept: { id: string; members: number[] } | null = null;
+    for (const p of placesView(w).places) {
+      const n = p.members.filter((m) => ids.has(m)).length;
+      if (n > 0 && (!kept || n > kept.members.filter((m) => ids.has(m)).length)) kept = p;
+    }
+    // R3X: one place marked first, every other as it comes: the advisors' own keeps and rests (the Town
+    // Book's places kept, far places rested) put 133 of willow's lanterns at keep, so the marked place
+    // shared the candles with places nobody marked in the scene. Sent at 17:00, so they land first.
+    for (const p of placesView(w).places) {
+      const pri = placeState(w, p.id)?.priority ?? 'normal';
+      if (p.id !== kept?.id && pri !== 'normal')
+        command(h, [{ t: 'place.setPriority', id: p.id, priority: 'normal' }], 1);
+    }
+    if (kept) command(h, [{ t: 'place.setPriority', id: kept.id, priority: 'keep' }], 1);
+    // R3X: the candles are seeded at 17:29, just before the settling: seeded at 17:00, the porters
+    // hauled them to the shelves the scene had just emptied (places never draw from a shelf), and
+    // willow's settling found 2 free of 18.
+    runToClock(h, 17, 29);
     const gc = goodIdx(supply.good ?? 'candles');
     for (const b of w.buildings) {
       const rt = b.rt;
@@ -172,14 +194,6 @@ export function candlesScene(h: Hamlet): CandlesRun {
     const have = familyStock(balanceStock(w), family);
     storehouse.rt!.store[gc]! += Math.max(0, placesFloor(w, family) + candlesSet - have);
     const covers = Math.min(lanterns.length, Math.floor((candlesSet * per) / qty));
-    // The place with the most lanterns is the one kept first.
-    const ids = new Set(lanterns.map((d) => d.id));
-    let kept: { id: string; members: number[] } | null = null;
-    for (const p of placesView(w).places) {
-      const n = p.members.filter((m) => ids.has(m)).length;
-      if (n > 0 && (!kept || n > kept.members.filter((m) => ids.has(m)).length)) kept = p;
-    }
-    if (kept) command(h, [{ t: 'place.setPriority', id: kept.id, priority: 'keep' }], 1);
     const before = moneyBalance(w);
     runToClock(h, 18, 30);
     const view = suppliesView(w);
