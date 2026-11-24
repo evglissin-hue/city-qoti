@@ -131,8 +131,10 @@ export function buildTerrainChunk(tiles: SurfaceTiles, cx: number, cz: number): 
       const tz = z0 + z;
       const y = tiles.y(tx, tz);
       let f = 1;
-      for (let dz = -1; dz <= 1 && f; dz++)
-        for (let dx = -1; dx <= 1 && f; dx++) if (tiles.y(tx + dx, tz + dz) !== y) f = 0;
+      // Near a pad the ground eases over up to PIN_SPAN tiles, so look that far for a different height.
+      const r = tiles.pinsNear(tx, tz) ? PIN_SPAN : 1;
+      for (let dz = -r; dz <= r && f; dz++)
+        for (let dx = -r; dx <= r && f; dx++) if (tiles.y(tx + dx, tz + dz) !== y) f = 0;
       flatMap[z * span + x] = f;
     }
   }
