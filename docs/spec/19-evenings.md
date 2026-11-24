@@ -245,3 +245,11 @@ A shared book in both lenses, kept like the Pattern Book: found pages, and hints
 - The first master in the first Village year on every bench seed; a master's good reaches a shelf; a departed master's good stops.
 - Six Town Book pages can be found by the autoplayer's two seats and one calling is earned.
 - No wish, twist, gap or page is offered that the town cannot meet (the achievable check, `22-quality.md`).
+
+*As measured (R3X, 2026-11-24: R3E's tools on R3X's head, 70 days, the four bench seeds with the tuned and newcomer profiles; tables in PR #78)*:
+
+- **The lantern round**: holds. The lamplighter lights the lamps nearest his start one by one from 17:30 (the chair's grown valley: five lamps beside the Town Hall between 17:36 and 17:56) and the rest come on at 18:00 (`r3a/lamplighter.test.ts`). With candles short the settling lights the kept places first (`r3a/supplies.test.ts`). In the autoplayed towns R3E's candles-for-half scene misses: the kept place lit 8 of its 99 lanterns on willow and 35 of 96 on hazel while the candles above the floor covered 72 and 68 (the cause is in PR #78).
+- **The first master in the first Village year**: holds on every seed and profile (first master on day 18 to 37, Village claims on day 13 to 31); a master's good reaches a shelf and a departed master's good stops (R3E's scenes, PASS on willow and hazel, both profiles).
+- **Six Town Book pages and a calling**: misses. 0 to 2 pages a seed, all customs, no specialty, no calling. The marks were brought to a Village's size (above); a whole Village sells 2 to 5 Treats an evening, so no flavor reaches four customers at one place on three evenings. Handed to I4 (Treats on the round), not met by lowering the marks further.
+- **Nothing offered the town cannot meet**: holds. The audit has 0 stuck commands and 0 stalled Hearth sites on every run; its flags are explained or fixed (the PR lists them).
+- **R2's lines**: the lanes test passes on every seed; the worst fair evening is 35 to 69% (below R2X's 48 to 54% on oak, 35%, and willow, 46%), the mean 62 to 84%: resting lanterns take lamplight's draw from places R2 lit for nothing. Craftsfolk at day 70: 16% of households on average (a third on birch only).
