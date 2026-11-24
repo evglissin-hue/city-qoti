@@ -170,7 +170,7 @@ if (mode === 'times') {
     const [w, h] = [480, 360];
     const c = document.createElement('canvas');
     c.width = w * 2 + 30;
-    c.height = (h + 30) * 2 + 10;
+    c.height = (h + 40) * 2 + 10;
     const g = c.getContext('2d');
     g.fillStyle = '#f4ecd8';
     g.fillRect(0, 0, c.width, c.height);
