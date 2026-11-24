@@ -370,3 +370,13 @@ Measured the same way (`npm run targets -w @qoti/bench`, 70 days, the four bench
 - **Decisions**: 153, 141, 110 and 99 accepted Ledger commands in 70 days; the lanes test's both-lanes runs, which enforce the limit, send 149, 131, 114 and 94. Willow's targets run is three over: it raises 21 storehouses for 209 residents against `main`'s 15 for 206, as the rule that adds one whenever three workplaces sit with their output full fires about ten times. A faster growth pace (three homes waiting, an extra start and site for homes) pushed hazel to 169 and was taken out.
 - **Lean days**: none on any seed. Holds. The same faster pace ran willow ten days and oak five past their credit line.
 - **Tiers move**: the Craftsfolk share averages 15.0% over days 40 to 70 against `main`'s 19.1% (at day 70: 5, 9, 15 and 18%). Does not hold against `main`: households lack Treats, Wares and savings on both trees, and supply is not short. Taken up with the master in P3A's PR.
+
+### What holds (R3X, 2026-11-24)
+
+Measured on R3X's head with R3E's tools (`npm run r3report`, `lanes`, `newcomer`, `outcomes -w @qoti/bench`; 70 days, the four bench seeds, each with the tuned and the newcomer profile):
+
+- **Hands and food** (P3A's line): the newcomer pair reaches Village on day 19 on willow, hazel and oak and 31 on birch; first homes go up in 9 to 15 hours and the first farmstead in 14 to 15. One Hamlet morning had a household without breakfast (willow, day 14): a household that walked in that morning with an empty pantry and no coins, before it could fetch food; it ate the next morning. Days with food jobs open while food was short: 2, 0, 5 and 0 (round 1 of R3X: 5, 0, 9 and 2).
+- **Lean days**: none on any seed or profile. Holds.
+- **Decisions**: the lanes test's both-lanes runs send 139, 148, 113 and 123 Ledger commands (limit 150); refused commands fell from 54 to 65 a seed to 4 to 9 (the Hearth looks up the spot for the piece it places). Hazel's 148 is builds 33, roads 26, zones 23, commissions 15 and loans 9.
+- **Tiers move**: Craftsfolk at day 70 are 13, 23, 5 and 33% of households (tuned) and 20, 13, 5 and 18% (newcomer): 16% on average, a third on birch only. Does not hold. What holds households back (`r3xWhy`, `r3xCrafts`): the six coins put by at the 05:00 read and evenings of 50 more than goods; the money advisor now squeezes purses only when they can spare it and eases for thin ones, which moved the median Settler purse but not the share.
+- **Debt**: 17.3 to 18.6 coins owed per resident, near the line's end (90% of it) on every seed; the closed loop (`debt.ts`) is unchanged by R3. The masters' goods are the new outside income: 38 to 206 units exported over 70 days a seed (butter and smoked fish; workshop masters do not come in 70 days).

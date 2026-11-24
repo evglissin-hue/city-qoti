@@ -72,6 +72,18 @@ export const EXPLAINED: readonly {
       'were the purse); with no places or decor for five evenings (NEWCOMER_LATE) the town is thin. The tuned runs, ' +
       'with places from the first evening, flag nothing in this audit.',
   },
+  {
+    kind: 'treats-unsold',
+    match:
+      /^tavern #\d+ has had Treats on the shelf and visitors at \d+ places in reach for \d+ evenings and sold none$/,
+    run: /\/village$/,
+    why:
+      'a limit of the thin Treats want, not a stuck shelf (R3X; hazel/village, traced through tradePass): the ' +
+      'tavern pours one flavor at 424 to 519 pennies, and of 22 household-evenings at its two places over the six ' +
+      'evenings every one owed under one Treat (at most 90 hundredths) and 12 also held a purse under the price; ' +
+      'several had bought at another stop. A household buys about every third evening; buying at the tavern began ' +
+      'the evening owed reached one Treat.',
+  },
 ];
 
 /** Why a flag is a known stand-in's, or null when it is a dead end. */

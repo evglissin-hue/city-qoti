@@ -61,15 +61,21 @@ If the owner prefers one wave, the natural cuts from wave two are time-lapse and
 
 ## Starting after R3X
 
-To fill at R3X's merge (this draft was written while R3X was still tuning). What is known now:
+Filled at R3X's PR (2026-11-24, R3X's head; R3E's tools, 70 days, four bench seeds with the tuned and newcomer profiles):
 
-- **Saves are at version 9** (R3.0); 10 is I4.0's. R3X keeps 9 unless its PR says otherwise.
+- **Saves are at version 9** (R3.0); 10 is I4.0's. R3X kept 9: no saved shape changed in R3X.
 - **R3's systems are live**: no `R3 stand-in` is left (R3H removed the last), the newcomer profile is live since P3A merged (`NEWCOMER_LIVE`), "a shop nobody passes" reads the outlet's own evening customers (`Building.roundSales`, R3X), and the golden year (`r1-year.json`) was re-recorded in R3E and R3H because the autoplayer plays new advisors.
-- **The Town Charter's numbers meet R3's tuning**: 120 residents including 40 Craftsfolk needs about a third of residents Craftsfolk, and P3A measured the Craftsfolk share at 15% on average over days 40 to 70 (`13-ledger.md`, What holds, P3A). I4H reads the claim day on every bench seed; I4X tunes. R3X's own Craftsfolk reading goes here.
+- **The Town Charter's numbers meet R3's tuning**: 120 residents including 40 Craftsfolk needs about a third of residents Craftsfolk, and P3A measured the Craftsfolk share at 15% on average over days 40 to 70 (`13-ledger.md`, What holds, P3A). I4H reads the claim day on every bench seed; I4X tunes. R3X's reading: Craftsfolk at day 70 are 13, 23, 5 and 33% of households on willow, hazel, oak and birch (tuned) and 20, 13, 5 and 18% (newcomer), 16% on average; what holds Settlers back is the six coins put by and evenings of 50 more than goods (`r3xWhy`, `r3xCrafts`). A Town Charter at a third Craftsfolk is out of reach on three seeds of four without new money or a lighter savings line.
 - **The variety wants**: R3E's `variety.ts` prints which flavors can reach the Merchants' wants (Food 5, Wares 3, Treats 3) and from where; I4A builds the tier on it, I4D adds Port Amberly's flavors.
-- **Village money is a closed loop**: the household loop nets the treasury nothing, and debt per resident tracks the autoplayer's share of the credit line (`tools/bench/src/debt.ts`). R3X's figure goes here; I4's new outside money (contracts, Port Amberly, guests) and new sinks (coal, restyling, the new buildings' upkeep) are measured against it.
+- **Village money is a closed loop**: the household loop nets the treasury nothing, and debt per resident tracks the autoplayer's share of the credit line (`tools/bench/src/debt.ts`). R3X's figure: 17.3 to 18.6 coins owed per resident on every seed and profile, the loans at 90% of the line; no lean day. R3's one new outside income is the masters' goods on the carrier's cart (38 to 206 units a seed over 70 days, butter and smoked fish; workshop masters do not come in 70 days). I4's new outside money (contracts, Port Amberly, guests) and new sinks (coal, restyling, the new buildings' upkeep) are measured against it.
 - **The R3 playtest** (`docs/playtests/R3.md`) ends with "three things to change before I4": the master places each in a brief or a P cycle once the owner has played.
-- **R3X's misses**, each with its number and the cycle it needs: to fill.
+- **R3X's misses**, each with its number and the cycle it needs:
+  - **Six Town Book pages and a calling**: 0 to 2 pages a seed (customs only, no specialty), no calling. The marks are already a Village's size (4 customers on 3 evenings; 12 visitors three seasons running); a whole Village sells 2 to 5 Treats an evening, so no flavor reaches four at one place. Needs more Treats sold on the round (I4E's evenings, I4D's flavors by trade), not lower marks.
+  - **Candles for half**: R3E's scene measured in the autoplayed towns (kept places lit, the rest resting) misses; the rule holds in the unit tests and from the chair. The bench towns stand 70 to 140 lanterns against 9 to 18 candles a night. I4H's lamps advisor should stand lanterns to the candles the town makes.
+  - **The worst fair evening** fell below R2X's 48 to 54% on oak (35%, day 51) and willow (46%, day 46); the means are 62 to 84%. Lanterns resting for want of candles take lamplight's draw from the places R2 lit for nothing. I4E reads it.
+  - **A third Craftsfolk by day 70**: 16% on average (above). I4A.
+  - **The nothing-to-sell gap at a tavern** opens and rarely closes (willow 5 opened, 1 closed; hazel 6, 0): households owe under one Treat most evenings. I4E.
+  - **Hazel's Ledger decisions** sit at 148 of the lanes test's 150; I4's new Ledger levers (contracts, policies) need room: I4H should measure the lanes test first.
 
 ## Rulings
 

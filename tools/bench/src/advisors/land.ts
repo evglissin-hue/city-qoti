@@ -180,8 +180,16 @@ class Land implements Advisor {
     const asStreet = cobbled >= SHORT_STREET;
     const length = asStreet ? cobbled : Math.min(STREET_TILES, Math.floor(means / LANE_COINS));
     // P3A: a lit bar takes a stub of a lane (a lot or two of frontage) when that is all there is.
-    if (length < (forBar && !village ? BAR_STUB : SHORT_STREET)) return false;
+    const least = forBar && !village ? BAR_STUB : SHORT_STREET;
+    if (length < least) return false;
     let street = planHighStreet(p.w, length);
+    // R3X: a town filled in near its middle may fit only a shorter street: try shorter ones down to
+    // the least it lays (hazel's Village audit: the Homes bar lit seven days while only a 30-tile
+    // street was asked for and a 12-tile one fitted every day).
+    for (const shorter of [22, 16, 12, least]) {
+      if (street) break;
+      if (shorter < length && shorter >= least) street = planHighStreet(p.w, shorter);
+    }
     if (!street) {
       p.actions.push(`no room for ${label}`);
       return false;

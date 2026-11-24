@@ -54,3 +54,18 @@ New design (I4 and later); V4's look work beyond merging it and the seams the ru
 - If R2's tuning moved a number this wave reads (the draw's parts, the baskets, the tiers), say so in the PR.
 - A Hamlet's lanterns light for nothing and do not count for the Lamplighter's Round or the custom of a kept supply (the rulings).
 - Runs as the build and review loop (`31-parallel-development.md`): two rounds of quality check, dead-end hunt and player's chair before the PR, each round's findings in it.
+
+## As built (R3X, 2026-11-24)
+
+The PR (#78) is the full report: before and after tables, both rounds' findings, contract additions and the honest misses. In short, by task:
+
+1. **Merged**: the wave (R3.0, R3A to R3H) and `main` (P3A #61, the forest floor #76), conflicts kept both sides; `.github/workflows/ci.yml` byte for byte. P3A's level words ask a master for level 3.
+2. **Stand-ins**: `R3 stand-in` greps empty; `PENDING` holds no R3 feat; `OWED_SENDERS` and `OWED_FIELDS` hold no R3 entry.
+3. **Tuned** (every number in content): masters after 16 working days (`MASTERY.days`, was 20); masters' goods sold to neighbors on their own surplus (`MasteryTuning.exportKeep` 8, carrier step 5b, never into a family's reserve); the Town Book's marks a Village's size (`townBook.specialtyCustomers` 4 on `specialtyEvenings` 3, `customVisitors` 12); a Treats room on market shelves and a tavern's pouring stock (`PLACES.treatsRoom` 12); `PlaceState.served` written at last. Measured in `19-evenings.md`, Acceptance, As measured (R3X), and `13-ledger.md`, What holds (R3X).
+4. **"A shop nobody passes"** reads the outlet's own evening customers (`Building.roundSales`; `19-evenings.md`, Gaps, As built (R3X)).
+5. **P3A's and R2's lines**: the lanes test passes on every seed; no lean day; one Hamlet morning without breakfast (an arrival with an empty pantry, willow newcomer, day 14); the worst fair evening and the Craftsfolk third are misses with their numbers.
+6. **Determinism and co-op**: the golden year re-recorded each time the rules or the autoplayer changed, each commit saying which (the PR lists them); the version 8 willow opens; CI's e2e (two browsers, a year online) green.
+7. **The grown fixture**: regrown at rowan, 50 days (167 residents, 544 decor, Village).
+8. **Two rounds** of quality check, dead-end hunt and player's chair (shots `docs/build/screenshots/r3x-chair-*`, `r3x-chair2-*`; scripts `apps/client/e2e/r3x-chair.mjs`, `packages/sim/scripts/r3x-chair-make.ts`). Classes found and checked: doors walled in (`building-cut-off`), a lamplighter never hired (`lamplighter-unhired`), the Chronicle's counts at one (a class test over every kind).
+9. **The seams with V4**: R3X lands before V4X; V4X makes the one `setPictureSource` call for the Town Book and the storybook, and keeps the lamps from popping the rest frame (the handshake with V4A).
+10. **Shipped**: spec notes, `CHANGELOG.md`, the board, `docs/playtests/R3.md`, and I4's briefs and wave notes (`i4-wave-notes.md`, Starting after R3X).
