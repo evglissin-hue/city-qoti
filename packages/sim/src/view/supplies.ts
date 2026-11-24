@@ -70,12 +70,18 @@ function restingOf(
 }
 
 /** A place's supplies by kind, for its card; absent when it has no supplied piece. */
-export function placeSupplies(state: WorldState, place: Place): PlaceSupplyView[] | undefined {
+export function placeSupplies(
+  state: WorldState,
+  place: Place,
+  /** The place's resting pieces if the caller has them (`placeResting`; null for none): saves asking each piece again. */
+  known?: readonly RestingView[] | null,
+): PlaceSupplyView[] | undefined {
   const pieces = placePieces(state, place);
   if (pieces.length === 0) return undefined;
   const ix = suppliedIndex(state);
   const season = seasonOfDay(dayIndex(state.tick)) % 4;
   const rows: PlaceSupplyView[] = [];
+  const restIds = known ? new Set(known.map((r) => r.id)) : null;
   for (let k = 0; k < SUPPLY_KINDS.length; k++) {
     let n = 0;
     let wants = 0;
@@ -91,7 +97,7 @@ export function placeSupplies(state: WorldState, place: Place): PlaceSupplyView[
       per = supply.per ?? 1;
       if (k === Kind.evening) wants += supply.seasons?.includes(season) ? (supply.qty ?? 1) : 0;
       else if (k === Kind.season) wants += supply.qty ?? 1;
-      if (pieceRests(state, d)) resting += 1;
+      if (known === undefined ? pieceRests(state, d) : restIds?.has(d.id)) resting += 1;
     }
     if (n === 0) continue;
     if (k === Kind.nightly) wants = Math.ceil(n / per);

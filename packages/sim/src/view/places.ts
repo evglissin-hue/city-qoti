@@ -120,7 +120,7 @@ function viewOf(state: WorldState, place: Place, row: PlaceState | undefined): P
   if (row?.renamedBy !== undefined) view.renamedBy = row.renamedBy;
   if (place.household !== undefined) view.household = place.household;
   if (row?.priority !== undefined) view.priority = row.priority;
-  const supplies = placeSupplies(state, place);
+  const supplies = placeSupplies(state, place, resting ?? null);
   if (supplies) view.supplies = supplies;
   if (resting) view.resting = resting;
   const pages = state.townBook.pages.filter((p) => p.place === place.id).map((p) => p.id);

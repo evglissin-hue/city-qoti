@@ -348,12 +348,47 @@ export function buildPlaces(state: WorldState, sig?: readonly number[]): BuiltPl
   }
 
   // Fires: a fire within reach of a spot warms that spot; one on its own is a place of its own.
+  // The first spot (in list order) within spotRadius of a tile, found from the lowest list index
+  // at each spot tile over the diamond around it.
+  let spotsGridded = false;
+  const firstSpot = (t: number): Draft | undefined => {
+    if (!spotsGridded) {
+      spotsGridded = true;
+      spotEpochId++;
+      if (spotEpochId === 0x7fffffff) {
+        spotEpoch.fill(0);
+        spotEpochId = 1;
+      }
+      for (let i = spots.length - 1; i >= 0; i--) {
+        const at = spots[i]!.tile;
+        spotEpoch[at] = spotEpochId;
+        spotAt[at] = i;
+      }
+    }
+    const fx = t % S;
+    const fz = (t - fx) / S;
+    let best = -1;
+    for (let dz = -R; dz <= R; dz++) {
+      const z = fz + dz;
+      if (z < 0 || z >= S) continue;
+      const w = R - Math.abs(dz);
+      for (let dx = -w; dx <= w; dx++) {
+        const x = fx + dx;
+        if (x < 0 || x >= S) continue;
+        const at = z * S + x;
+        if (spotEpoch[at] !== spotEpochId) continue;
+        const i = spotAt[at]!;
+        if (best < 0 || i < best) best = i;
+      }
+    }
+    return best < 0 ? undefined : spots[best];
+  };
   for (const piece of state.decor) {
     if (claimed.has(piece.id) || !DECOR_INFO.get(piece.def)?.warm) continue;
     const def = content.decorById.get(piece.def)!;
     claimed.add(piece.id);
     const t = tileOfDecor(piece);
-    const spot = spots.find((s) => manhattan(s.tile, t) <= P.spotRadius);
+    const spot = spots.length > 0 ? firstSpot(t) : undefined;
     if (spot) {
       addPiece(spot, piece, def);
       addAround(spot.tiles, t);
@@ -454,7 +489,9 @@ export function buildPlaces(state: WorldState, sig?: readonly number[]): BuiltPl
 
   // What changed since this state's last build: a place whose draft is the same and none of whose
   // inputs changed is the place that build finished (the loop below reads nothing else), so it is kept.
-  const changes = last ? changesSince(state, last, outlets, wet) : null;
+  const decorNow = decorSnapshot(state);
+  const buildingsNow = buildingSnapshot(state);
+  const changes = last ? changesSince(last, outlets, wet, decorNow, buildingsNow) : null;
   const finished = new Map<string, Finished>();
 
   const places: Place[] = [];
@@ -600,8 +637,8 @@ export function buildPlaces(state: WorldState, sig?: readonly number[]): BuiltPl
     outletList: outlets,
     cafes,
     finished,
-    decor: decorSnapshot(state),
-    buildings: buildingSnapshot(state),
+    decor: decorNow,
+    buildings: buildingsNow,
     outlets: outlets.flat(),
     wet,
   });
@@ -716,10 +753,11 @@ const dirty = new Int32Array(S * S);
 let dirtyId = 0;
 
 function changesSince(
-  state: WorldState,
   last: LastBuild,
   outlets: readonly [EntityId, number][],
   wet: Uint8Array,
+  decorNow: Snapshot,
+  buildingsNow: Snapshot,
 ): Changes | null {
   // A new water mask (water or roads changed) touches places anywhere: finish them all.
   if (wet !== last.wet) return null;
@@ -729,11 +767,11 @@ function changesSince(
     dirtyId = 1;
   }
   const T = S * S;
-  diff(last.decor, decorSnapshot(state), (_id, value) => {
+  diff(last.decor, decorNow, (_id, value) => {
     dirty[value % T] = dirtyId;
   });
   const buildings = new Set<EntityId>();
-  diff(last.buildings, buildingSnapshot(state), (id) => {
+  diff(last.buildings, buildingsNow, (id) => {
     buildings.add(id);
   });
   // Outlets: the pairs in one list and not the other (both are in building order, by id).
@@ -805,6 +843,11 @@ const extraOf = new WeakMap<Place, PlaceExtra>();
 export function placeExtra(place: Place): PlaceExtra | undefined {
   return extraOf.get(place);
 }
+
+/** Each sitting spot's lowest list index by tile for the fires pass (valid where spotEpoch is current). */
+const spotEpoch = new Int32Array(S * S);
+const spotAt = new Int32Array(S * S);
+let spotEpochId = 0;
 
 /** Seat pieces by tile for the spots pass: seatHead[tile] is valid when seatEpoch[tile] is current. */
 const seatEpoch = new Int32Array(S * S);

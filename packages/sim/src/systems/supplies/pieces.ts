@@ -78,6 +78,15 @@ export interface SuppliedIndex {
 
 const indexMemo = new WeakMap<WorldState, { grid: object; version: number; index: SuppliedIndex }>();
 
+/** True when the index already lists these very pieces (the same objects) at the same kinds and tiles. */
+function sameSupplied(ix: SuppliedIndex, list: Decor[], kind: number[], tile: number[]): boolean {
+  if (ix.list.length !== list.length) return false;
+  for (let i = 0; i < list.length; i++) {
+    if (ix.list[i] !== list[i] || ix.kind[i] !== kind[i] || ix.tile[i] !== tile[i]) return false;
+  }
+  return true;
+}
+
 /** The supplied pieces now (cached against the decor grid's version; callers must not mutate it). */
 export function suppliedIndex(state: WorldState): SuppliedIndex {
   const grid = worldIndex(state).decorGrid;
@@ -99,17 +108,30 @@ export function suppliedIndex(state: WorldState): SuppliedIndex {
     if (at) at.push(i);
     else byTile.set(t, [i]);
   }
+  // The grid moved but the supplied pieces did not (a bench went down): keep the index object, so
+  // everything kept against it (placePieces) stays good.
+  if (m && sameSupplied(m.index, list, kind, tile)) {
+    indexMemo.set(state, { grid, version: grid.version, index: m.index });
+    return m.index;
+  }
   const index: SuppliedIndex = { list, kind, tile, byTile };
   indexMemo.set(state, { grid, version: grid.version, index });
   return index;
 }
 
+/** Each place's pieces against the index they were found in (derived, never saved). */
+const piecesMemo = new WeakMap<Place, { ix: SuppliedIndex; pieces: number[] }>();
+
 /**
  * The supplied pieces of a place (list indexes into `suppliedIndex`, ascending): those standing on
- * its tiles, plus its member pieces wherever they stand.
+ * its tiles, plus its member pieces wherever they stand. Kept per place against the supplied index (a
+ * place never changes once built, and the index is a new object whenever the decor grid moves), so a
+ * view that asks twice per place pays once; callers must not mutate the list.
  */
 export function placePieces(state: WorldState, place: Place): number[] {
   const ix = suppliedIndex(state);
+  const seen = piecesMemo.get(place);
+  if (seen && seen.ix === ix) return seen.pieces;
   const out: number[] = [];
   for (const t of place.tiles) {
     const at = ix.byTile.get(t);
@@ -119,10 +141,22 @@ export function placePieces(state: WorldState, place: Place): number[] {
     const i = indexOfPiece(ix, id);
     if (i >= 0) out.push(i);
   }
-  out.sort((a, b) => a - b);
+  // Small lists (a place holds a handful of pieces): insertion sort beats a comparator sort.
+  if (out.length < 24) {
+    for (let k = 1; k < out.length; k++) {
+      const v = out[k]!;
+      let m = k - 1;
+      while (m >= 0 && out[m]! > v) {
+        out[m + 1] = out[m]!;
+        m--;
+      }
+      out[m + 1] = v;
+    }
+  } else out.sort((a, b) => a - b);
   let w = 0;
   for (let k = 0; k < out.length; k++) if (k === 0 || out[k] !== out[k - 1]) out[w++] = out[k]!;
   out.length = w;
+  piecesMemo.set(place, { ix, pieces: out });
   return out;
 }
 
