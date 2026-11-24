@@ -213,10 +213,18 @@ function needsOf(spots: readonly Spot[]): Need[] {
     }
     const method = methodOf(s.b);
     if (rt.paused || !method || method.kind !== 'craft') continue;
+    // R3X: a tavern's pouring stock is its Treats on the round (R3A, the owner's ruling), so its Treat
+    // input is kept to a shelf's worth (`treatsRoom`), not two cycles: two ciders poured away by day
+    // left the round nothing to sell, and the tavern's nothing-to-sell gap never closed.
+    const pours = s.def.tags?.includes('tavern') ?? false;
     for (const [id, qty] of method.inputs) {
       const g = content.goodIndex.get(id);
       if (g === undefined) continue;
-      const want = INPUT_TARGET_CYCLES * qty - rt.input[g]! - rt.reservedIn[g]!;
+      const target =
+        pours && content.goods[g]!.family === 'treats'
+          ? Math.max(INPUT_TARGET_CYCLES * qty, content.places.treatsRoom ?? 12)
+          : INPUT_TARGET_CYCLES * qty;
+      const want = target - rt.input[g]! - rt.reservedIn[g]!;
       if (want > 0) out.push({ dest: s, good: g, want, cls: JobClass.input });
     }
   }

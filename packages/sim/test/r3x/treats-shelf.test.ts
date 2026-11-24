@@ -56,3 +56,24 @@ describe('a market outlet keeps room for its Treats', () => {
     expect(treatsReserve(content.buildingById.get('granary'), stall.rt!)).toBe(0);
   });
 });
+
+describe("a tavern's pouring stock is a shelf's worth", () => {
+  it('porters keep its cider toward treatsRoom, not two cycles, so the round has something to sell', () => {
+    const f = hamletFixture();
+    const s = f.state;
+    const def = content.buildingById.get('tavern')!;
+    const tavern = insertBuilding(s, null, def, 77, 46, 0, 0, { site: false });
+    tavern.rt!.input.fill(0);
+    const store = building(s, f.b.storehouse);
+    store.rt!.store[good('cider')] = 40;
+    s.tick = 2 * TICKS_PER_HOUR; // 08:00
+    everyoneToWork(s);
+    untilHour(s, 16);
+    const room = content.places.treatsRoom ?? 12;
+    // Two cycles' worth was the old mark (one cider a pour); a shelf's worth is well past it, less
+    // what the day's pours took.
+    expect(tavern.rt!.input[good('cider')]! + tavern.rt!.reservedIn[good('cider')]!).toBeGreaterThan(2);
+    expect(tavern.rt!.input[good('cider')]!).toBeLessThanOrEqual(room);
+    expect(treatsOnShelf(s, tavern)).toBe(true);
+  });
+});
