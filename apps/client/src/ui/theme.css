@@ -1333,7 +1333,9 @@ input::placeholder {
   transition-duration: 1.2s;
 }
 /* The name block and the clock keep a soft paper backing: one plain rounded shape per label, drawn
-   by a pseudo-element that is faded with opacity (nothing changes size or position). */
+   by a pseudo-element that is faded with opacity (nothing changes size or position). It fills the
+   label's own box and reaches 6px past it by a box shadow, which is painted but never counted as
+   the label's overflow (an inset of -6px would make the text read as overflowing its box). */
 .game-ui .topbar-town,
 .game-ui .topbar-clock {
   position: relative;
@@ -1343,10 +1345,11 @@ input::placeholder {
 .game-ui .topbar-clock::before {
   content: '';
   position: absolute;
-  inset: -6px;
+  inset: 0;
   z-index: -1;
-  border-radius: 16px;
+  border-radius: 10px;
   background: color-mix(in srgb, var(--paper-light) 82%, transparent);
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--paper-light) 82%, transparent);
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.2s ease;
