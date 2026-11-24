@@ -38,6 +38,9 @@ import {
 } from '@qoti/sim';
 import { findById } from '../../../packages/sim/src/state/entities';
 import { moneyBalance } from '../../../packages/sim/src/systems/economy/money';
+import { placesFloor } from '../../../packages/sim/src/systems/carrier/places';
+import { balanceStock, familyStock } from '../../../packages/sim/src/systems/market/balances';
+import { familyIndex } from '../../../packages/sim/src/state/zones';
 import { setOffForGood } from '../../../packages/sim/src/systems/residents/lifecycle';
 import { DEFAULT_SEEDS } from './audit';
 import { command, runTicks, type Hamlet } from './hamlet';
@@ -133,6 +136,10 @@ const goodIdx = (id: string): number => content.goods.findIndex((g) => g.id === 
 /**
  * Outcome 1's scene: at 17:00 the town holds candles for half a night's lanterns (every other store
  * emptied of them), one place is marked `keep`, and the settling at 17:30 reads stock and priority.
+ * R3X: "for half" is above the places' floor: places draw only on what the town holds over its
+ * reserves and winter marks (19-evenings.md, Supplies), so the storehouse is topped up past the Wares
+ * floor first. Seeded with half the need in all, hazel's settling lit 0 of 124 lanterns (its Wares
+ * stood under their reserve) and the row read the households' first claim as a miss.
  * Run from the grown town at the end of an autoplay; reads `suppliesView` at 18:30.
  */
 export function candlesScene(h: Hamlet): CandlesRun {
@@ -160,6 +167,10 @@ export function candlesScene(h: Hamlet): CandlesRun {
       if (rt.reservedOut[gc] !== undefined) rt.reservedOut[gc] = 0;
     }
     storehouse.rt!.store[gc] = candlesSet;
+    // Past the floor: the family's stock is lifted to its floor and half the need above it.
+    const family = familyIndex(content.goods[gc]!.family);
+    const have = familyStock(balanceStock(w), family);
+    storehouse.rt!.store[gc]! += Math.max(0, placesFloor(w, family) + candlesSet - have);
     const covers = Math.min(lanterns.length, Math.floor((candlesSet * per) / qty));
     // The place with the most lanterns is the one kept first.
     const ids = new Set(lanterns.map((d) => d.id));
