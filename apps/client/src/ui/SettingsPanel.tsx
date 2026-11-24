@@ -81,6 +81,7 @@ export function SettingsPanel({ session }: { session: Session }) {
             step={5}
             value={Math.round(s.uiScale * 100)}
             data-testid="ui-scale"
+            style={{ '--fill': `${((Math.round(s.uiScale * 100) - 80) / 60) * 100}%` }}
             onInput={(e) =>
               update({ ...s, uiScale: clampScale(Number((e.target as HTMLInputElement).value) / 100) })
             }
@@ -196,6 +197,7 @@ function SoundSettings() {
             value={Math.round(a[key] * 100)}
             disabled={a.muted}
             data-testid={`volume-${key}`}
+            style={{ '--fill': `${Math.round(a[key] * 100)}%` }}
             onInput={(e) =>
               setAudioSettings({
                 ...a,

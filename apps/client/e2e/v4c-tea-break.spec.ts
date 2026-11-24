@@ -167,6 +167,27 @@ test.describe.serial('one seat, one page', () => {
     expect(after.goal.yaw).toBe(saved.goal.yaw);
   });
 
+  test('the interface steps back to the name and the clock, and a poke brings it back', async () => {
+    await fresh(page);
+    const toolbar = page.locator('.toolbar');
+    const clock = page.locator('.game-ui .topbar-clock');
+    const town = page.locator('.game-ui .topbar-town');
+    await expect(toolbar).toBeVisible();
+    await startBreak(page);
+    // The slow fade has run out: the toolbar is hidden, the name and the clock stay.
+    await expect(toolbar).toBeHidden({ timeout: 60_000 });
+    await expect(page.locator('.game-ui.tea-break')).toHaveCount(1);
+    await expect(clock).toBeVisible();
+    await expect(town).toBeVisible();
+    await expect(page.locator('.game-ui .topbar-speed')).toBeHidden();
+    await expect(page.locator('.game-ui .topbar-town-stats')).toBeHidden();
+    await page.keyboard.press('Shift');
+    expect(await state(page)).toBeNull();
+    await expect(toolbar).toBeVisible({ timeout: 60_000 });
+    await expect(page.locator('.game-ui.tea-break')).toHaveCount(0);
+    await expect(page.locator('.game-ui .topbar-speed')).toBeVisible();
+  });
+
   test('88 s alone does not start one, two more seconds do', async () => {
     await fresh(page);
     // `fresh` waits for the camera to rest after its key, and real time counts as idle too: a key
