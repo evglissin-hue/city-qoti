@@ -452,7 +452,8 @@ export function terrainLayer(): TerrainLayer {
       // A height change can move a whole building's pad (its door's level), and the ground eases
       // to a pad within a tile, so heights reach as far as the largest footprint and one more.
       for (const layer of ['height', 'water', 'occupant'] as const) {
-        for (const rect of change.rects.get(layer) ?? []) chunks.markRect(rect, layer === 'height' ? 5 + PIN_SPAN : PIN_SPAN + 1);
+        for (const rect of change.rects.get(layer) ?? [])
+          chunks.markRect(rect, layer === 'height' ? 5 + PIN_SPAN : PIN_SPAN + 1);
       }
       const painted: LayerName[] = [
         'terrain',
