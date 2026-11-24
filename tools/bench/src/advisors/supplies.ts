@@ -150,7 +150,9 @@ class Supplies implements Advisor {
     if (built('hives') < hivesWanted && this.hiveTries.length < HIVE_TRIES) {
       const flowers = content.tradeById.get('hives')?.wants.pollinators ?? 0;
       // A farmstead whose chunk's pollinators already meet the want: the sim would retool a pin that fails it.
-      const at = this.spare('farms', 'hives', least).find((b) => habitatAt(w, b.x, b.z, 'pollinator') >= flowers);
+      const at = this.spare('farms', 'hives', least).find(
+        (b) => habitatAt(w, b.x, b.z, 'pollinator') >= flowers,
+      );
       if (at && !this.hiveTries.includes(at.id)) {
         this.hiveTries.push(at.id);
         this.p.do(`pin hives at business ${at.id} for candles`, [
