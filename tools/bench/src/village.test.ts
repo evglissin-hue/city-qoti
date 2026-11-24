@@ -44,7 +44,10 @@ describe('a Village grows its high street', { timeout: 300_000 }, () => {
       expect(later.departures, why).toBe(0);
       for (const d of days.slice(claimed, claimed + window + 1)) {
         expect(d.leanTimes, why).toBe(false);
-        expect(d.foodMade + d.food, why).toBeGreaterThan(0);
+        // Food in hand is the stores and the pantries, as the carrier's essentials count it (R3X: willow's
+        // first Village winter emptied its stores on winter's last two days while the pantries held 49
+        // to 87 units for 38 residents and nobody was miserable; the stores alone read as going without).
+        expect(d.foodMade + d.food + d.pantryFood, why).toBeGreaterThan(0);
         expect(d.miserable, why).toBeLessThanOrEqual(1);
       }
     });

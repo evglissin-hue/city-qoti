@@ -108,7 +108,10 @@ class Money implements Advisor {
     // 1 to 8 coins: nobody put six by for Craftsfolk. The squeeze waits for twice the savings; the ease
     // starts under the savings, while the treasury has its cushion and the credit line's end is far.
     const purse = medianSettlerPurse(w) / PENNIES_PER_COIN;
-    const spare = purse >= 2 * craftsSavings();
+    // The winter's food comes first: while the treasury holds less than the plan advisor keeps for
+    // the carrier's winter food, the squeeze runs whatever the purses (willow's first Village winter
+    // ran its larder to nothing on day 24 with the tax eased and the treasury under water).
+    const spare = purse >= 2 * craftsSavings() || (p.winterFood > 0 && coins < p.winterFood);
     // Never out of the coins the plan advisor keeps for the carrier's winter food (P3A): easing in
     // autumn on them left hazel's larder at 35 Food for 119 residents in its second winter.
     const thin = purse < craftsSavings() && coins > 150 + p.winterFood && creditRoom(w) >= 300;
