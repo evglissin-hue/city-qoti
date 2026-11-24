@@ -188,16 +188,15 @@ test.describe.serial('one seat, one page', () => {
     await expect(page.locator('.game-ui .topbar-speed')).toBeVisible();
   });
 
-  test('80 s alone does not start one, ten more seconds do', async () => {
+  test('88 s alone does not start one, two more seconds do', async () => {
     await fresh(page);
     // `fresh` waits for the camera to rest after its key, and real time counts as idle too: a key
-    // right here starts the count over, then a margin is left (ten seconds: a software-GL frame can
-    // take a second or two, and the two calls below count that real time too).
+    // right here starts the count over, then a margin is left.
     await page.keyboard.press('Shift');
-    await skip(page, 80_000);
+    await skip(page, 88_000);
     await call(page, 'check');
     expect(await state(page)).toBeNull();
-    await skip(page, 10_000);
+    await skip(page, 2_000);
     expect(await state(page)).not.toBeNull();
   });
 
