@@ -202,6 +202,25 @@ describe('lamplighter jobs', () => {
     expect(findById(s.buildings, job)!.rt!.workers).toContain(master.id);
   });
 
+  it('takes the first lamplighter from the least needed work when nobody is free (R3X)', () => {
+    const s = valley('village');
+    const ctx = createTickCtx(s);
+    // Every hand at work and no one free: a town with more jobs than hands.
+    assignJobs(s, ctx);
+    // Hands on a crew anywhere (the Town Hall's builders included; its lamplighters are off its books).
+    const working = () => s.buildings.reduce((n, b) => n + (b.rt ? b.rt.workers.length : 0), 0);
+    // The town's free grown-ups are children for the test: nobody is left to seek a job.
+    for (const r of s.residents) if (!r.jobId) r.stage = 'child';
+    const before = working();
+    expect(before).toBeGreaterThan(0);
+    decor(s, 'lantern', 50, 50);
+    assignJobs(s, ctx);
+    expect(s.supplies.lamplighters).toHaveLength(1);
+    const lamp = findById(s.residents, s.supplies.lamplighters[0]!)!;
+    expect(lamp.jobId).toBe(hall(s).id);
+    expect(working()).toBe(before - 1);
+  });
+
   it('lets the job go when the lanterns do', () => {
     const s = valley('village');
     const lamp = decor(s, 'lantern', 50, 50);

@@ -423,7 +423,52 @@ function keepLamplighters(state: WorldState, ctx: TickCtx): number {
     insertSorted(list, r.id);
     hired++;
   }
+  // R3X: the first lamplighter ranks with a workplace's first hand (LAMPLIGHTER_RANK). In a town with
+  // more jobs than hands nobody was ever jobless, so the job stayed open for good and no player saw
+  // the round R3F draws: with no seeker, the first one comes from the least needed work, two ranks
+  // below (the remaining builders and porters, a stuck workplace, a specialized building's level hands).
+  if (list.length === 0 && jobs > 0) {
+    const r = leastNeededHand(state, hallDef, LAMPLIGHTER_RANK + 2);
+    if (r) {
+      release(state, r, false, ctx);
+      r.jobId = hall.id;
+      pushHistory(state, r, 'job', hall.id);
+      insertSorted(list, r.id);
+      hired++;
+    }
+  }
   return hired;
+}
+
+/** R3X: the first lamplighter's rank among jobs (slotPriority's scale: a workplace's first hand). */
+export const LAMPLIGHTER_RANK = 2;
+
+/**
+ * R3X: the newest hand at the building whose newest job matters least, at `atLeast` or below in
+ * importance (higher numbers), as rebalanceJobs picks a hand to move; null when none qualifies.
+ */
+function leastNeededHand(state: WorldState, to: BuildingDef | undefined, atLeast: number): Resident | null {
+  const short = shortages(state);
+  let best: Resident | null = null;
+  let bestP = atLeast - 1;
+  for (const b of state.buildings) {
+    const rt = b.rt;
+    const def = content.buildingById.get(b.def);
+    if (!rt || !def || rt.workers.length === 0) continue;
+    const p = jobPriority(b, def, rt.workers.length - 1, short);
+    if (p <= bestP) continue;
+    for (let i = rt.workers.length - 1; i >= 0; i--) {
+      const r = findById(state.residents, rt.workers[i]!);
+      if (!r || r.activity.kind === 'task' || r.carry) continue;
+      if (r.apprentice && r.apprentice.untilDay > dayIndex(state.tick)) continue;
+      if (masterKeeps(r, b)) continue;
+      if (!jobFits(r.tier, to)) continue;
+      best = r;
+      bestP = p;
+      break;
+    }
+  }
+  return best;
 }
 
 /**
