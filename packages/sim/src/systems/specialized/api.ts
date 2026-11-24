@@ -355,16 +355,49 @@ export function withinReach(state: WorldState, specialized: Building, tile: numb
   return false;
 }
 
+/** The buildings that answer to any of the tags (a pool `servedIdsFrom` can walk, in town order). */
+export function taggedBuildings(state: WorldState, tags: readonly string[]): Building[] {
+  const out: Building[] = [];
+  for (const b of state.buildings) {
+    let tagged = false;
+    for (let i = 0; i < tags.length && !tagged; i++) tagged = hasTag(b, tags[i]!);
+    if (tagged) out.push(b);
+  }
+  return out;
+}
+
+/** The door tiles of a pool, in its order (for `servedIdsFrom`, when the pool is walked many times). */
+export function doorsOf(pool: readonly Building[]): Int32Array {
+  const doors = new Int32Array(pool.length);
+  for (let i = 0; i < pool.length; i++) doors[i] = doorTile(pool[i]!);
+  return doors;
+}
+
+/**
+ * servedIds over a pool the caller holds (`taggedBuildings` of its `enables`): the levels pass
+ * builds the pool once for its night and walks it for every building it serves.
+ */
+export function servedIdsFrom(
+  state: WorldState,
+  specialized: Building,
+  pool: readonly Building[],
+  doors?: ArrayLike<number>,
+): EntityId[] {
+  // The reach grid is found once for the whole walk (not once per building).
+  const inReach = reachTest(state, specialized);
+  const ids: EntityId[] = [];
+  for (let i = 0; i < pool.length; i++) {
+    const b = pool[i]!;
+    if (b.id !== specialized.id && inReach(doors ? doors[i]! : doorTile(b))) ids.push(b.id);
+  }
+  return ids.sort((a, b) => a - b);
+}
+
 /** Ids (ascending) of the businesses of the trades it enables whose door is in its reach. */
 export function servedIds(state: WorldState, specialized: Building): EntityId[] {
   const def = content.buildingById.get(specialized.def);
   if (!def?.enables?.length) return [];
-  const ids: EntityId[] = [];
-  for (const b of state.buildings) {
-    if (b.id === specialized.id || !def.enables.some((t) => hasTag(b, t))) continue;
-    if (withinReach(state, specialized, doorTile(b))) ids.push(b.id);
-  }
-  return ids.sort((a, b) => a - b);
+  return servedIdsFrom(state, specialized, taggedBuildings(state, def.enables));
 }
 
 /** Businesses of the trades it enables standing in its reach, built and going up alike. */

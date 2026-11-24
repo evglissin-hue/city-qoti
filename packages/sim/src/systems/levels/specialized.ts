@@ -34,7 +34,7 @@ import { bumpPlaceInputs } from '../places/inputs';
 import { woodsThin } from '../production/forestry';
 import { release } from '../residents/jobs';
 import { isFrozen } from '../seasons/api';
-import { capacityOf, servedIds } from '../specialized/api';
+import { capacityOf, servedIds, doorsOf, servedIdsFrom, taggedBuildings } from '../specialized/api';
 import { SURPLUS_COVER_DAYS } from '../growth/retool';
 import { townNeeds, type TownNeeds } from '../growth/trades';
 import { LEVEL_DOWN_DAYS, LEVEL_UP_DAYS } from './index';
@@ -72,10 +72,10 @@ function carriedOff(c: BusinessCounters): boolean {
 }
 
 /** The businesses it serves today: the first `capacityOf` in its reach (by id), built and staffed. */
-export function servedToday(state: WorldState, b: Building): Building[] {
-  const cap = capacityOf(state, b);
+export function servedToday(state: WorldState, b: Building, capacity?: number, pool?: PassPool): Building[] {
+  const cap = capacity ?? capacityOf(state, b);
   const out: Building[] = [];
-  for (const id of servedIds(state, b)) {
+  for (const id of pool ? servedIdsFrom(state, b, pool.buildings, pool.doors) : servedIds(state, b)) {
     if (out.length >= cap) break;
     const s = findById(state.buildings, id);
     if (s && s.stage === 'built' && s.rt) out.push(s);
@@ -130,7 +130,12 @@ function needsForPass(state: WorldState): TownNeeds {
  * (and, for `served`, the counters of the businesses it serves). Pure: the inspector and the tests
  * read it too. `needs` is the town's (`townNeeds`), worked out here when not given.
  */
-export function specializedDay(state: WorldState, b: Building, needs?: TownNeeds): SpecializedDay {
+export function specializedDay(
+  state: WorldState,
+  b: Building,
+  needs?: TownNeeds,
+  pool?: PassPool,
+): SpecializedDay {
   const def = content.buildingById.get(b.def);
   const levels: SpecializedLevelsDef | undefined = def?.levels;
   if (!def || !levels || !b.rt) return 'quiet';
@@ -154,10 +159,11 @@ export function specializedDay(state: WorldState, b: Building, needs?: TownNeeds
       return next !== undefined && c.customersToday >= next ? 'good' : 'quiet';
     }
     case 'served': {
-      const list = servedToday(state, b);
+      const cap = capacityOf(state, b);
+      const list = servedToday(state, b, cap, pool);
       if (list.some((s) => s.counters?.shortToday)) return 'failing';
       // A full house climbs; fewer served (an empty place) only holds.
-      return list.length > 0 && list.length >= capacityOf(state, b) ? 'good' : 'quiet';
+      return list.length > 0 && list.length >= cap ? 'good' : 'quiet';
     }
     case 'full':
       // Never failing: a store keeps the room it earned through the winter's emptying.
@@ -165,6 +171,32 @@ export function specializedDay(state: WorldState, b: Building, needs?: TownNeeds
     default:
       return 'quiet';
   }
+}
+
+/**
+ * The buildings of the trades a served building enables, found once a tick for the levels pass (the
+ * windmills of a City each walked the whole town for them). Only the day end reads it, as with the
+ * needs; nothing is built or moved while the pass runs.
+ */
+interface PassPool {
+  buildings: Building[];
+  doors: Int32Array;
+}
+const passPools = new WeakMap<WorldState, { tick: number; count: number; pools: Map<string, PassPool> }>();
+function poolForPass(state: WorldState, tags: readonly string[]): PassPool {
+  let hit = passPools.get(state);
+  if (!hit || hit.tick !== state.tick || hit.count !== state.buildings.length) {
+    hit = { tick: state.tick, count: state.buildings.length, pools: new Map() };
+    passPools.set(state, hit);
+  }
+  const key = tags.join(',');
+  let pool = hit.pools.get(key);
+  if (!pool) {
+    const buildings = taggedBuildings(state, tags);
+    pool = { buildings, doors: doorsOf(buildings) };
+    hit.pools.set(key, pool);
+  }
+  return pool;
 }
 
 const ORDINAL = ['', 'first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth'];
@@ -291,7 +323,9 @@ export function specializedDayEnd(state: WorldState, ctx: TickCtx, b: Building):
   const daysBefore = c.levelDays;
   const levelBefore = levelOf(b);
   const needs = def.levels.good === 'carried' ? needsForPass(state) : undefined;
-  const day = specializedDay(state, b, needs);
+  const pool =
+    def.levels.good === 'served' && def.enables?.length ? poolForPass(state, def.enables) : undefined;
+  const day = specializedDay(state, b, needs, pool);
   // Resting (a frozen river): neither fails nor counts; the run waits for the thaw.
   if (day !== 'resting') {
     const level = levelOf(b);
