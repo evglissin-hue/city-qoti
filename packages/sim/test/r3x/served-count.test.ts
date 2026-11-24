@@ -46,7 +46,11 @@ describe('a place row counts the outlets that served it', () => {
     const row = placeState(s, spot.id)!;
     expect(row.served[row.served.length - 1]).toBe(0);
     stall.rt!.store[good('honey')] = 5;
+    // Nobody came yet: a quiet place is not counted (the City's quiet places cost the pass its budget).
     at(19);
+    expect(row.served[row.served.length - 1]).toBe(0);
+    row.visitors[row.visitors.length - 1] = 3;
+    at(20);
     expect(row.served[row.served.length - 1]).toBe(1);
     stall.rt!.store[good('honey')] = 0;
     at(21);

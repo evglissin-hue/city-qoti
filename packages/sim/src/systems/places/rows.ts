@@ -121,6 +121,9 @@ function countServed(state: WorldState, found: readonly Place[]): void {
     const row = placeState(state, place.id);
     if (!row || row.served.length === 0) continue;
     const last = row.served.length - 1;
+    // Only a place someone came to tonight: the gap and the Shops bar read busy places, and a City's
+    // hundreds of quiet ones would cost the hourly pass its budget (r2a places city).
+    if ((row.visitors[row.visitors.length - 1] ?? 0) === 0) continue;
     const n = placeServes(state, place).length;
     if (n > row.served[last]!) row.served[last] = n;
   }
