@@ -10,6 +10,7 @@ import { SeasonCardPanel } from '../ui/panels/SeasonCard';
 import { mount, settle, type Mounted } from '../ui/test/dom';
 import {
   aimAtTiles,
+  BOOK_SAMPLES,
   aimFor,
   heartAim,
   inkAlbum,
@@ -92,6 +93,8 @@ describe('V4B: the picture source (the seam, with the structural PictureRef)', (
     expect(url).toMatch(/^blob:/);
     expect(captures).toHaveLength(1);
     expect(captures[0]).toMatchObject({ style: 'ink', size: SLOT_SIZE, focus: [57.5, 52.5] });
+    // V4X: a book's picture develops (the renderer draws none where resting frames do not).
+    expect(captures[0]!.samples).toBe(BOOK_SAMPLES);
     expect(await source(ref)).toBe(url);
     expect(captures).toHaveLength(1);
     const print = await source(ref, { print: true });

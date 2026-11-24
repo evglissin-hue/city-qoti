@@ -118,6 +118,14 @@ export function heartAim(mirror: PictureMirror): PictureAim {
   return { focus, radius: Math.min(30, Math.max(14, half * 0.6)) };
 }
 
+/**
+ * V4X: samples a book's picture develops (`capture`'s `samples`): the sun's disc softens the
+ * shadows and stray marks settle, while the lines stay crisp. A one-off cost per page, drawn while a
+ * book is open and the camera rests; the renderer draws none where resting frames do not develop.
+ * Chronicle snapshots (`snapshots.ts`) are taken in play and keep the plain pass.
+ */
+export const BOOK_SAMPLES = 8;
+
 /** A session's ink pictures, kept: one capture per page and size, ever. */
 export class InkAlbum {
   private readonly kept = new Map<string, Promise<string | null>>();
@@ -135,7 +143,7 @@ export class InkAlbum {
     if (!r?.capture || typeof URL.createObjectURL !== 'function') return Promise.resolve(null);
     this.asked++;
     const p = r
-      .capture({ focus: aim.focus, radius: aim.radius, size, style: 'ink' })
+      .capture({ focus: aim.focus, radius: aim.radius, size, style: 'ink', samples: BOOK_SAMPLES })
       .then((blob) => (blob ? URL.createObjectURL(blob) : null))
       .catch(() => null);
     this.kept.set(id, p);

@@ -692,6 +692,18 @@ export class Renderer implements RenderApi {
     };
   }
 
+  /**
+   * V4X: whether a capture may draw `samples` here: only where a resting frame develops at all (a
+   * preset with the still-frame cache whose governor gives it samples; not on Low, not with
+   * `?debug&refine=0`, not on a laptop whose sample frames the governor found too slow). A laptop
+   * that never refines never pays for a developed picture either.
+   */
+  private captureDevelops(): boolean {
+    return (
+      QUALITY_PRESETS[this.quality].stillCache && refineGoal({ ...this.governorInput(), photo: false }) > 0
+    );
+  }
+
   /** V4: what the refinement's governor reads when a rest keeps a still frame (refine.ts). */
   private governorInput(): RefineGovernorInput {
     const measured = !this.refineAll;
@@ -1406,7 +1418,7 @@ export class Renderer implements RenderApi {
     const fog = this.scene.fog as Fog;
     const fogSave = { near: fog.near, far: fog.far };
     Object.assign(fog, hazeFor(dist));
-    const n = captureSampleCount(opts.samples, w, h);
+    const n = this.captureDevelops() ? captureSampleCount(opts.samples, w, h) : 0;
     let source = this.captureTarget;
     if (n > 0) {
       source = this.developCapture(cam, dist, n, this.captureTarget, null, true, this.env.sky.value);
@@ -1491,7 +1503,7 @@ export class Renderer implements RenderApi {
       INK_LEAVES_OUT.includes(l.id) && this.roots[i]!.root.visible ? [this.roots[i]!.root] : [],
     );
     for (const root of hidden) root.visible = false;
-    const n = captureSampleCount(opts.samples, w, h);
+    const n = this.captureDevelops() ? captureSampleCount(opts.samples, w, h) : 0;
     let color: WebGLRenderTarget = this.inkSource;
     if (n > 0) {
       if (!this.inkScratch || this.inkScratch.width !== sw || this.inkScratch.height !== sh) {
