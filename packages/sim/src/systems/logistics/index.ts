@@ -149,6 +149,14 @@ export function sourceAvail(b: Building, def: BuildingDef | undefined, good: num
 
 function needsOf(spots: readonly Spot[]): Need[] {
   const out: Need[] = [];
+  // R3X: room is kept for Treats only while some store or maker has a Treat to bring; with none in
+  // town the room would only cost a stall its food.
+  let treatsToBring = false;
+  for (const s of spots) {
+    if (treatsToBring || isMarket(s.def)) continue;
+    for (let g = 0; g < content.goods.length && !treatsToBring; g++)
+      if (content.goods[g]!.family === 'treats' && sourceAvail(s.b, s.def, g) > 0) treatsToBring = true;
+  }
   for (const s of spots) {
     const { b, def, rt } = s;
     const c = rt.construction;
@@ -179,7 +187,7 @@ function needsOf(spots: readonly Spot[]): Need[] {
     }
     if (isMarket(def)) {
       const space = storageSpace(s.b, rt);
-      const kept = treatsReserve(def, rt);
+      const kept = treatsToBring ? treatsReserve(def, rt) : 0;
       // R1B: an outlet that takes Wares or Treats (the Market Square takes every family, a stall
       // Food and Treats) is kept stocked with them too, a few of each. R3X: one with no Treat held or
       // coming asks for them before its food (ties go to the first need: a Square filled its thirty
