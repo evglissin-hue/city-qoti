@@ -157,6 +157,15 @@ describe('the Balances book', () => {
     expect(makersText(session, 'candles')).toBe('');
   });
 
+  it('labels the family rows: a key, days with their unit, a priced cell', async () => {
+    const { session } = withBalances();
+    view = await mount(h(BalancesPanel, { session }));
+    expect(view.get('family-key').textContent).toContain('Days in hand');
+    const row = view.get('balance-row-food');
+    expect(row.querySelector('.days')!.textContent).toMatch(/\d\+? days?/);
+    expect(row.querySelector('.price-cell')!.getAttribute('title')).toContain('one unit');
+  });
+
   it('reads cover and the reserve plainly', () => {
     const line = (cover: number, use: number, reserve: number, family: 'food' | 'materials' = 'food') =>
       ({ cover, use, stock: 5, reserve, mark: null, family }) as never;

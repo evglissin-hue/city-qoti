@@ -80,12 +80,22 @@
 
 .town-book .tb-hint-leaning {
   display: inline-block;
-  margin-left: 4px;
+  margin-left: 6px;
+  padding: 0 7px;
+  border: 1px solid var(--ink-soft);
+  border-radius: 9px;
   font-style: normal;
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+  white-space: nowrap;
+  vertical-align: 1px;
   color: var(--ink-soft);
+}
+
+.town-book .tb-tally-note {
+  margin: 8px 0 0;
+  font-style: italic;
 }
 
 .town-book ul.tb-callings {

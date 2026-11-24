@@ -160,6 +160,9 @@ function Families({ session, view }: { session: Session; view: BalancesView }) {
   const open = session.ui.balancesFamily.value;
   return (
     <div class="families" data-testid="families">
+      <p class="small muted family-key" data-testid="family-key">
+        Days in hand at today&apos;s use, then what one unit costs, then what the carrier moved in and out.
+      </p>
       <ul class="family-list">
         {view.lines.map((line) => (
           <FamilyRow key={line.family} session={session} line={line} open={open === line.family} />
@@ -196,8 +199,11 @@ function FamilyRow({ session, line, open }: { session: Session; line: BalanceLin
         <CoverBar line={line} />
         <span class="days" title={`${(line.cover / 100).toFixed(1)} days of cover`}>
           {daysText(line)}
+          <span class="unit small muted"> {daysText(line) === '1' ? 'day' : 'days'}</span>
         </span>
-        <Price pennies={line.price} />
+        <span class="price-cell" title="What one unit costs today" aria-label="Price of one unit">
+          <Price pennies={line.price} />
+        </span>
         <span class="pips" aria-label="Flavors on offer">
           {line.flavors.map((f) => (
             <span

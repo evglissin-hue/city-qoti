@@ -200,6 +200,15 @@ const REST_WORD: Record<RestKind, string> = {
   dry: 'dry',
 };
 
+/** Why a piece rests, briefly and without alarm. */
+const REST_WHY: Record<RestKind, string> = {
+  unlit: 'no candles to spare',
+  cold: 'no firewood tonight',
+  bare: 'no Treats on a shelf in reach',
+  faded: 'no cloth this season',
+  dry: 'no well in reach',
+};
+
 /** What rests tonight: "Resting tonight: 2 lanterns unlit, the brazier cold." Never alarmed. */
 export function restingWords(session: Session, p: Pick<PlaceView, 'resting'>): string {
   const groups = new Map<string, { name: string; kind: RestKind; n: number }>();
@@ -221,7 +230,9 @@ export function restingWords(session: Session, p: Pick<PlaceView, 'resting'>): s
     return settled ? 'Everything is supplied tonight.' : `Tonight's supplies are settled at ${at}.`;
   }
   const bits = [...groups.values()].map((g) =>
-    g.n === 1 ? `the ${g.name} ${REST_WORD[g.kind]}` : `${g.n} ${pluralWord(g.name)} ${REST_WORD[g.kind]}`,
+    g.n === 1
+      ? `the ${g.name} ${REST_WORD[g.kind]} (${REST_WHY[g.kind]})`
+      : `${g.n} ${pluralWord(g.name)} ${REST_WORD[g.kind]} (${REST_WHY[g.kind]})`,
   );
   return `Resting tonight: ${bits.join(', ')}.`;
 }
@@ -232,7 +243,8 @@ function PlaceSupplies({ session, p }: { session: Session; p: PlaceView }) {
   void m.revision.value;
   if (!rankAtLeast(m.charter.value?.rank, content.supplies.fromRank)) return null;
   const supplied = suppliedDefs(session, p);
-  if (supplied.length === 0) return null;
+  // A household's porch or garden lists its pieces in the view's supplies, not always in its members.
+  if (supplied.length === 0 && !p.supplies?.length) return null;
   const current = p.priority ?? 'normal';
   const draws = p.supplies?.length ? suppliesWords(p, supplied) : '';
   return (
