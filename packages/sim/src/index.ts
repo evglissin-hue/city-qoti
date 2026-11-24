@@ -103,6 +103,8 @@ export { settleHousehold } from './systems/residents/lifecycle';
 export { economyDial, type EconomyDial } from './systems/economy/dial';
 export { LEVEL_DOWN_DAYS, LEVEL_UP_DAYS, SHOP_CUSTOMERS } from './systems/levels';
 export { fieldCost, placementCost, roadCost } from './systems/economy/api';
+// R3X: whether a priced piece can be paid for now (the bench's Hearth asks before it places one).
+export { decorBlocked } from './systems/economy/decorCost';
 export { nearestOutletWithFood, outletFood, takeFromOutlet } from './systems/economy/outlets';
 // P3A (meals): the pantry and the shelf, read by the bench's meal trace.
 export { foodIndexes, pantryFood } from './systems/residents/needs';

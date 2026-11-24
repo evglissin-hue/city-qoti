@@ -30,6 +30,10 @@ const LOAN_COINS = 1000;
 const TAX_CEILING = 16;
 /** R1F: days between two turns of the wage or tax lever (the levers moved most days, a chore). */
 const LEVER_DAYS = 3;
+/** R3X: credit room worth a loan while the treasury still holds coins (below it, only at the last coin). */
+const LOAN_MIN = 250;
+/** R3X: days between the purse-driven eases (tax down, wages up), slower than the treasury's moves. */
+const PURSE_DAYS = 6;
 
 /** P3A (meals): a food need under this at the morning look is a missed breakfast. */
 const MISSED_MEAL = 60;
@@ -129,7 +133,9 @@ class Money implements Advisor {
       else if (l.wageLevel < 110) setWage(l.wageLevel + 5, 'raise wages');
     } else if (thin) {
       // R3X: purses under the savings a Craftsfolk household puts by: tax down first, then wages back up.
-      if (l.taxRate > 6) setTax(l.taxRate - 2, 'ease the income tax for purses');
+      if (p.runDay - this.moved < PURSE_DAYS) {
+        // A purse fills over days; ease again only once the last move has had a week to show.
+      } else if (l.taxRate > 6) setTax(l.taxRate - 2, 'ease the income tax for purses');
       else if (l.wageLevel < 100) setWage(l.wageLevel + 5, 'restore wages for purses');
     } else if (net > 0 && coins > 500 && loansOwed(w) === 0) {
       // Flush: drift back toward the usual levels.
@@ -149,7 +155,10 @@ class Money implements Advisor {
     // stalls the build queue for days (six seeds at day 70 with P1's first economy: 135 residents
     // on average with the old cushion, 142 with this one; main 138 either way).
     // R1X tried a 300 floor here and oak sat lean for weeks with 100 to 299 of credit unused.
-    if (coins < 120 && room >= 100) {
+    // R3X: near the line's end, borrow only a sizeable sum, or at the last coin: a growing town's line
+    // opens twenty coins a newcomer, and borrowing every hundred that opened sent hazel's Ledger 12
+    // loans in 70 days (the lanes test's limit is 150 decisions).
+    if ((coins < 120 && room >= LOAN_MIN) || (coins < 0 && room >= 100)) {
       p.do('take a loan', [{ t: 'loan.take', coins: Math.min(room, LOAN_COINS) }]);
     } else if (owed > 0 && coins > 500 + p.winterFood) {
       // P3A: the coins the plan advisor keeps for the carrier's winter food are not spare: repaying

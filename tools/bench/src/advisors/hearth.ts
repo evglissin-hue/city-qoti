@@ -7,6 +7,7 @@ import {
   calendar,
   canPaintRoad,
   canPlaceBuilding,
+  decorBlocked,
   canPlaceDecor,
   rankAtLeast,
   doorTile,
@@ -121,6 +122,10 @@ class Hearth implements Advisor {
 
   private place(def: string, at: [number, number] | null, why: string): boolean {
     if (!at) return false;
+    // R3X: a player does not keep asking for a piece the town cannot pay for (hazel's Village audit:
+    // "flower-bed by a door" refused on 5 days); it waits until the coins or goods are there.
+    const d = content.decorById.get(def);
+    if (d && decorBlocked(this.w, d)) return false;
     return this.p.do(`${def} ${why}`, [
       { t: 'decor.place', def, fx: at[0], fz: at[1], rot: (at[0] * 31 + at[1]) % 64 },
     ]);
