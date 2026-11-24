@@ -18,6 +18,7 @@ Title screen:
 - **Join**: open the invite link.
 - **Continue**: recent valleys stored locally (name, last played, link).
 - **Solo offline valley**: runs entirely in the browser with IndexedDB saves. Can be moved online later [I2].
+- *As built (P3D, the front door)*: the title is a menu before a form. The first view is the wordmark, the tagline, one welcome line and the choices: an invitation card when an invite is waiting (Join the valley, with "You will arrive as ..." and a Change link for name and color), a Continue card for the most recent valley (its name, season and day, Solo or who it is shared with, when it was last played; one click opens it; "Other valleys (N)" lists the rest, old valleys among them with their R1C words and Save its file), New valley for two and A quiet solo valley, and a quiet row: Settings (picture quality, interface size, Calm motion, sound), Open a valley file and Join with a link (pasting an invite link does what opening it does). Name, color, town name, Creative, the first-days guide and More (seed, the Economy and Threats dials) are the second step of making a valley, with a For two or Solo switch and Back; arriving from the chapter card's "Found a new valley" opens that step with a fresh seed. Enter takes the view's main action and Escape steps back. The recent list (this device's own record, not a save) also keeps a valley's season, day, year and the partner's name, written by the session on welcome, when the tab hides and on leaving.
 
 ## Presence [I0]
 

@@ -40,7 +40,8 @@ export function ago(time: number, now = Date.now()): string {
   if (minutes < 60) return `${minutes} min ago`;
   const hours = Math.round(minutes / 60);
   if (hours < 24) return `${hours} h ago`;
-  return `${Math.round(hours / 24)} days ago`;
+  const days = Math.round(hours / 24);
+  return days === 1 ? '1 day ago' : `${days} days ago`;
 }
 
 // ---------------------------------------------------------------------------------------------

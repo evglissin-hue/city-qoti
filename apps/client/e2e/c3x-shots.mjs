@@ -19,7 +19,6 @@ const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
 page.on('pageerror', (e) => console.log('pageerror:', e.message));
 page.on('console', (m) => m.type() === 'error' && console.log('console:', m.text()));
 await page.goto(`${base}/?debug&fixedres&quality=${quality}`);
-await page.locator('summary', { hasText: 'More' }).click();
 await page.getByTestId('open-file').setInputFiles(file);
 await page.getByTestId('open-imported-solo').click();
 await page.waitForFunction(() => window.__qoti?.status() === 'live', null, { timeout: 120000 });

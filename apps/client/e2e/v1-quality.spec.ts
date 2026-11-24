@@ -14,6 +14,7 @@ test('Ultra from ?quality and the settings menu, and GPU ms in the debug overlay
   await page.route('**/api/**', (route) => route.abort());
   await page.goto('/?debug&quality=ultra&creative');
   await page.getByTestId('new-solo').click();
+  await page.getByTestId('found-valley').click();
   await waitLive(page);
   expect(await qualityOf(page)).toBe('ultra');
   const overlay = page.locator('.debug-overlay');

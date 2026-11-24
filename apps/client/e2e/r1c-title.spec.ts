@@ -43,6 +43,7 @@ test('an old solo valley is listed grayed and its file can be saved', async ({ p
     return data;
   });
   await page.reload();
+  await page.getByTestId('more-valleys').click();
   const row = page.getByTestId('old-oldone');
   await expect(row).toBeVisible();
   await expect(row).toContainText('Founded under the old rules. It cannot be opened in this version.');
