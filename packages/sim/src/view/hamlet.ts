@@ -162,13 +162,17 @@ export function runtimeView(
   return view;
 }
 
-/**
- * True for a def whose buildings never hold goods in `store` or `output`: a home with no storage and no
- * method, and the Town Hall, whose store holds only the County's crate of candles (supplies/crate.ts),
- * which is the lanterns' alone and no part of the town's stock.
- */
+/** True for a def whose buildings never hold goods in `store` or `output`: a home with no storage and no method. */
 export function keepsNoGoods(def: BuildingDef | undefined): boolean {
-  return (!!def?.housing && !def.storage && !def.methods) || def?.id === 'town-hall';
+  return !!def?.housing && !def.storage && !def.methods;
+}
+
+/**
+ * True for a def whose goods are no part of the town's stock: the homes (which hold none), and the Town
+ * Hall, whose store holds only the County's crate of candles (supplies/crate.ts), the lanterns' alone.
+ */
+export function keepsNoStock(def: BuildingDef | undefined): boolean {
+  return keepsNoGoods(def) || def?.id === 'town-hall';
 }
 
 /** Town stock per good: storehouses, stalls and output buffers. */
@@ -183,7 +187,7 @@ export function townStock(state: WorldState, known?: Defs): number[] {
     if (!rt || b.stage !== 'built') continue;
     // A home keeps its goods in the pantries, never in `store` or `output` (proved by r1x/home-stock.test.ts).
     const def = defs ? defs[k] : content.buildingById.get(b.def);
-    if (keepsNoGoods(def)) continue;
+    if (keepsNoStock(def)) continue;
     addStock(out, rt);
   }
   return out;

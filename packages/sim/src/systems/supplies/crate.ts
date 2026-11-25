@@ -5,7 +5,7 @@
 // shelves the next morning and bought by the households (hazel's 15 candles were 4 by the next
 // evening), and `carried` lasts one day and only lifts the floor for goods that are still in stock. The
 // Hall's store is no outlet, no storehouse and no source for the carrier or the porters (townStock leaves
-// it out, `keepsNoGoods`), so the crate stays until the settling takes it: each night the lanterns' candles
+// it out, `keepsNoStock`), so the crate stays until the settling takes it: each night the lanterns' candles
 // come from it first (settle.ts), and the carrier does not buy what the crate already covers (want.ts).
 // No state of its own: the Hall's runtime already has a store.
 import { content, lifePhrases } from '@qoti/content';

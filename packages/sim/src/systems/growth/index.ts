@@ -39,7 +39,7 @@ import { findById } from '../../state/entities';
 import { familyIndex, jobsOf, methodOf } from '../../state/zones';
 import { isStandard } from '../../state/hamlet';
 import { hasInnovation, rankAtLeast } from '../../state/village';
-import { addStock, keepsNoGoods, townStock } from '../../view/hamlet';
+import { addStock, keepsNoStock, townStock } from '../../view/hamlet';
 import { businessView } from '../../view/businesses';
 import { entranceTiles } from '../../rules/footprint';
 import { hasBuilt } from '../innovations/api';
@@ -238,7 +238,7 @@ function census(state: WorldState, known?: Defs, stock?: number[]): Census {
     const b = buildings[i]!;
     const def = defs ? defs[i] : content.buildingById.get(b.def);
     const rt = b.rt;
-    if (stock && rt && b.stage === 'built' && !keepsNoGoods(def)) addStock(stock, rt);
+    if (stock && rt && b.stage === 'built' && !keepsNoStock(def)) addStock(stock, rt);
     // openJobs, with the def already in hand: built, not paused, not resting, hands wanted less hands.
     if (b.stage === 'built' && rt && !rt.paused && !isResting(b)) {
       const o = Math.max(

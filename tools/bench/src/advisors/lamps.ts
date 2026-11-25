@@ -2,8 +2,9 @@
 // candle and a fire burns firewood (docs/spec/19-evenings.md, Supplies), so the Hearth's own small
 // economy is what to keep alive tonight: when candles fall short of the lanterns it sets the
 // busiest places to `keep` and lets the far, quiet ones `rest`, and puts a `rest` back to `normal`
-// once the candles cover every lantern. It sends `place.setPriority` and nothing else: no zone, no
-// carrier rule, no business (the Ledger's supplies advisor makes what places burn).
+// once the candles cover every lantern. It sends `place.setPriority` and, R3X, asks for an Apiary (a
+// Hearth building) while the candles made fall short; no zone, no carrier rule, no business (the
+// Ledger's supplies advisor makes what places burn).
 //
 // The module also holds the Hearth's gates, which `hearth.ts`, `places.ts` and `together.ts` ask
 // before they set a lantern or a brazier down: `candlesAllow` and `firewoodAllows`, and the siting
@@ -93,10 +94,10 @@ export function candlesMadeDaily(w: WorldState): number {
   return Math.max(yesterday, built * CHANDLER_FLOOR);
 }
 
-/** Lanterns the town's candles in hand light tonight. */
+/** Lanterns the town's candles in hand light tonight (the County's crate at the Town Hall too: the settling draws it first). */
 export function lanternCover(w: WorldState): number {
   const s = content.decorById.get('lantern')?.supply;
-  return Math.floor(candleStock(w) / (s?.qty ?? 1)) * (s?.per ?? 4);
+  return Math.floor((candleStock(w) + crateStock(w)) / (s?.qty ?? 1)) * (s?.per ?? 4);
 }
 
 /**

@@ -206,7 +206,9 @@ describe('the supplies advisor', () => {
     const lamps = run.decisions.filter((d) => d.advisor === 'lamps');
     for (const d of lamps) {
       expect(d.lane).toBe('hearth');
-      expect(d.cmd.t).toBe('place.setPriority');
+      // R3X: and an Apiary now and then, the Hearth's own bees (a Hearth building, no zone or trade).
+      expect(['place.setPriority', 'build.place', 'road.paint']).toContain(d.cmd.t);
+      if (d.cmd.t === 'build.place') expect(d.cmd.def).toBe('apiary');
     }
     for (const d of run.decisions.filter((d) => d.lane === 'hearth'))
       expect(['zone.paint', 'zone.clear', 'carrier.setRule', 'build.pinRecipe']).not.toContain(d.cmd.t);

@@ -153,13 +153,19 @@ const MAKERS_TAKE_FROM_SHELVES: ReadonlySet<number> = new Set(
  * for a good no household buys (wool): R2B, one a shop took onto its shelf before shelves kept to what
  * households buy goes on to the maker that wants it.
  */
-export function sourceAvail(b: Building, def: BuildingDef | undefined, good: number): number {
+export function sourceAvail(
+  b: Building,
+  def: BuildingDef | undefined,
+  good: number,
+  /** R3X: the need is a maker's own input, which may take a Treat off a shelf (`MAKERS_TAKE_FROM_SHELVES`). */
+  forMaker = false,
+): number {
   const rt = b.rt;
   if (!rt || b.stage !== 'built') return 0;
   if (isStorehouse(def)) return (rt.store[good] ?? 0) - (rt.reservedOut[good] ?? 0);
   if (
     isMarket(def) &&
-    (INPUT_ONLY.has(content.goods[good]?.id ?? '') || MAKERS_TAKE_FROM_SHELVES.has(good))
+    (INPUT_ONLY.has(content.goods[good]?.id ?? '') || (forMaker && MAKERS_TAKE_FROM_SHELVES.has(good)))
   ) {
     return (rt.store[good] ?? 0) - (rt.reservedOut[good] ?? 0);
   }
@@ -339,7 +345,12 @@ function assign(
     for (const g of goods) {
       let found = false;
       for (const s of spots) {
-        if (s === need.dest || sourceAvail(s.b, s.def, g) <= 0 || !within(reach, s.door)) continue;
+        if (
+          s === need.dest ||
+          sourceAvail(s.b, s.def, g, need.cls === JobClass.input) <= 0 ||
+          !within(reach, s.door)
+        )
+          continue;
         found = true;
         const d = tileDistance(from, s.door);
         if (cls < bestCls || (first === bestFirst ? d < bestD : first)) {
@@ -402,7 +413,10 @@ function assign(
   }
 
   const g = bestGood;
-  let qty = Math.min(carryOf(state, g), sourceAvail(bestSrc.b, bestSrc.def, g));
+  let qty = Math.min(
+    carryOf(state, g),
+    sourceAvail(bestSrc.b, bestSrc.def, g, !!bestNeed && bestNeed.cls === JobClass.input),
+  );
   if (bestNeed) qty = Math.min(qty, bestNeed.want);
   if (isStorage(bestDest.def)) qty = Math.min(qty, storageSpace(bestDest.b, bestDest.rt));
   if (qty <= 0) return;
