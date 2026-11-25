@@ -1,5 +1,5 @@
 // The County's crate (R3X; docs/spec/19-evenings.md, Supplies): the day a town is made a Village its
-// lanterns begin to burn candles, so the County sends a week of them with the rank, sized to the
+// lanterns begin to burn candles, so the County sends a fortnight of them with the rank, sized to the
 // lanterns standing at the claim (`crateSize`) and set down in the Town Hall's own store. The code says
 // why there and not in a storehouse or `supplies.carried`: a crate in a storehouse is restocked onto the
 // shelves the next morning and bought by the households (hazel's 15 candles were 4 by the next

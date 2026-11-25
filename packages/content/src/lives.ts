@@ -140,7 +140,7 @@ export const lifePhrases = {
    */
   charterCrate: {
     letter: [
-      'From the County Office of Lamps and Forms: "Enclosed, under Form 7 and in triplicate, are {candles} candles: {nights} nights of light for the {lanterns} lanterns of {town}. From tonight a lantern burns a candle, a matter on which the County has been reassured it has no say. Do see to a chandler. Keep the receipt."',
+      'From the County Office of Lamps and Forms: "Enclosed, under Form 7 and in triplicate, are {candles} candles: {nights} nights of light, which the County calls a fortnight, for the {lanterns} lanterns of {town}. From tonight a lantern burns a candle, a matter on which the County has been reassured it has no say. Do see to a chandler. Keep the receipt."',
     ],
     none: [
       'From the County Office of Lamps and Forms: "We find no lanterns on the inventory of {town} and have enclosed nothing, in triplicate. When you do stand some, each will want a candle a night, shared between a few. Do see to a chandler."',

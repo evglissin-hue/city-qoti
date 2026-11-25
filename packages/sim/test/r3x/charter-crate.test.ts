@@ -1,6 +1,6 @@
 // R3X: the County's crate at the Charter. The day the town is made a Village its lanterns begin to burn
 // candles; the County sends `charterCrateNights` nights of them for the lanterns then standing, in the
-// Town Hall's store, which the lanterns' settling draws first, so the week is lit under the households' Wares floor. The letter and the Hearth's one line come once.
+// Town Hall's store, which the lanterns' settling draws first, so the fortnight is lit under the households' Wares floor. The letter and the Hearth's one line come once.
 import { content, lifePhrases } from '@qoti/content';
 import { describe, expect, it } from 'vitest';
 import { findById } from '../../src/state/entities';
@@ -74,7 +74,7 @@ describe('the County crate', () => {
     }
   });
 
-  it('lands where the lanterns draw it: the first night lights every lantern under any Wares floor, and each night of the week after', () => {
+  it('lands where the lanterns draw it: the first night lights every lantern under any Wares floor, and each night of the fortnight', () => {
     const { s, store } = setup(20);
     const lanterns = s.decor.filter((d) => d.def === 'lantern').length;
     run(s, { t: 'charter.claim' });
@@ -84,7 +84,7 @@ describe('the County crate', () => {
       expect(s.supplies.lamps, `night ${night + 1}`).toHaveLength(lanterns);
     }
     expect(crateHeld(s)).toBe(0);
-    // The week is over: the town's stock is under the floor and the lanterns go dark.
+    // The fortnight is over: the town's stock is under the floor and the lanterns go dark.
     s.tick = tickAt(3 + NIGHTS, 17, 30);
     settle(s, createTickCtx(s));
     expect(s.supplies.lamps).toHaveLength(0);

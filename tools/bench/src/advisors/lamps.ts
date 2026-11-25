@@ -70,7 +70,7 @@ export function candleStock(w: WorldState): number {
   return townStock(w)[G('candles')] ?? 0;
 }
 
-/** Nights the town's candles in hand are spread over when the lanterns' feed is reckoned (the crate's week). */
+/** Nights the town's candles in hand are spread over when the lanterns' feed is reckoned (the crate's fortnight). */
 const FEED_NIGHTS = content.supplies.charterCrateNights ?? 7;
 /** Candles a built chandler is counted to make a day at least, hands or no (a player sees a built workshop and waits a day). */
 const CHANDLER_FLOOR = 2;
@@ -104,7 +104,7 @@ export function lanternCover(w: WorldState): number {
 
 /**
  * Lanterns the town's coming candles will feed a night: what its chandlers make a day, and the stock
- * and the County's crate spread over a week. A player stands lanterns to this, in a Hamlet as well
+ * and the County's crate spread over its fortnight. A player stands lanterns to this, in a Hamlet as well
  * as a Village (a lantern costs nothing below Village rank, and a Village that stood a hundred
  * went dark the day the County stopped paying).
  */

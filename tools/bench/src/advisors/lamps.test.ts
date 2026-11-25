@@ -29,7 +29,7 @@ import {
 } from './lamps';
 
 const S = 128;
-/** Lanterns one candle lights a night, and the nights the town's candles in hand are spread over (the crate's week). */
+/** Lanterns one candle lights a night, and the nights the town's candles in hand are spread over (the crate's fortnight). */
 const PER = content.decorById.get('lantern')!.supply!.per!;
 const NIGHTS = content.supplies.charterCrateNights!;
 
@@ -127,7 +127,7 @@ describe('the lamps advisor', () => {
     hall.rt!.store[G('candles')] = n;
   };
 
-  it('stands lanterns to the candles coming, at every rank: the stock and the crate over a week, and what is made a day', () => {
+  it('stands lanterns to the candles coming, at every rank: the stock and the crate over its fortnight, and what is made a day', () => {
     // No household buys a candle of its own here: what is made all goes to the lanterns.
     const noHomes = (w: WorldState): WorldState => {
       w.households = [];
@@ -143,7 +143,7 @@ describe('the lamps advisor', () => {
     // Candles in stock count for nothing here (much of it sits on shelves no lantern draws from).
     const nightsToFeed = Math.ceil((LANTERN_FLOOR + 1) / PER);
     expect(candlesAllow(noHomes(town(LANTERN_FLOOR, 1000)))).toBe(false);
-    // The County's crate at the Town Hall counts, spread over its week: PER lanterns for each candle a night.
+    // The County's crate at the Town Hall counts, spread over its fortnight: PER lanterns for each candle a night.
     const held = noHomes(town(LANTERN_FLOOR, 0));
     crate(held, nightsToFeed * NIGHTS - 1);
     expect(candlesAllow(held)).toBe(false);
