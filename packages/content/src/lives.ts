@@ -146,7 +146,7 @@ export const lifePhrases = {
       'From the County Office of Lamps and Forms: "We find no lanterns on the inventory of {town} and have enclosed nothing, in triplicate. When you do stand some, each will want a candle a night, shared between a few. Do see to a chandler."',
     ],
     news: [
-      "From tonight the lanterns burn candles. A chandler makes them from the hives' honey, and the County's crate sees the first week through.",
+      "From tonight the lanterns burn candles. A chandler makes them from the hives' honey, and the County's crate sees the first fortnight through.",
     ],
   },
   /** Plan approval reports ({who}, {plan}, {applied}, {skipped}). */
