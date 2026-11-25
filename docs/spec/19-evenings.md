@@ -132,7 +132,7 @@ Some pieces draw on the town's goods to be at their best, from Village rank on (
 
 | Piece | Draws on | How much | Resting |
 |---|---|---|---|
-| Lantern, hanging lantern, lamp post | candles (the Old Age's "oil lanterns" burn the chandler's candles) | 1 a night for every 4 | unlit: its day charm only, no night draw, no deterrence |
+| Lantern, hanging lantern, lamp post | candles (the Old Age's "oil lanterns" burn the chandler's candles) | 1 a night for every 8 *(R3X; was 4)* | unlit: its day charm only, no night draw, no deterrence |
 | Bonfire, brazier | firewood | 1 on an evening someone comes, autumn to the thaw | cold: the place is not warm |
 | Cafe table, trestle table | the outlet beside it | its Treats | bare: seats only |
 | Bunting, flower arch, maypole, festival stage | cloth | 2 when put up, once a season | faded: half its charm |

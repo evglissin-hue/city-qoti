@@ -27,8 +27,8 @@ import {
   type PlaceView,
   type WorldState,
 } from '@qoti/sim';
-import type { Planner } from '../planner';
-import { G, S } from '../town';
+import { costOf, type Planner } from '../planner';
+import { count, G, S } from '../town';
 import type { Advisor, AdvisorDef } from './types';
 
 /** Commands one visit may send (as the places advisor's VISIT_COMMANDS). */
@@ -71,6 +71,8 @@ export function candleStock(w: WorldState): number {
 const FEED_NIGHTS = content.supplies.charterCrateNights ?? 7;
 /** Candles a built chandler is counted to make a day at least, hands or no (a player sees a built workshop and waits a day). */
 const CHANDLER_FLOOR = 2;
+/** Apiaries the Hearth is asked for at most. */
+const APIARIES_MAX = 3;
 
 /** Candles the County's crate still holds at the Town Hall (a player reads them on its card). */
 export function crateStock(w: WorldState): number {
@@ -325,7 +327,38 @@ class Lamps implements Advisor {
 
   constructor(readonly p: Planner) {}
 
+  /** The run day an apiary was last asked for (one a day at most). */
+  private apiaryDay = -1;
+
+  /**
+   * R3X: honey is the candles' raw good and the Treats shelves take the first of it, so while the
+   * lanterns and the households' windows want more candles than the town makes, the Hearth keeps bees
+   * of its own: an Apiary, one at a time (a Hearth building, so no farm is given up for hives).
+   */
+  private apiaries(): void {
+    const w = this.p.w;
+    const day = this.p.runDay;
+    if (!rankAtLeast(w, content.supplies.fromRank) || day === this.apiaryDay) return;
+    const lanterns = lanternIds(w).size;
+    if (lanterns < LANTERN_FLOOR) return;
+    const wanted = Math.ceil(lanterns / (content.decorById.get('lantern')?.supply?.per ?? 4));
+    const windows = Math.ceil(w.households.length / content.supplies.candleNights);
+    if (wanted + windows <= candlesMadeDaily(w) + crateStock(w) / FEED_NIGHTS) return;
+    const standing = count(w, 'apiary');
+    if (standing >= APIARIES_MAX || w.buildings.some((b) => b.def === 'apiary' && b.stage === 'construction'))
+      return;
+    this.apiaryDay = day;
+    this.p.propose({
+      def: 'apiary',
+      priority: 4,
+      cost: costOf('apiary'),
+      pressing: true,
+      essential: false,
+    });
+  }
+
   visit(): void {
+    this.apiaries();
     const day = this.p.runDay;
     for (const { place, priority } of priorityChanges(this.p.w)) {
       if (day - (this.sent.get(place.id) ?? -PRIORITY_DAYS) < PRIORITY_DAYS) continue;

@@ -3,9 +3,17 @@
 // lantern goes down past the candle cover at Village rank, and a Hamlet's lanterns are free. State is
 // built by hand (stock, rank, decor, places), since the stand-ins (R3A to R3C) make none of it.
 import { content } from '@qoti/content';
-import { doorTile, TILE_FP, type Building, type PlaceView, type WorldState } from '@qoti/sim';
+import {
+  doorTile,
+  PENNIES_PER_COIN,
+  TILE_FP,
+  type Building,
+  type PlaceView,
+  type WorldState,
+} from '@qoti/sim';
 import { describe, expect, it } from 'vitest';
 import { startingTown } from '../hamlet';
+import { Planner } from '../planner';
 import { G } from '../town';
 import { advisors } from '.';
 import {
@@ -119,24 +127,29 @@ describe('the lamps advisor', () => {
   };
 
   it('stands lanterns to the candles coming, at every rank: the stock and the crate over a week, and what is made a day', () => {
+    // No household buys a candle of its own here: what is made all goes to the lanterns.
+    const noHomes = (w: WorldState): WorldState => {
+      w.households = [];
+      return w;
+    };
     // The first few lanterns need no cover.
     expect(candlesAllow(town(0, 0))).toBe(true);
     expect(candlesAllow(town(LANTERN_FLOOR - 1, 0))).toBe(true);
-    // Past them, a Hamlet's lanterns want candles coming too (they will burn them from the Charter).
-    expect(candlesAllow(town(LANTERN_FLOOR, 0, 'hamlet'))).toBe(false);
-    expect(candlesAllow(town(LANTERN_FLOOR, 0))).toBe(false);
-    // A week of candles in stock feeds PER lanterns for each candle a night it holds over the week.
+    // Past the floor, a Hamlet's lanterns want candles coming too (they will burn them from the Charter).
+    expect(candlesAllow(noHomes(town(LANTERN_FLOOR, 0, 'hamlet')))).toBe(false);
+    expect(candlesAllow(noHomes(town(LANTERN_FLOOR, 0)))).toBe(false);
+    // Candles in stock count for nothing here (much of it sits on shelves no lantern draws from).
     const nightsToFeed = Math.ceil((LANTERN_FLOOR + 1) / PER);
-    expect(candlesAllow(town(LANTERN_FLOOR, nightsToFeed * NIGHTS - 1))).toBe(false);
-    expect(candlesAllow(town(LANTERN_FLOOR, nightsToFeed * NIGHTS))).toBe(true);
-    expect(candlesAllow(town(LANTERN_FLOOR, nightsToFeed * NIGHTS), PER + 1)).toBe(false);
-    expect(candlesAllow(town(LANTERN_FLOOR, nightsToFeed * NIGHTS, 'hamlet'))).toBe(true);
-    // The County's crate at the Town Hall counts as it does in stock.
-    const held = town(LANTERN_FLOOR, 0, 'hamlet');
+    expect(candlesAllow(noHomes(town(LANTERN_FLOOR, 1000)))).toBe(false);
+    // The County's crate at the Town Hall counts, spread over its week: PER lanterns for each candle a night.
+    const held = noHomes(town(LANTERN_FLOOR, 0, 'hamlet'));
+    crate(held, nightsToFeed * NIGHTS - 1);
+    expect(candlesAllow(held)).toBe(false);
     crate(held, nightsToFeed * NIGHTS);
     expect(candlesAllow(held)).toBe(true);
+    expect(candlesAllow(held, PER + 1)).toBe(false);
     // What the town made yesterday counts a night's worth each day.
-    const made = town(LANTERN_FLOOR, 0);
+    const made = noHomes(town(LANTERN_FLOOR, 0));
     made.economy.yesterday.produced[G('candles')] = nightsToFeed;
     expect(candlesAllow(made)).toBe(true);
     made.economy.yesterday.produced[G('candles')] = nightsToFeed - 1;
@@ -160,6 +173,41 @@ describe('the lamps advisor', () => {
     w.charter.progress = def.goals.map((g, i) => (i < def.goals.length - 2 ? g.target : 0));
     expect(charterNear(w)).toBe(true);
     expect(charterNear(town(0, 0))).toBe(false);
+  });
+
+  it('keeps bees of its own, an Apiary at a time, while the candles made fall short of the lanterns and windows', () => {
+    const run = (lanterns: number, made: number) => {
+      const h = startingTown('willow');
+      const p = new Planner(h);
+      const w = p.w;
+      w.charter.rank = 'village';
+      w.decor = [];
+      for (let i = 0; i < lanterns; i++)
+        w.decor.push({
+          id: 9001 + i,
+          def: 'lantern',
+          fx: (20 + i) * TILE_FP,
+          fz: 20 * TILE_FP,
+          rot: 0,
+          builtBy: 0,
+        });
+      w.economy.treasury = 5000 * PENNIES_PER_COIN;
+      const store = w.buildings.find((b) => b.rt && content.buildingById.get(b.def)?.storage)!;
+      store.stage = 'built';
+      store.rt!.store[G('timber')] = 200;
+      w.economy.yesterday.produced[G('candles')] = made;
+      p.advisor = { id: 'lamps', lane: 'hearth' };
+      p.runDay = 12;
+      lamps.create(p).visit({ afternoon: false });
+      return p.decisions.filter((d) => d.cmd.t === 'build.place' && d.cmd.def === 'apiary');
+    };
+    // Short: an Apiary is asked for, in the Hearth's lane.
+    const got = run(LANTERN_FLOOR, 0);
+    expect(got.length).toBeLessThanOrEqual(1);
+    for (const d of got) expect(d.lane).toBe('hearth');
+    // Covered, or too few lanterns to matter: none.
+    expect(run(LANTERN_FLOOR, 500)).toEqual([]);
+    expect(run(LANTERN_FLOOR - 1, 0)).toEqual([]);
   });
 
   it('keeps braziers for when firewood stands above the winter mark, past the first few', () => {

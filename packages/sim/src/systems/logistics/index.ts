@@ -132,6 +132,23 @@ function spotsOf(state: WorldState): Spot[] {
 }
 
 /**
+ * R3X: a Treat that a trade turns into something that is no Treat (honey into the chandler's candles) is
+ * also taken from the outlets' shelves for that trade's input. The Treats shelves fill first (class 1)
+ * and took every unit the hives made, so the chandler's input stood at nothing, it rested and let its hand
+ * go, and the lanterns went dark for want of candles with 20 to 40 honey on the shelves (willow, birch).
+ */
+const MAKERS_TAKE_FROM_SHELVES: ReadonlySet<number> = new Set(
+  content.trades.flatMap((t) => {
+    const out = t.makes === null ? undefined : content.goodIndex.get(t.makes);
+    if (out === undefined || content.goods[out]!.family === 'treats') return [];
+    return t.from.flatMap((id) => {
+      const g = content.goodIndex.get(id);
+      return g !== undefined && content.goods[g]!.family === 'treats' ? [g] : [];
+    });
+  }),
+);
+
+/**
  * Units a porter may pick up here: storehouse stock or a producer's output. Stalls keep theirs, but
  * for a good no household buys (wool): R2B, one a shop took onto its shelf before shelves kept to what
  * households buy goes on to the maker that wants it.
@@ -140,7 +157,10 @@ export function sourceAvail(b: Building, def: BuildingDef | undefined, good: num
   const rt = b.rt;
   if (!rt || b.stage !== 'built') return 0;
   if (isStorehouse(def)) return (rt.store[good] ?? 0) - (rt.reservedOut[good] ?? 0);
-  if (isMarket(def) && INPUT_ONLY.has(content.goods[good]?.id ?? '')) {
+  if (
+    isMarket(def) &&
+    (INPUT_ONLY.has(content.goods[good]?.id ?? '') || MAKERS_TAKE_FROM_SHELVES.has(good))
+  ) {
     return (rt.store[good] ?? 0) - (rt.reservedOut[good] ?? 0);
   }
   if (isStorage(def)) return 0;
