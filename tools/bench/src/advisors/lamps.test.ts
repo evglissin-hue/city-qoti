@@ -22,6 +22,7 @@ import {
   firewoodAllows,
   lamps,
   FIRE_FLOOR,
+  HAMLET_LANTERNS,
   LANTERN_FLOOR,
   priorityChanges,
   specialtyNear,
@@ -135,14 +136,15 @@ describe('the lamps advisor', () => {
     // The first few lanterns need no cover.
     expect(candlesAllow(town(0, 0))).toBe(true);
     expect(candlesAllow(town(LANTERN_FLOOR - 1, 0))).toBe(true);
-    // Past the floor, a Hamlet's lanterns want candles coming too (they will burn them from the Charter).
-    expect(candlesAllow(noHomes(town(LANTERN_FLOOR, 0, 'hamlet')))).toBe(false);
+    // A Hamlet's lanterns burn for nothing, so it stands a street of them; past that it wants candles coming too.
+    expect(candlesAllow(noHomes(town(HAMLET_LANTERNS - 1, 0, 'hamlet')))).toBe(true);
+    expect(candlesAllow(noHomes(town(HAMLET_LANTERNS, 0, 'hamlet')))).toBe(false);
     expect(candlesAllow(noHomes(town(LANTERN_FLOOR, 0)))).toBe(false);
     // Candles in stock count for nothing here (much of it sits on shelves no lantern draws from).
     const nightsToFeed = Math.ceil((LANTERN_FLOOR + 1) / PER);
     expect(candlesAllow(noHomes(town(LANTERN_FLOOR, 1000)))).toBe(false);
     // The County's crate at the Town Hall counts, spread over its week: PER lanterns for each candle a night.
-    const held = noHomes(town(LANTERN_FLOOR, 0, 'hamlet'));
+    const held = noHomes(town(LANTERN_FLOOR, 0));
     crate(held, nightsToFeed * NIGHTS - 1);
     expect(candlesAllow(held)).toBe(false);
     crate(held, nightsToFeed * NIGHTS);

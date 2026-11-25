@@ -38,6 +38,8 @@ const VISIT_COMMANDS = 3;
 export const FIRE_FLOOR = 3;
 /** Lanterns allowed whatever the candles (about four candles a night for a young Village's wishes). */
 export const LANTERN_FLOOR = 16;
+/** Lanterns a Hamlet stands whatever the candles. */
+export const HAMLET_LANTERNS = 48;
 /** Days a place keeps a priority before the advisor changes it again (no flip-flopping as places merge and grow). */
 const PRIORITY_DAYS = 4;
 /** Candles a built chandler is planned to make a day (honey-limited: a hive pair feeds about two cycles). */
@@ -123,6 +125,9 @@ export function lanternsFed(w: WorldState): number {
 export function candlesAllow(w: WorldState, more = 1): boolean {
   const standing = lanternIds(w).size;
   if (standing + more <= LANTERN_FLOOR) return true;
+  // R3X: a Hamlet's lanterns burn for nothing: its evenings and wishes want them, and the County's crate then
+  // comes sized to them. (Held at 16 they delayed the Village by 4 to 10 days: patterns and the evenings goal.)
+  if (!rankAtLeast(w, content.supplies.fromRank) && standing + more <= HAMLET_LANTERNS) return true;
   return standing + more <= lanternsFed(w);
 }
 
