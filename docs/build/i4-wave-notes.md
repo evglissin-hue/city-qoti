@@ -75,6 +75,8 @@ Filled at R3X's PR (2026-11-24, R3X's head; R3E's tools, 70 days, four bench see
   - **The worst fair evening** fell below R2X's 48 to 54% on oak (35%, day 51) and willow (43%, day 45; 46% before the specialty mark drew visitors to its places), hazel at 49%; the means are 62 to 84%. Lanterns resting for want of candles take lamplight's draw from the places R2 lit for nothing. I4E reads it.
   - **A third Craftsfolk by day 70**: 16% on average (above). I4A.
   - **The nothing-to-sell gap at a tavern** opens and rarely closes (willow 5 opened, 1 closed; hazel 6, 0): households owe under one Treat most evenings. I4E.
+  - **The specialty mark is a floor**: `TOWN_BOOK.specialtyCustomers` is 1 (a Treat sold at one place on three evenings of a season) for a round that sells two or three Treats a night; I4E raises it as it brings Treats to the places.
+  - **`r3 specialized day`** measured 0.42 to 0.45 ms against its 0.5 ms budget in quiet runs: watch it as I4 adds levels.
   - **Hazel's Ledger decisions** sit at 148 of the lanes test's 150; I4's new Ledger levers (contracts, policies) need room: I4H should measure the lanes test first.
 
 ## Rulings

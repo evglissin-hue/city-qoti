@@ -14,6 +14,7 @@ export const TOWN_BOOK: TownBookTuning = {
   // evening of a season. One customer on half a season's evenings still means a habit: of about
   // sixteen places and two flavors on a round that sells two or three Treats a night, only a spot
   // where the same Treat keeps selling earns it.
+  // A floor for a starved round: raise it as I4E brings Treats to the places (i4-wave-notes.md).
   specialtyCustomers: 1,
   specialtyEvenings: 3,
   specialtyDraw: 5,
