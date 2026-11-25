@@ -71,11 +71,11 @@ export const CANDLE_POP = 30;
 /** Honey in town before a chandler is pinned. */
 const HONEY_MIN = 4;
 /** Chandlers the town is asked for at most. */
-const CHANDLERS_MAX = 3;
+const CHANDLERS_MAX = 2;
 /** A spare farmstead is tried for hives this many times at most (the sim retools a pin whose ground fails). */
 const HIVE_TRIES = 4;
 /** Hives the town is asked for at most. */
-const HIVES_MAX = 4;
+const HIVES_MAX = 2;
 /** The Fuel and Wares families (GOOD_FAMILIES indexes) and their ids, for `carrier.setRule`. */
 const FUEL = 'fuel';
 const WARES = 'wares';
@@ -164,9 +164,7 @@ class Supplies implements Advisor {
       w.buildings.filter((b) => b.trade === trade && (b.stage === 'built' || b.stage === 'construction'))
         .length;
     const chandlers = Math.min(CHANDLERS_MAX, Math.ceil((draw + homes) / CHANDLER_DAILY));
-    // R3X: the hives' honey goes to the Treats shelves first and the chandler gets what they do not
-    // take, so a chandler wants a hive beyond its own.
-    const hivesWanted = Math.min(HIVES_MAX, chandlers + 1);
+    const hivesWanted = Math.min(HIVES_MAX, chandlers);
     // The bees rest in winter: hives are begun from spring to autumn (honey: spring .8, summer 1, autumn .6).
     if (
       calendar(w.tick).season < WINTER &&

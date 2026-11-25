@@ -339,7 +339,8 @@ class Lamps implements Advisor {
   private apiaries(): void {
     const w = this.p.w;
     const day = this.p.runDay;
-    if (!rankAtLeast(w, content.supplies.fromRank) || day === this.apiaryDay) return;
+    // A newcomer pair keeps no labor sums, and an Apiary's hand is one it may not have.
+    if (this.p.newcomer || !rankAtLeast(w, content.supplies.fromRank) || day === this.apiaryDay) return;
     const lanterns = lanternIds(w).size;
     if (lanterns < LANTERN_FLOOR) return;
     const wanted = Math.ceil(lanterns / (content.decorById.get('lantern')?.supply?.per ?? 4));
