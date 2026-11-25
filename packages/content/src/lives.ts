@@ -134,6 +134,21 @@ export const lifePhrases = {
   charterReady: [
     'A letter from the County Clerk: "Every goal on your Charter is met. Present yourselves at the Town Hall to claim the rank of {rank}, and wipe your feet."',
   ],
+  /**
+   * R3X: the County's crate of candles at the Charter. `letter`: {candles} {lanterns} {nights} {town};
+   * `none`: sent when no lantern stands yet; `news`: the Hearth's one line on the evening of the claim.
+   */
+  charterCrate: {
+    letter: [
+      'From the County Office of Lamps and Forms: "Enclosed, under Form 7 and in triplicate, are {candles} candles: {nights} nights of light for the {lanterns} lanterns of {town}. From tonight a lantern burns a candle, a matter on which the County has been reassured it has no say. Do see to a chandler. Keep the receipt."',
+    ],
+    none: [
+      'From the County Office of Lamps and Forms: "We find no lanterns on the inventory of {town} and have enclosed nothing, in triplicate. When you do stand some, each will want a candle a night, shared between a few. Do see to a chandler."',
+    ],
+    news: [
+      "From tonight the lanterns burn candles. A chandler makes them from the hives' honey, and the County's crate sees the first week through.",
+    ],
+  },
   /** Plan approval reports ({who}, {plan}, {applied}, {skipped}). */
   planApproved: '{who} approved "{plan}": all of it is underway.',
   planPartly:

@@ -18,6 +18,7 @@ import { doorTile } from '../movement/api';
 import { placeIndex } from '../places';
 import { drawForPlaces, placesPurse, type PlacesPurse } from '../carrier/places';
 import { pieceRests } from './api';
+import { takeFromCrate } from './crate';
 import { walkLamps, type LitLantern, type Walker } from './lamplighter';
 import {
   Kind,
@@ -185,12 +186,18 @@ export function settle(state: WorldState, ctx: TickCtx): void {
         start,
         lanterns.filter((i) => ranks[i]! > Rank.rest),
       );
-      let lit = Math.min(
-        eligible.length,
+      // R3X: the County's crate at the Town Hall lights the first lanterns, before any stock is touched.
+      const crated =
+        good === content.goodIndex.get('candles')
+          ? takeFromCrate(state, Math.ceil(eligible.length / per))
+          : 0;
+      let lit = Math.min(eligible.length, per * crated);
+      const more = Math.min(
+        eligible.length - lit,
         per * Math.max(0, Math.min(purse.free[good] ?? 0, purse.surplus[familyOf(good)] ?? 0)),
       );
-      const taken = drawForPlaces(state, purse, good, Math.ceil(lit / per), start);
-      lit = Math.min(lit, per * taken);
+      const taken = drawForPlaces(state, purse, good, Math.ceil(more / per), start);
+      lit += Math.min(more, per * taken);
       addDrawn(state, good, taken);
       const order: LitLantern[] = eligible.slice(0, lit).map((i) => ({
         id: ix.list[i]!.id,

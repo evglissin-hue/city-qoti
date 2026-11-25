@@ -3,6 +3,7 @@
 import { content } from '@qoti/content';
 import type { WorldState } from '../../contracts';
 import { dayIndex } from '../economy/time';
+import { crateHeld } from './crate';
 import { Kind, pieceRanks, Rank, seasonOfDay, suppliedIndex, suppliesDraw } from './pieces';
 
 /**
@@ -37,7 +38,12 @@ export function placesWant(state: WorldState): number[] {
     }
   }
   // Map order is insertion order, which follows the pieces' ids: deterministic.
-  for (const [g, row] of lanterns) want[g]! += Math.ceil(row.n / row.per);
+  // R3X: what the County's crate at the Town Hall already covers is not bought.
+  const crate = crateHeld(state);
+  for (const [g, row] of lanterns) {
+    const covered = g === content.goodIndex.get('candles') ? crate : 0;
+    want[g]! += Math.max(0, Math.ceil(row.n / row.per) - covered);
+  }
   return want;
 }
 

@@ -162,9 +162,13 @@ export function runtimeView(
   return view;
 }
 
-/** True for a def whose buildings never hold goods in `store` or `output`: a home with no storage and no method. */
+/**
+ * True for a def whose buildings never hold goods in `store` or `output`: a home with no storage and no
+ * method, and the Town Hall, whose store holds only the County's crate of candles (supplies/crate.ts),
+ * which is the lanterns' alone and no part of the town's stock.
+ */
 export function keepsNoGoods(def: BuildingDef | undefined): boolean {
-  return !!def?.housing && !def.storage && !def.methods;
+  return (!!def?.housing && !def.storage && !def.methods) || def?.id === 'town-hall';
 }
 
 /** Town stock per good: storehouses, stalls and output buffers. */

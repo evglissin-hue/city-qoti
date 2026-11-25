@@ -102,7 +102,10 @@ export const lantern: DecorDef = {
   tags: ['lantern', 'light'],
   art: { kit: 'lantern' },
   charm: [{ category: 'light', value: 2, radius: 3, nightValue: 6 }],
-  supply: { kind: 'nightly', good: 'candles', qty: 1, per: 4, rests: 'unlit' },
+  // R3X: a stout lantern candle lasts eight nights, as a household's lasts five, so one candle lights eight
+  // lanterns a night (was four: a Village's hundred lanterns wanted 25 a night, more than its hives' honey
+  // could make, and the town went dark the day it was made one).
+  supply: { kind: 'nightly', good: 'candles', qty: 1, per: 8, rests: 'unlit' },
 };
 
 export const lowWall: DecorDef = {
@@ -176,7 +179,8 @@ export const hangingLantern: DecorDef = {
   art: { kit: 'hanging-lantern' },
   charm: [{ category: 'light', value: 3, radius: 3, nightValue: 7 }],
   locked: true,
-  supply: { kind: 'nightly', good: 'candles', qty: 1, per: 4, rests: 'unlit' },
+  // R3X: as the lantern's (one candle lights eight a night).
+  supply: { kind: 'nightly', good: 'candles', qty: 1, per: 8, rests: 'unlit' },
 };
 
 export const herbPlanter: DecorDef = {

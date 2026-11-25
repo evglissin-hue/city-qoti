@@ -33,21 +33,25 @@ interface Town {
   bench: EntityId;
 }
 
-/** A Village with a bench and six lanterns round it (two candles a night). */
+/** Lanterns one candle lights a night (the decor's supply, so a retune leaves these tests honest). */
+const PER = content.decorById.get('lantern')!.supply!.per!;
+
+/** A Village with a bench and two candles' worth of lanterns round it (two candles a night). */
 function town(): Town {
   const s = villageFixture().state;
   for (const fam of s.carrier.families) fam.reserve = 0;
   const bench = decor(s, 'bench', 64, 40);
   const lanterns: EntityId[] = [];
-  for (const [x, z] of [
+  // The lanterns stand on the place's own tiles, several to a tile when there are more than six.
+  const spots: [number, number][] = [
     [63, 40],
     [65, 40],
     [64, 39],
     [64, 41],
     [63, 39],
     [65, 41],
-  ])
-    lanterns.push(decor(s, 'lantern', x!, z!));
+  ];
+  for (let k = 0; k < 2 * PER; k++) lanterns.push(decor(s, 'lantern', ...spots[k % spots.length]!));
   bumpPlaceInputs(s);
   const place = placeIndex(s).places.find((p) => p.members.includes(bench))!.id;
   const row = newPlaceState(place, NAME, 0);
@@ -123,9 +127,9 @@ describe('the fourth gap opens and closes', () => {
     expect(t.ctx.events.map((e) => e.e)).toContain('gaps.updated');
     expect(shortGapWords(t.s, gap)).toEqual({ good: 'candles', when: 'a night', makes: 0 });
     const text = gapsView(t.s).open.find((g) => g.id === gap.id)!.text;
-    expect(text).toContain('The bench by the oak');
+    expect(text.toLowerCase()).toContain('the bench by the oak');
     expect(text).toContain('2 candles a night');
-    expect(text).toMatch(/the town makes 0/);
+    expect(text).toMatch(/the town makes 0/i);
     expect(text).not.toMatch(/[{}]/);
   });
 
@@ -159,17 +163,12 @@ describe('the fourth gap opens and closes', () => {
     t.lanterns.push(extra);
     bumpPlaceInputs(t.s);
     evening(t, day, true);
-    expect(open(t)!.n).toBe(2);
-    for (const [x, z] of [
-      [65, 39],
-      [64, 40],
-      [64, 40],
-    ])
-      t.lanterns.push(decor(t.s, 'lantern', x!, z!));
+    expect(open(t)!.n).toBe(3);
+    for (let k = 0; k < PER; k++) t.lanterns.push(decor(t.s, 'lantern', 64, 40));
     bumpPlaceInputs(t.s);
     evening(t, day + 1, true);
     const gap = open(t)!;
-    expect(gap.n).toBe(Math.ceil(placeCount(t) / 4));
+    expect(gap.n).toBe(Math.ceil(placeCount(t) / PER));
     expect(shortGapWords(t.s, gap).makes).toBe(3);
   });
 

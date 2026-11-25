@@ -36,6 +36,8 @@ const FIREWOOD = good('firewood');
 const CLOTH = good('cloth');
 const FUEL = 1;
 const WARES = 3;
+/** Lanterns one candle lights a night (the decor's supply, so a retune leaves these tests honest). */
+const PER = content.decorById.get('lantern')!.supply!.per!;
 
 function setup() {
   const f = villageFixture();
@@ -71,12 +73,13 @@ const litIds = (s: WorldState): EntityId[] => s.supplies.lamps.map((l) => l.id);
 describe('the settling and the lanterns', () => {
   it('lights half the lanterns on half the candles, the kept ones first, and nothing throws', () => {
     const { s, store, stored, settleDay, piece, lanterns } = setup();
-    const ids = lanterns(8);
+    const ids = lanterns(2 * PER);
     // A bench in the farthest lantern's tile makes a place there, and the place is kept first.
-    const far = ids[7]!;
-    decor(s, 'bench', 64, 40);
+    const far = ids[2 * PER - 1]!;
+    const farX = 50 + 2 * (2 * PER - 1);
+    decor(s, 'bench', farX, 40);
     bumpPlaceInputs(s);
-    const place = placeIndex(s).places.find((p) => p.tiles.includes(40 * MAP_SIZE + 64))!;
+    const place = placeIndex(s).places.find((p) => p.tiles.includes(40 * MAP_SIZE + farX))!;
     expect(place, 'a place stands where the far lantern is').toBeDefined();
     const row = newPlaceState(place.id, 'The far end', 0);
     row.priority = 'keep';
@@ -84,8 +87,8 @@ describe('the settling and the lanterns', () => {
     s.places.sort((a, b) => (a.id < b.id ? -1 : 1));
     store(CANDLES, 1);
     settleDay(0);
-    // One candle serves four lanterns: the far one is kept, the three nearest the store follow.
-    expect(litIds(s)).toEqual([...ids.slice(0, 3), far].sort((a, b) => a - b));
+    // One candle serves PER lanterns: the far one is kept, the nearest the store follow.
+    expect(litIds(s)).toEqual([...ids.slice(0, PER - 1), far].sort((a, b) => a - b));
     expect(stored(CANDLES)).toBe(0);
     s.tick = tickAt(0, 19);
     for (const id of ids) {
@@ -95,7 +98,7 @@ describe('the settling and the lanterns', () => {
     }
     const view = suppliesView(s);
     expect(view.lamps.map((l) => l.id)).toEqual(litIds(s));
-    expect(view.resting.filter((r) => r.kind === 'unlit')).toHaveLength(4);
+    expect(view.resting.filter((r) => r.kind === 'unlit')).toHaveLength(PER);
     expect(s.supplies.drawn[s.supplies.drawn.length - 1]![CANDLES]).toBe(1);
   });
 
@@ -351,9 +354,9 @@ describe('the places’ purse and winter mark', () => {
 });
 
 describe('what places want, household candles and the place counts', () => {
-  it('wants a candle for every four lanterns, the cloth not up, and firewood in season', () => {
+  it('wants a candle for every PER lanterns, the cloth not up, and firewood in season', () => {
     const { s, lanterns, store, settleDay } = setup();
-    lanterns(6);
+    lanterns(PER + 2);
     const mast = decor(s, 'maypole', 60, 42);
     decor(s, 'brazier', 58, 42);
     bumpPlaceInputs(s);

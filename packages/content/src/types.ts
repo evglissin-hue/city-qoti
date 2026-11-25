@@ -1714,6 +1714,12 @@ export interface SuppliesTuning {
    * a night"): nightly, evening and season kinds.
    */
   gapWhen?: { nightly: string; evening: string; season: string };
+  /**
+   * R3X (additive): the County's crate at the Charter. The day the town is made a Village the County
+   * sends candles for this many nights of the lanterns then standing (7), so the reward is not a cliff.
+   * Absent: no crate.
+   */
+  charterCrateNights?: number;
 }
 
 /**

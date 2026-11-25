@@ -26,5 +26,8 @@ export const SUPPLIES: SuppliesTuning = {
   // with the rest of the town.
   walkTicks: 8,
   // The fourth gap's words: "6 candles a night", "2 firewood an evening", "4 cloth this season".
+  // R3X: the County's crate on the day of the Charter: a week of the lanterns' candles, so the first
+  // Village week is lit while the chandler's hives come on.
+  charterCrateNights: 7,
   gapWhen: { nightly: 'a night', evening: 'an evening', season: 'this season' },
 };

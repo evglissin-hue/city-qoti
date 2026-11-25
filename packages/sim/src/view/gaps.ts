@@ -56,6 +56,9 @@ function fillGap(state: WorldState, raw: string, gap: Gap): string {
   const name = subjectName(state, gap.subject);
   // The fourth gap's own words (R3A): the good, how often, and what the town makes of it.
   const words = gap.kind === 'shortOfSupplies' ? shortGapWords(state, gap) : { good: '', when: '', makes: 0 };
+  // R3X: a candle lights eight lanterns now, so a small place often wants just one: "1 candle", not "1 candles".
+  if (gap.kind === 'shortOfSupplies' && gap.n === 1 && words.good.endsWith('s'))
+    words.good = words.good.slice(0, -1);
   const text = fillText(raw, [
     ['good', words.good],
     ['when', words.when],
