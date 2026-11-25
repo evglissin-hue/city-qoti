@@ -1,10 +1,14 @@
 // R3X (player's chair): makes the paused valleys the chair script opens, in Node, from real autoplayed
 // valleys: the grown fixture and the version 8 willow (migrated on load). Each runs on to an hour of an
 // evening and is saved as a .qoti (the raw serialized state).
-//   npx tsx packages/sim/scripts/r3x-chair-make.ts <outDir>
+//   npx tsx packages/sim/scripts/r3x-chair-make.ts <outDir> [grown|willow|growncandles|lampweek|lampday60] [seed]
+// lampweek / lampday60 (R3X lamps): the bench autoplayer plays <seed> (default willow) and the valley is saved at
+// 23:00 of the day before the one to shoot: lampweek of Village day + 6 (the shot day is the Charter day + 7),
+// lampday60 of day 59 (the shot day is day 60). Writes <outDir>/lampweek-<seed>.qoti or lampday60-<seed>.qoti.
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { content } from '@qoti/content';
+import { autoplay } from '../../../tools/bench/src/autoplay';
 import {
   advanceTo,
   base64ToBytes,
@@ -54,6 +58,38 @@ const v8json = JSON.parse(
 ) as { save: string };
 
 const which = process.argv[3] ?? 'all';
+
+if (which === 'lampweek' || which === 'lampday60') {
+  const seed = process.argv[4] ?? 'willow';
+  const stop = new Error('lamp valley saved');
+  let villageDay = 0;
+  try {
+    autoplay(seed, 75, {
+      village: true,
+      onDay: (w, line) => {
+        if (!villageDay && w.charter.rank !== 'hamlet') villageDay = line.day;
+        const at = which === 'lampday60' ? 59 : villageDay ? villageDay + 6 : 0;
+        if (line.day !== at) return;
+        seat(w);
+        // As tune.ts saves a grown valley: the surveyor has said goodbye, no farewell letter opens over it.
+        if (w.guide.over) w.guide.hidden = w.guide.hidden.map(() => true);
+        console.log(
+          `${which}-${seed}`,
+          stamp(w),
+          'village day',
+          villageDay,
+          'lanterns',
+          w.decor.filter((d) => content.decorById.get(d.def)?.supply?.kind === 'nightly').length,
+        );
+        writeFileSync(`${out}/${which}-${seed}.qoti`, serialize(w));
+        throw stop;
+      },
+    });
+  } catch (e) {
+    if (e !== stop) throw e;
+  }
+  process.exit(0);
+}
 
 if (which === 'growncandles') {
   // The grown valley with a stock of candles in its first storehouse: the lamplighter has lamps to light.
