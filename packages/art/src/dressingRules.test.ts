@@ -4,7 +4,15 @@
 import { describe, expect, it } from 'vitest';
 import { content } from '@qoti/content';
 import { anchorsFor } from './anchors';
-import { resolveDressing, rulesFor, validateDressingRules, type DressingSubject } from './dressing';
+import {
+  matches,
+  paramsFor,
+  resolveDressing,
+  rulesFor,
+  subjectKey,
+  validateDressingRules,
+  type DressingSubject,
+} from './dressing';
 import { kitById } from './kits';
 
 const RULES = content.dressingRules;
@@ -89,8 +97,10 @@ describe('the shipped dressing table (V3A)', () => {
   it('keeps only signs and stock piles on Low', () => {
     const low = rulesFor('some', RULES);
     expect(low.length).toBeGreaterThan(0);
-    for (const r of low) expect(r.id.startsWith('sign-') || r.who.def !== undefined).toBe(true);
-    for (const r of low) expect(['yard-sign', 'goods-sacks', 'crates', 'barrels']).toContain(r.piece.kit);
+    for (const r of low)
+      expect(r.id.startsWith('sign-') || r.id === 'master-sign' || r.who.def !== undefined).toBe(true);
+    for (const r of low)
+      expect(['yard-sign', 'goods-sacks', 'crates', 'master-sign', 'barrels']).toContain(r.piece.kit);
   });
 
   it('dresses a level 2 business with its sign and goods, and leaves the orchard alone', () => {
@@ -142,5 +152,68 @@ describe('the shipped dressing table (V3A)', () => {
       most = Math.max(most, resolveDressing(s, RULES, COTTAGE, SEED).length);
     }
     expect(most).toBeLessThanOrEqual(12);
+  });
+});
+
+describe('the master sign rule (R3X)', () => {
+  const baker = (over: Partial<DressingSubject> = {}): DressingSubject => ({
+    id: 77,
+    def: 'workshop',
+    kind: 'business',
+    trade: 'baker',
+    level: 2,
+    season: 'summer',
+    stats: { level: 2, workers: 1 },
+    ...over,
+  });
+  const BAKERY = anchorsFor(kitById.get('bakery')!, { size: [3, 3], entrance: [1, 2] });
+  const rules = (s: DressingSubject): string[] => resolveDressing(s, RULES, BAKERY, SEED).map((p) => p.rule);
+
+  it('matches only a building a master works at', () => {
+    const rule = RULES.find((r) => r.id === 'master-sign')!;
+    expect(rule.who.master).toBe(true);
+    expect(matches(rule, baker())).toBe(false);
+    expect(matches(rule, baker({ master: false }))).toBe(false);
+    expect(matches(rule, baker({ master: true }))).toBe(true);
+    expect(rules(baker())).not.toContain('master-sign');
+    expect(rules(baker({ master: true }))).toContain('master-sign');
+  });
+
+  it('dresses a business and a specialized building, and nothing else', () => {
+    const rule = RULES.find((r) => r.id === 'master-sign')!;
+    expect(
+      matches(rule, baker({ master: true, kind: 'specialized', trade: undefined, def: 'fishery' })),
+    ).toBe(true);
+    expect(matches(rule, baker({ master: true, kind: 'home' }))).toBe(false);
+    expect(matches(rule, baker({ master: true, kind: null }))).toBe(false);
+  });
+
+  it('leaves every other rule as it was: a master changes nothing else on the plot', () => {
+    const without = rules(baker()).filter((r) => r !== 'master-sign');
+    expect(rules(baker({ master: true })).filter((r) => r !== 'master-sign')).toEqual(without);
+  });
+
+  it('paints the trade it hangs at: $trade reads the trade, or the def when there is none', () => {
+    const sign = (s: DressingSubject) =>
+      resolveDressing(s, RULES, BAKERY, SEED).find((p) => p.rule === 'master-sign')!;
+    expect(sign(baker({ master: true })).params).toEqual({ emblem: 'baker' });
+    expect(
+      sign(baker({ master: true, kind: 'specialized', trade: undefined, def: 'quarry' })).params,
+    ).toEqual({ emblem: 'quarry' });
+    expect(paramsFor({ good: 'bread', n: 2 }, baker())).toEqual({ good: 'bread', n: 2 });
+    expect(paramsFor({ emblem: '$trade' }, baker({ trade: 'weaver' }))).toEqual({ emblem: 'weaver' });
+  });
+
+  it('changes the subject key, so a master arriving or leaving dresses the plot again', () => {
+    expect(subjectKey(baker({ master: true }))).not.toBe(subjectKey(baker()));
+    expect(subjectKey(baker())).toBe(subjectKey(baker({ master: false })));
+  });
+
+  it('rejects a master field that is not true', () => {
+    const rule = { ...RULES.find((r) => r.id === 'master-sign')!, id: 'bad', seed: 9999 };
+    const bad = { ...rule, who: { ...rule.who, master: false } };
+    const errors = validateDressingRules([bad], (id) => kitById.has(id));
+    expect(errors.join('|')).toContain('master must be true');
+    expect(validateDressingRules([rule], (id) => kitById.has(id))).toEqual([]);
   });
 });

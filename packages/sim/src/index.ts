@@ -101,8 +101,10 @@ export { insertBuilding } from './state/place';
 export { START_GOODS } from './systems/economy/start';
 export { settleHousehold } from './systems/residents/lifecycle';
 export { economyDial, type EconomyDial } from './systems/economy/dial';
-export { KEEPER_DAYS_L3, LEVEL_DOWN_DAYS, LEVEL_UP_DAYS, SHOP_CUSTOMERS } from './systems/levels';
+export { LEVEL_DOWN_DAYS, LEVEL_UP_DAYS, SHOP_CUSTOMERS } from './systems/levels';
 export { fieldCost, placementCost, roadCost } from './systems/economy/api';
+// R3X: whether a priced piece can be paid for now (the bench's Hearth asks before it places one).
+export { decorBlocked } from './systems/economy/decorCost';
 export { nearestOutletWithFood, outletFood, takeFromOutlet } from './systems/economy/outlets';
 // P3A (meals): the pantry and the shelf, read by the bench's meal trace.
 export { foodIndexes, pantryFood } from './systems/residents/needs';
@@ -212,7 +214,14 @@ export { businessesView, businessView, isBusinessLike } from './view/businesses'
 export { demandView, demandWhy } from './view/demand';
 // R1 (R1.0): the cross-track APIs of docs/build/r1-wave-notes.md (stubs; their owners fill them).
 export { carrierBrought, winterMark } from './systems/carrier/api';
-export { familyCover, familyUse, flavorsOnOffer } from './systems/market/balances';
+export {
+  familyCover,
+  familyUse,
+  flavorsOnOffer,
+  householdVariety,
+  SHELF_GOODS,
+  VARIETY_DAYS,
+} from './systems/market/balances';
 export {
   capacityOf,
   hasRoomFor,
@@ -331,3 +340,41 @@ export { invalidatePlaces, placeIndex } from './systems/places/index';
 export { bumpPlaceInputs, setPlaceVerify } from './systems/places/inputs';
 export { streetTiles } from './systems/places/streets';
 export { townReachesDoor } from './state/reach';
+// R3 (R3.0): masters and the Town Book. The cross-track APIs (read-only outside their owners), the
+// views, and the slices' helpers, for the client, the autoplayer's advisors, the bench and the audit.
+export { craftDays, emptyMastersSlices, pieceSupply, residentIsMaster } from './state/masters';
+export { atLevel, coverageAt, storageOf } from './state/zones';
+export { callingsCount, hasCalling } from './systems/callings/api';
+export {
+  joinWords,
+  levelGains,
+  specializedClimb,
+  specializedDay,
+  specializedMaxLevel,
+  specializedName,
+  STALL_CUSTOMERS,
+} from './systems/levels/specialized';
+export { isMaster, masterOf, mastersCount, mastersMade } from './systems/masters/api';
+export { maxReach, specializedReach } from './systems/specialized/api';
+export {
+  candleHomes,
+  decorLit,
+  decorLitTonight,
+  lampSeasons,
+  pieceRests,
+  supplyGapAchievable,
+  supplyGapClosable,
+  supplyOf,
+} from './systems/supplies/api';
+export {
+  customToday,
+  pagesFound,
+  pagesTogether,
+  placeSpecialty,
+  specialtiesOnRound,
+} from './systems/townbook/api';
+export { placeResting, placeSupplies, suppliesView } from './view/supplies';
+export { recordThread } from './systems/threads/api';
+export { threadView } from './view/threads';
+export { townBookView } from './view/townBook';
+export { findSkatingSpots, skatingSpots } from './systems/seasons/place';

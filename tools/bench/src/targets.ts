@@ -9,8 +9,11 @@
 import { content } from '@qoti/content';
 import {
   calendar,
+  callingsCount,
   hasInnovation,
+  isMaster,
   loansOwed,
+  mastersCount,
   PENNIES_PER_COIN,
   placesView,
   rankAtLeast,
@@ -21,6 +24,7 @@ import { DEFAULT_SEEDS } from './audit';
 import { DECISIONS_DAYS, decisionVerdict, tallyDecisions } from './decisions';
 import { rowsOf } from './rows';
 import { charterOpen } from './town';
+import { drawnLastNight, lanternStats, R3_GAP_KINDS } from './yearRow';
 
 export interface TargetRow {
   seed: string;
@@ -78,6 +82,45 @@ export interface TargetRow {
   craftsBy40: boolean;
   /** A third of households are Craftsfolk at day 70 (R1). */
   craftsThird70: boolean;
+  // R3E: supplies, masters, the Town Book. Printed, never failed (R3X sets those targets). On a
+  // stand-in system a column reads 0 or '-' honestly.
+  /** Percent of standing lanterns lit over the nights from Village rank, all nights and winter nights; null: no such night. */
+  lanternsLit: number | null;
+  lanternsLitWinter: number | null;
+  /** Units places drew over the run (`supplies.drawn`, each night once). */
+  candlesDrawn: number;
+  firewoodDrawn: number;
+  /** Fourth-kind (R3) gaps opened and closed over the run. */
+  gap4Opened: number;
+  gap4Closed: number;
+  /** First day the town had a master (0: none), masters at the end, and by trade ('baker 1, dairy 1'). */
+  mastersFirstDay: number;
+  mastersEnd: number;
+  mastersByTrade: string;
+  /** Units of masters' goods households bought over the run (see `masterSold`). */
+  mastersSold: number;
+  /** Pages found by kind and by seat (seat 0 alone, seat 1 alone, both). */
+  pagesSpecialty: number;
+  pagesCustom: number;
+  pagesBySeat: string;
+  callings: number;
+}
+
+/** Content ids of the masters' goods, by good index. */
+const masterGoods: number[] = content.masters.flatMap((m) =>
+  m.good === undefined ? [] : [content.goodIndex.get(m.good)!],
+);
+
+/**
+ * Units of masters' goods households bought. The state keeps no sales count by good; what it keeps
+ * is `market.bought`, the units households bought yesterday per good (rolled at the daily price pass),
+ * which every purchase (shelf, outing, evening round) feeds. The run's total is that, summed each
+ * day's end, so it lags a day behind. A master's good "leaving outlet shelves" is the same units.
+ */
+export function masterSold(w: WorldState): number {
+  let n = 0;
+  for (const g of masterGoods) n += w.market.bought?.[g] ?? 0;
+  return n;
 }
 
 /** R1 target: the first Craftsfolk by this day. */
@@ -95,6 +138,29 @@ function craftsHouseholds(w: WorldState): [number, number] {
   let crafts = 0;
   for (const h of w.households) if (h.tier !== 'settler') crafts++;
   return [crafts, w.households.length];
+}
+
+/** Masters by trade, e.g. 'baker 2, dairy 1', most first; '-' with none. */
+export function mastersByTrade(w: WorldState): string {
+  const by = new Map<string, number>();
+  for (const r of w.residents)
+    if (r.mastery && mastersCount(w, r.mastery) > 0 && isMaster(r))
+      by.set(r.mastery, (by.get(r.mastery) ?? 0) + 1);
+  const list = [...by].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1));
+  return list.length ? list.map(([t, n]) => `${t} ${n}`).join(', ') : '-';
+}
+
+/** Town Book pages by seat: 'seat 0 alone/seat 1 alone/both'. */
+export function pagesBySeat(w: WorldState): string {
+  let a = 0;
+  let b = 0;
+  let both = 0;
+  for (const p of w.townBook.pages) {
+    if (p.seats.length >= 2) both++;
+    else if (p.seats[0] === 0) a++;
+    else if (p.seats[0] === 1) b++;
+  }
+  return `${a}/${b}/${both}`;
 }
 
 export function targetRow(seed: string, days = DECISIONS_DAYS): { row: TargetRow; lines: string[] } {
@@ -116,6 +182,17 @@ export function targetRow(seed: string, days = DECISIONS_DAYS): { row: TargetRow
   let onRound = 0;
   let sold = 0;
   const gapIds = new Set<number>();
+  // R3E
+  let litNights = 0;
+  let litSum = 0;
+  let winterNights = 0;
+  let winterSum = 0;
+  let lastNight = -1;
+  let candles = 0;
+  let wood = 0;
+  const gap4Ids = new Set<number>();
+  let mastersFirstDay = 0;
+  let sold4masters = 0;
   const onDay = (w: WorldState, line: DayLine) => {
     if (!villageDay && rankAtLeast(w, 'village')) villageDay = line.day;
     if (!cobblesDay && hasInnovation(w, 'cobbles')) cobblesDay = line.day;
@@ -140,6 +217,24 @@ export function targetRow(seed: string, days = DECISIONS_DAYS): { row: TargetRow
     }
     for (const g of w.gaps.open) gapIds.add(g.id);
     for (const g of w.gaps.closed) gapIds.add(g.id);
+    for (const g of [...w.gaps.open, ...w.gaps.closed]) if (R3_GAP_KINDS.has(g.kind)) gap4Ids.add(g.id);
+    if (!mastersFirstDay && mastersCount(w) > 0) mastersFirstDay = line.day;
+    sold4masters += masterSold(w);
+    // Each night once: the settling writes `supplies.night`; from Village rank on lanterns need candles.
+    if (w.supplies.night !== lastNight) {
+      lastNight = w.supplies.night;
+      candles += drawnLastNight(w, 'candles') ?? 0;
+      wood += drawnLastNight(w, 'firewood') ?? 0;
+      const { standing, lit } = lanternStats(w);
+      if (lastNight >= 0 && standing > 0 && rankAtLeast(w, 'village')) {
+        litNights++;
+        litSum += lit / standing;
+        if (calendar(w.tick).season === 3) {
+          winterNights++;
+          winterSum += lit / standing;
+        }
+      }
+    }
     if (process.env.TARGETS_DAYS) {
       const l = line.ledger;
       lines.push(
@@ -205,13 +300,27 @@ export function targetRow(seed: string, days = DECISIONS_DAYS): { row: TargetRow
       grownRowLots: street.grownRowLots,
       craftsBy40: firstCraftsfolk > 0 && firstCraftsfolk <= FIRST_CRAFTSFOLK_BY,
       craftsThird70: share70 >= CRAFTSFOLK_SHARE,
+      lanternsLit: litNights ? Math.round((litSum / litNights) * 100) : null,
+      lanternsLitWinter: winterNights ? Math.round((winterSum / winterNights) * 100) : null,
+      candlesDrawn: candles,
+      firewoodDrawn: wood,
+      gap4Opened: gap4Ids.size,
+      gap4Closed: w.gaps.closed.filter((g) => R3_GAP_KINDS.has(g.kind)).length,
+      mastersFirstDay,
+      mastersEnd: mastersCount(w),
+      mastersByTrade: mastersByTrade(w),
+      mastersSold: sold4masters,
+      pagesSpecialty: w.townBook.pages.filter((p) => p.kind === 'specialty').length,
+      pagesCustom: w.townBook.pages.filter((p) => p.kind === 'custom').length,
+      pagesBySeat: pagesBySeat(w),
+      callings: callingsCount(w),
     },
     lines,
   };
 }
 
 export const TARGET_HEAD =
-  'seed     village  pop40 pop70 hh70  food%40 food%70 food%mean  decisions  1st crafts  crafts%70 best  stalls  low coins  coins70 owed70 tab70  firewood made/bought  lean  left  out%mean out%last evening seats/100  places  treats%round  gaps open/shut  by seat  hearth  cobbles  rowlots rows gardens corners grown  crafts@40 third@70';
+  'seed     village  pop40 pop70 hh70  food%40 food%70 food%mean  decisions  1st crafts  crafts%70 best  stalls  low coins  coins70 owed70 tab70  firewood made/bought  lean  left  out%mean out%last evening seats/100  places  treats%round  gaps open/shut  by seat  hearth  cobbles  rowlots rows gardens corners grown  crafts@40 third@70 lit%/win candles fwood g4 open/shut masters 1st  end  by trade                sold  pages spec/cust seat0/1/both callings';
 
 export function formatTarget(r: TargetRow): string {
   const pad = (v: string | number, n: number) => String(v).padStart(n);
@@ -253,6 +362,17 @@ export function formatTarget(r: TargetRow): string {
     pad(r.grownRowLots, 5),
     pad(r.craftsBy40 ? 'PASS' : 'FAIL', 9),
     pad(r.craftsThird70 ? `PASS ${r.craftsfolkShare70}%` : `FAIL ${r.craftsfolkShare70}%`, 9),
+    pad(`${r.lanternsLit ?? '-'}/${r.lanternsLitWinter ?? '-'}`, 9),
+    pad(r.candlesDrawn, 7),
+    pad(r.firewoodDrawn, 5),
+    pad(`${r.gap4Opened}/${r.gap4Closed}`, 13),
+    pad(r.mastersFirstDay || '-', 12),
+    pad(r.mastersEnd, 4),
+    r.mastersByTrade.padEnd(21),
+    pad(r.mastersSold, 5),
+    pad(`${r.pagesSpecialty}/${r.pagesCustom}`, 10),
+    pad(r.pagesBySeat, 15),
+    pad(r.callings, 8),
   ].join(' ');
 }
 

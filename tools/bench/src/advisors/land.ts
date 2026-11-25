@@ -19,6 +19,7 @@ import {
   familyIndex,
   hasInnovation,
   isFrozen,
+  jobsOf,
   meetsRequires,
   overdraftLimit,
   PENNIES_PER_COIN,
@@ -81,6 +82,8 @@ const SHORT_STREET = 8;
 const BAR_STUB = 4;
 /** P3A: mornings a bar is lit before its lane may spend the reserve and be a stub. */
 const BAR_WAIT_DAYS = 2;
+/** R3X: idle lots repainted for a lit bar no street can answer, at most. */
+const IDLE_LOTS = 3;
 /** The Hamlet's build queue for specialized buildings (I1's three). */
 const QUEUE = 3;
 /** Food in store a resident before a granary goes up. */
@@ -179,8 +182,19 @@ class Land implements Advisor {
     const asStreet = cobbled >= SHORT_STREET;
     const length = asStreet ? cobbled : Math.min(STREET_TILES, Math.floor(means / LANE_COINS));
     // P3A: a lit bar takes a stub of a lane (a lot or two of frontage) when that is all there is.
-    if (length < (forBar && !village ? BAR_STUB : SHORT_STREET)) return false;
+    const least = forBar && !village ? BAR_STUB : SHORT_STREET;
+    if (length < least) return false;
     let street = planHighStreet(p.w, length);
+    // R3X: a town filled in near its middle may fit only a shorter street: try shorter ones down to
+    // the least it lays (hazel's Village audit: the Homes bar lit seven days while only a 30-tile
+    // street was asked for and a 12-tile one fitted every day).
+    // A bar lit two mornings (`forBar`) takes a stub of BAR_STUB even in a Village: hazel's last
+    // fitting street was 4 tiles, with the Homes bar lit seven days.
+    const floor = forBar ? BAR_STUB : least;
+    for (const shorter of [22, 16, 12, 8, floor]) {
+      if (street) break;
+      if (shorter < length && shorter >= floor) street = planHighStreet(p.w, shorter);
+    }
     if (!street) {
       p.actions.push(`no room for ${label}`);
       return false;
@@ -305,8 +319,40 @@ class Land implements Advisor {
       // The reserve and a stub only for a bar lit two mornings running: most days the coins come
       // and a full lane follows (stubs every day cost oak eight more decisions than its limit).
       const waited = left.some((z) => today - (this.litSince.get(z) ?? today) >= BAR_WAIT_DAYS);
-      p.laneReserve = this.lay('another street', left, waited) ? 0 : BAR_STUB * LANE_COINS;
+      const laid = this.lay('another street', left, waited);
+      p.laneReserve = laid ? 0 : BAR_STUB * LANE_COINS;
+      // R3X: no street fits (a town zoned out to its edge): a lit Homes bar takes the empty lots of
+      // a zone nobody asks for, repainted, as a player does with ground left idle (hazel/village).
+      if (!laid && left.includes('homes-low')) this.repaintIdle('homes-low');
     } else p.laneReserve = 0;
+  }
+
+  /**
+   * R3X: repaints up to `IDLE_LOTS` empty lots of zones whose own bar is not lit (nearest the town's
+   * middle, porters' reach first) to `zone`, for a lit bar no street can answer.
+   */
+  private repaintIdle(zone: string): void {
+    const w = this.w;
+    const target = content.zoneById.get(zone)?.layerValue;
+    if (target === undefined) return;
+    const asked = new Set<number>();
+    BAR_ZONES.forEach((z, i) => {
+      if (w.demand.lit[i]) asked.add(content.zoneById.get(z)?.layerValue ?? -1);
+    });
+    const far = new Set(farFrontages(w));
+    const idle = growableLots(w)
+      .filter((l) => !l.buildingId && l.zone !== target && l.zone !== Zone.homesMedium && !asked.has(l.zone))
+      .filter((l) => !far.has(l.frontage))
+      .sort((a, b) => a.id - b.id)
+      .slice(0, IDLE_LOTS);
+    if (idle.length === 0) return;
+    const tiles: [number, number][] = [];
+    for (const l of idle)
+      for (let z = l.z; z < l.z + l.d; z++) for (let x = l.x; x < l.x + l.w; x++) tiles.push([x, z]);
+    if (
+      this.p.do(`repaint ${idle.length} idle lots as ${zone} for its bar`, [{ t: 'zone.paint', zone, tiles }])
+    )
+      this.painted.set(zone, day(w));
   }
 
   /** A storehouse toward lots no porter reaches, raised to the front (one site at a time). */
@@ -521,14 +567,19 @@ class Land implements Advisor {
   /**
    * Storehouses: two as soon as the town has twenty residents, then one per twenty (their porters
    * carry the town), and another raised to the front whenever three workplaces sit with their
-   * output full.
+   * output full while every storehouse has its porters (R3X: with porter seats open, the hands are
+   * what is short, and another storehouse is only more seats; willow's targets run sent 153
+   * decisions against 150 on such storehouses).
    */
   private storehouses(pop: number): void {
     const w = this.w;
     const backed = w.buildings.filter((b) => (b.rt?.status ?? 0) & BuildingStatus.outputFull).length;
     const rising = w.buildings.some((b) => b.def === 'storehouse' && b.stage === 'construction');
+    const portersOpen = w.buildings.some(
+      (b) => b.def === 'storehouse' && b.stage === 'built' && b.rt && b.rt.workers.length < jobsOf(b),
+    );
     const few = pop >= 20 && count(w, 'storehouse') < Math.max(2, 1 + Math.floor(pop / 20));
-    if (!few && !(backed >= 3 && !rising)) return;
+    if (!few && !(backed >= 3 && !rising && !portersOpen)) return;
     const o = { urgent: !rankAtLeast(w, 'village'), pressing: backed >= 3 };
     // R1X: toward the lots no porter reaches, when there are some: at a spot there that fits, else
     // one a short path would give a road at its door.

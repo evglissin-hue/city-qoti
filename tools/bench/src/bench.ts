@@ -30,7 +30,11 @@ import { lotsBench } from './lots.bench';
 import { natureBench } from './nature.bench';
 import { r1Bench } from './r1.bench';
 import { r2aBench } from './r2a.bench';
+import { r3aBench } from './r3a.bench';
 import { r2Bench } from './r2.bench';
+import { r3Bench } from './r3.bench';
+import { r3dBench } from './r3d.bench';
+import { r3hBench } from './r3h.bench';
 import { raidsBench } from './raids.bench';
 import { seasonsBench } from './seasons.bench';
 import { villageBench } from './village.bench';
@@ -198,10 +202,27 @@ failures.push(...r1.failures);
 const r2a = r2aBench();
 lines.push(...r2a.lines);
 failures.push(...r2a.failures);
+// 15b. R3A: the settling, the lamplighter's walk and the supplies' hourly cost at City scale.
+const r3a = r3aBench();
+lines.push(...r3a.lines);
+failures.push(...r3a.failures);
 // 16. R2: the place pass, planning the round, a whole evening and the gaps pass, at Village and City scale.
 const r2 = r2Bench();
 lines.push(...r2.lines);
 failures.push(...r2.failures);
+// 17. R3: the settling and the walk, the masters' day, the Town Book's close, the thread counts, the
+// specialized buildings' day, and gaps, supplies, masters and the Book together, per hour.
+const r3 = r3Bench();
+lines.push(...r3.lines);
+failures.push(...r3.failures);
+// 18. R3D: Follow the thread's counts at City scale, the midnight halving and the Thread itself.
+const r3d = r3dBench();
+lines.push(...r3d.lines);
+failures.push(...r3d.failures);
+// 18. R3H: the levels pass at its day end (specialized buildings climbing and sliding), at City scale.
+const r3h = r3hBench();
+lines.push(...r3h.lines);
+failures.push(...r3h.failures);
 
 const heapMb = process.memoryUsage().heapUsed / 1024 / 1024;
 lines.push(`memory          ${heapMb.toFixed(0)} MB heap in use`);
@@ -238,7 +259,11 @@ const report = {
   lots: lots.report,
   r1: r1.report,
   r2a: r2a.report,
+  r3a: r3a.report,
   r2: r2.report,
+  r3: r3.report,
+  r3d: r3d.report,
+  r3h: r3h.report,
   heapMb,
   failures,
 };

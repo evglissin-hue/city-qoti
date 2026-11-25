@@ -1,6 +1,6 @@
 // P3A: the business and home progress lines, every branch.
 import { content } from '@qoti/content';
-import { KEEPER_DAYS_L3, LEVEL_DOWN_DAYS, LEVEL_UP_DAYS, SHOP_CUSTOMERS } from '@qoti/sim';
+import { LEVEL_DOWN_DAYS, LEVEL_UP_DAYS, SHOP_CUSTOMERS } from '@qoti/sim';
 import { describe, expect, it } from 'vitest';
 import { homeProgressLine, nextLevelLine } from './levelWords';
 
@@ -8,7 +8,7 @@ const trade = (id: string) => content.tradeById.get(id)!;
 
 describe('nextLevelLine', () => {
   it('uses the sim constants', () => {
-    expect([LEVEL_UP_DAYS, LEVEL_DOWN_DAYS, SHOP_CUSTOMERS, KEEPER_DAYS_L3]).toEqual([2, 4, [6, 15], 20]);
+    expect([LEVEL_UP_DAYS, LEVEL_DOWN_DAYS, SHOP_CUSTOMERS]).toEqual([2, 4, [6, 15]]);
   });
   it('says none yet at zero days', () => {
     expect(nextLevelLine({ level: 1, levelDays: 0 }, trade('baker'))).toBe(
@@ -18,9 +18,9 @@ describe('nextLevelLine', () => {
   it('counts the good days so far', () => {
     expect(nextLevelLine({ level: 1, levelDays: 1 }, trade('baker'))).toContain('1 so far');
   });
-  it('asks a street and the keeper for level 3', () => {
+  it('asks a street and a master for level 3', () => {
     expect(nextLevelLine({ level: 2, levelDays: 1 }, trade('baker'))).toBe(
-      "Level 3 after 2 good days running: 1 so far. A good day sells four fifths of what it makes, never runs short of grain, with a street at the door, and its keeper's 20 working days.",
+      'Level 3 after 2 good days running: 1 so far. A good day sells four fifths of what it makes, never runs short of grain, with a street at the door, and a master of the trade on its crew.',
     );
   });
   it('asks farmland for a farmstead, and no raw good', () => {
@@ -43,6 +43,16 @@ describe('nextLevelLine', () => {
       'A poor day: 3 more in a row and it shrinks to level 2.',
     );
   });
+  it('says a level 3 is held while its master is away, and a master on the crew is met', () => {
+    expect(nextLevelLine({ level: 3, levelDays: 0, graceDays: 4 }, trade('dairy'))).toBe(
+      'Level 3 while its master is away: 4 days before it slides to level 2, unless a master of the trade joins the crew.',
+    );
+    expect(nextLevelLine({ level: 3, levelDays: 0, graceDays: 1 }, trade('dairy'))).toContain('1 day before');
+    expect(nextLevelLine({ level: 2, levelDays: 1, masterId: 7 }, trade('baker'))).toContain(
+      'and its master on the crew already.',
+    );
+  });
+
   it('is content at the top', () => {
     expect(nextLevelLine({ level: 3, levelDays: 0 }, trade('baker'))).toBe('Level 3, the top of its trade.');
   });

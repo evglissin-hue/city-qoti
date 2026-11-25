@@ -12,7 +12,16 @@ import {
   type KitSurfaceUniforms,
   type KitMaterialHooks,
 } from '@qoti/art';
-import { Color, MeshLambertMaterial, type Material, type WebGLProgramParametersWithUniforms } from 'three';
+import { MAP_SIZE } from '@qoti/sim';
+import {
+  Color,
+  DataTexture,
+  MeshLambertMaterial,
+  NearestFilter,
+  RedFormat,
+  type Material,
+  type WebGLProgramParametersWithUniforms,
+} from 'three';
 import type { WorldEnv } from './env';
 import type { Era } from '@qoti/content';
 import { kitLamp, lampQuality } from './lightMap';
@@ -26,6 +35,8 @@ import { patchWallAo } from './wallAo';
 export const FRESNEL_GLSL = KIT_FRESNEL_GLSL;
 
 /** The night glow's color (a warm lamp) and strength at full night. */
+/** R3X: how much of its own color a level pennant keeps lit at night (a lift, never a light: under the bloom threshold). */
+const CLOTH_NIGHT = 0.5;
 const GLOW = 'vec3(1.0, 0.7, 0.36) * 2.4';
 
 /** The Old Age's flame: the glow's own color (a candle), so a valley before I4 looks as it did. */
@@ -43,12 +54,72 @@ export function flameColor(era: Era): Color {
 }
 
 /**
+ * R3F: the tiles of homes with a candle tonight, while their windows burn (dusk to `candleUntil`):
+ * one texel a tile, 255 on a candle home's footprint. The lights layer writes it; the kit material
+ * reads it at each window pane (a little inside its wall), so such a home lights every window and the
+ * others keep the share by the hour (`19-evenings.md`, Supplies: no home ever goes dark).
+ */
+export interface CandleMask {
+  uCandles: { value: DataTexture };
+}
+
+const candleMasks = new WeakMap<object, CandleMask>();
+
+/** The env's candle mask (all zero until the lights layer writes it). */
+export function candleMask(env: object): CandleMask {
+  let m = candleMasks.get(env);
+  if (!m) {
+    const t = new DataTexture(new Uint8Array(MAP_SIZE * MAP_SIZE), MAP_SIZE, MAP_SIZE, RedFormat);
+    t.magFilter = NearestFilter;
+    t.minFilter = NearestFilter;
+    t.name = 'qoti.candles';
+    t.needsUpdate = true;
+    m = { uCandles: { value: t } };
+    candleMasks.set(env, m);
+  }
+  return m;
+}
+
+/**
+ * R3F: how far inside its wall a pane looks for its home's tile in the candle mask (tiles), so a
+ * window on a row's party line reads its own house, not the street or the neighbor's.
+ */
+export const CANDLE_PROBE = 0.35;
+
+/**
+ * R3F: how bright a candle-lit pane burns against one lit by the share (1). Every home keeps its
+ * share in the evening (about three panes in four), so a candle home lighting them all would barely
+ * show; a candle's pane burns a little brighter as well, and its spill reaches a little farther, so
+ * a well supplied street reads brighter home by home and no home ever goes dark. *(tune)*
+ */
+export const CANDLE_GLOW = 1.4;
+
+// R3F: a pane's candle (1 when its home has one tonight), from its world point and normal.
+const CANDLE_VERTEX_HEAD = /* glsl */ `
+uniform sampler2D uCandles;
+float qCandle(vec3 p, vec3 n) {
+  float l = length(n.xz);
+  vec2 q = p.xz - (l > 0.01 ? n.xz / l : vec2(0.0)) * ${CANDLE_PROBE.toFixed(2)};
+  return texture2D(uCandles, q / ${MAP_SIZE.toFixed(1)}).r;
+}
+`;
+
+/**
+ * R3F: how bright a lamp the lamplighter lit (glow 3) burns before full night: lit at the round
+ * (17:30 to 18:00), still golden hour, a flame that only showed at night's strength would not be
+ * seen, so it burns at least this share of its night glow from the first breath of dusk. *(tune)*
+ */
+export const LAMP_DUSK_FLOOR = 0.9;
+
+/**
  * The night glow as shader replacements: vertices with the optional `glow` attribute (window panes,
  * flames) shine warm at night, on a seeded share of windows that changes with the hour (C3D-1: the
  * share and the hash come from lighting.ts, so ground spill matches lit panes). A missing
  * attribute reads as 0. `glint` adds the kit material's glass and water glint after it.
  * V2A: with `lamp`, flames (`glow` 2) take the era's flame color and flicker a little on the static
  * clock (so they hold still at rest, like the sway; the light map's pools never flicker).
+ * R3F: with `candles`, a pane of a home with a candle tonight is lit whatever the share; with
+ * `lamp`, glow 3 (a lamp the lamplighter lit) burns from dusk at `LAMP_DUSK_FLOOR` at least.
  */
 function patchNightGlow(
   shader: WebGLProgramParametersWithUniforms,
@@ -56,6 +127,7 @@ function patchNightGlow(
   share: { value: number },
   glint: boolean,
   lamp?: { flame: { value: Color }; time: { value: number } },
+  candles?: CandleMask,
 ): void {
   shader.uniforms.uNight = night;
   shader.uniforms.uWindowShare = share;
@@ -63,10 +135,29 @@ function patchNightGlow(
     shader.uniforms.uFlame = lamp.flame;
     shader.uniforms.uFlickerTime = lamp.time;
   }
+  if (candles) shader.uniforms.uCandles = candles.uCandles;
+  // The pane's world normal, as its world point is found (instance, then batch, then model).
+  const lit = candles
+    ? [
+        'float qPane = 0.0;',
+        'if (glow > 0.0 && glow < 1.5) {',
+        '  vec3 qWN = objectNormal;',
+        '  #ifdef USE_INSTANCING',
+        '  qWN = mat3(instanceMatrix) * qWN;',
+        '  #endif',
+        '  #ifdef USE_BATCHING',
+        '  qWN = mat3(batchingMatrix) * qWN;',
+        '  #endif',
+        '  qWN = mat3(modelMatrix) * qWN;',
+        `  qPane = max(qWindowLit(qWorld.xyz, uWindowShare), qCandle(qWorld.xyz, qWN) * ${CANDLE_GLOW.toFixed(2)});`,
+        '}',
+        `vGlow = glow > 4.5 ? 0.0 : glow > 1.5 ? 1.0 : glow * qPane;`,
+      ].join('\n')
+    : `vGlow = glow > 4.5 ? 0.0 : glow > 1.5 ? 1.0 : glow * qWindowLit(qWorld.xyz, uWindowShare);`;
   shader.vertexShader = shader.vertexShader
     .replace(
       '#include <common>',
-      `#include <common>\nattribute float glow;\nvarying float vGlow;\nuniform float uNight;\nuniform float uWindowShare;\n${WINDOW_HASH_GLSL}${lamp ? FLICKER_VERTEX_HEAD : ''}`,
+      `#include <common>\nattribute float glow;\nvarying float vGlow;\nvarying float vCloth;\nuniform float uNight;\nuniform float uWindowShare;\n${WINDOW_HASH_GLSL}${candles ? CANDLE_VERTEX_HEAD : ''}${lamp ? FLICKER_VERTEX_HEAD : ''}`,
     )
     .replace(
       '#include <project_vertex>',
@@ -81,25 +172,32 @@ function patchNightGlow(
         'qWorld = batchingMatrix * qWorld;',
         '#endif',
         'qWorld = modelMatrix * qWorld;',
-        `vGlow = glow > 1.5 ? 1.0 : glow * qWindowLit(qWorld.xyz, uWindowShare);`,
-        lamp ? 'vFlame = glow > 1.5 ? qFlicker(qWorld.xz) : 0.0;' : '',
+        lit,
+        // R3X: glow 5 marks a level pennant: no light, only a faint lift of its own color at night.
+        'vCloth = glow > 4.5 ? 1.0 : 0.0;',
+        // R3F: a lamp the lamplighter lit (glow 3) flickers as a flame and is marked negative.
+        lamp
+          ? 'vFlame = glow > 1.5 && glow < 4.5 ? qFlicker(qWorld.xz) * (glow > 2.5 ? -1.0 : 1.0) : 0.0;'
+          : '',
       ].join('\n'),
     );
   shader.fragmentShader = shader.fragmentShader
     .replace(
       '#include <common>',
-      `#include <common>\nvarying float vGlow;\nuniform float uNight;${lamp ? '\nvarying float vFlame;\nuniform vec3 uFlame;' : ''}`,
+      `#include <common>\nvarying float vGlow;\nvarying float vCloth;\nuniform float uNight;${lamp ? '\nvarying float vFlame;\nuniform vec3 uFlame;' : ''}`,
     )
     .replace(
       '#include <emissivemap_fragment>',
       [
         '#include <emissivemap_fragment>',
+        `totalEmissiveRadiance += mix(diffuseColor.rgb, vec3(0.96, 0.93, 0.87), 0.4) * ${CLOTH_NIGHT.toFixed(2)} * vCloth * uNight;`,
         lamp
           ? // A flame burns its era's color at its flicker; a pane keeps the candle glow, lighting
             // the little room behind it (qRoomTint, packages/art materials.ts; 1 with rooms off).
             // V2X, the owner's first night on the laptop: panes a third softer than flames (1.7, was
             // 2.4 like them), so lit windows glow rather than flare under the night's bloom.
-            `totalEmissiveRadiance += (vFlame > 0.0 ? uFlame * vFlame * 2.4 : vec3(1.0, 0.7, 0.36) * qRoomTint * 1.7) * vGlow * uNight;`
+            // R3F: a lamp the lamplighter lit (vFlame < 0) burns from dusk, LAMP_DUSK_FLOOR at least.
+            `totalEmissiveRadiance += (vFlame != 0.0 ? uFlame * abs(vFlame) * 2.4 : vec3(1.0, 0.7, 0.36) * qRoomTint * 1.7) * vGlow * (vFlame < 0.0 ? max(uNight, ${LAMP_DUSK_FLOOR.toFixed(3)} * smoothstep(0.0, 0.025, uNight)) : uNight);`
           : `totalEmissiveRadiance += ${GLOW} * vGlow * uNight;`,
         // P3C: the moon's glint a twentieth of the sun's (its full strength on a well's water
         // bloomed into a cyan orb at night).
@@ -167,7 +265,14 @@ export function createWorldMaterial(env: WorldEnv): MeshLambertMaterial {
   material.onBeforeCompile = (shader) => {
     // V2A: walls, decor, carts and animals take the light map's lamplight (lightMap.ts).
     patchKitShader(shader, u, kitLamp(env), lampQuality(env).uRooms);
-    patchNightGlow(shader, env.night, env.windowShare, true, { flame, time: env.staticTime });
+    patchNightGlow(
+      shader,
+      env.night,
+      env.windowShare,
+      true,
+      { flame, time: env.staticTime },
+      candleMask(env),
+    );
     patchWallAo(shader, env);
   };
   material.customProgramCacheKey = () => 'qoti-lean-kit-world';

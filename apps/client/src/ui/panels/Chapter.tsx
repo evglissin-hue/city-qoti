@@ -66,6 +66,16 @@ export function ChapterPanel({ session }: { session: Session }) {
           The County has counted the chimneys and sealed the Charter. Here is what the two of you made in{' '}
           {story.valley}.
         </p>
+        <p class="chapter-print">
+          <button
+            type="button"
+            class="link"
+            data-testid="chapter-storybook"
+            onClick={() => (close(), (session.ui.panel.value = 'storybook'))}
+          >
+            <Glyph id="chronicle" /> Print the storybook
+          </button>
+        </p>
 
         <h4 class="chapter-head">The story so far</h4>
         <ul class="chapter-story" data-testid="chapter-story">

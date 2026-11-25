@@ -153,7 +153,7 @@ In software the two nights cannot be told apart: the map was cheaper on the fina
 | Metric | Budget |
 |---|---|
 | Moving frames [V2 to V4] | no new full-screen pass; the 12 ms GPU and 300 draw budgets above stand |
-| Night with the light map [V2] | a night moving frame costs no more GPU time than the 32-light loop it replaces, on the same scene; redrawing the map under 2 ms, one instanced draw, only when a light changes |
+| Night with the light map [V2] | a night moving frame costs no more GPU time than the 32-light loop it replaces, on the same scene; redrawing the map under 2 ms, one instanced draw, only when a light changes. *R3F*: the lamplighter's round holds it: lamps reached between two frames redraw the map once, each lamp one still frame and no shadow render (`r3f-walk.mjs`: 0.20 to 0.40 ms in software, 573 discs) |
 | Painted green [V2] | trees and meadows within 0.5 M triangles in the village scene; opaque geometry only |
 | Dressing [V3] | 0.3 M triangles and 12 draws, inside the decor detail distance |
 | Endpaper map [V3] | redrawn in a worker in under 150 ms, never on the main thread; no scene draw while it shows in full |
@@ -163,6 +163,7 @@ In software the two nights cannot be told apart: the map was cheaper on the fina
 | The place pass [R2] | 1 ms an hour at Village scale, 3 ms at City scale |
 | Planning the round [R2] | under 0.4 ms a tick for 2,000 residents between 17:00 and 17:30 |
 | Gaps, supplies, masters, the Town Book [R2, R3] | under 1 ms an hour together |
+| Follow the thread's counts [R3] | the busiest hour's writes (the 18:00 baskets and the hour's deliveries) under 1 ms, the midnight halving under 0.5 ms, and one Thread (an inspector's worker request) under 4 ms, at City scale on a table full to the bound (R3D's `r3d threads` bench line) |
 
 **V3's headroom** [V3.0 records the before, V3X fills the laptops]. Worst moving scene per preset on the grown village (`v3-perf.mjs`, 11:00, sim running; `docs/build/screenshots/v3-before-perf.md`), against V2X's table, with the laptops' columns for V3X:
 

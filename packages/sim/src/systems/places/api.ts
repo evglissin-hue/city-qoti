@@ -1,5 +1,6 @@
 // The places' cross-track API (docs/build/r2-wave-notes.md, Cross-track APIs). Signatures fixed by
 // R2.0; R2A owns the bodies. R2B and R2C call these, never the place pass itself.
+import { townBookSale } from '../townbook/api';
 import { content } from '@qoti/content';
 import { MAP_SIZE } from '../../constants';
 import type { EntityId, Place, PlaceId, Resident, WorldState } from '../../contracts';
@@ -118,13 +119,15 @@ export function recordVisit(state: WorldState, place: PlaceId, _resident: Reside
 export function recordSale(
   state: WorldState,
   place: PlaceId | null,
-  _outlet: EntityId,
-  _good: number,
+  outlet: EntityId,
+  good: number,
   qty: number,
   pennies: number,
 ): void {
   const tally = state.evenings.tonight;
   tally.takings += pennies;
+  // R3.0: the outlet's own evening customers (one a sale), for "a shop nobody passes" (Building.roundSales).
+  countRoundSale(state, outlet);
   if (place === null) {
     tally.treatsPassing += qty;
     return;
@@ -135,5 +138,17 @@ export function recordSale(
   const last = row.sold.length - 1;
   if (last < 0) return;
   row.sold[last]! += qty;
+  if (row.served[last] === 0) row.served[last] = 1;
   row.takings[last]! += pennies;
+  // R3.0: the Town Book counts customers by good at the place (R3C's body).
+  townBookSale(state, row, good);
+}
+
+/** One more round customer at the outlet's door tonight (Building.roundSales: by the evening's day). */
+function countRoundSale(state: WorldState, outlet: EntityId): void {
+  const b = findById(state.buildings, outlet);
+  if (!b) return;
+  const day = state.evenings.tonight.day;
+  if (b.roundSales && b.roundSales.day === day) b.roundSales.customers += 1;
+  else b.roundSales = { day, customers: 1 };
 }

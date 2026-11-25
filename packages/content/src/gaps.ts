@@ -29,11 +29,11 @@ export const nobodyPasses: GapDef = {
   openAfter: 3,
   closeAfter: 1,
   text: [
-    '{shop} had treats out three evenings running and {folk} came by. The evening walks elsewhere.',
-    '{shop} has a full shelf and an empty doorstep: {folk} in three evenings. Nobody walks this way.',
+    '{shop} has had treats out three evenings running, and {folk} stopped to buy tonight. The evening walks elsewhere.',
+    '{shop} has a full shelf and an empty doorstep: {folk} bought a treat tonight.',
   ],
   closes:
-    'A place within three tiles that draws eight or more of an evening: seats, some charm, somewhere to be.',
+    'Four customers of an evening at the shop itself. A place within three tiles, with seats and some charm, sends them its way.',
   closed: 'Folk walk past {shop} now: {closers} gave them somewhere to be.',
   closedQuiet: 'Folk walk past {shop} again.',
 };
@@ -59,9 +59,17 @@ export const shortOfSupplies: GapDef = {
   kind: 'shortOfSupplies',
   from: 'R3',
   lane: 'ledger',
-  threshold: 2,
+  // R3A: visitors on the evening (R2's "draws 8+"): only a place folk came to opens one.
+  threshold: 8,
   openAfter: 2,
   closeAfter: 2,
-  text: ['{place} wants {n} a night; the town makes fewer.'],
-  closes: 'Enough of what its pieces burn, two nights running.',
+  text: [
+    '{place} wants {n} {good} {when}; the town makes {makes}.',
+    '{place} could use {n} {good} {when}, and the town makes {makes}. The shelves are being polite about it.',
+    'Something at {place} needs {n} {good} {when}. The town makes {makes}, which is a start.',
+  ],
+  closes:
+    'Enough of what its pieces burn, two nights running: stock the storehouse, switch on the places, or let the place rest.',
+  closed: '{place} is supplied again: {closers} saw to it.',
+  closedQuiet: '{place} has its supplies again.',
 };

@@ -157,6 +157,8 @@ describe('I0 contracts', () => {
       | 'road.setEvening'
       | 'road.rename'
       | 'place.rename'
+      // R3 (R3.0)
+      | 'place.setPriority'
     >();
     expectTypeOf<SeatedCommand>().toEqualTypeOf<{ seat: SeatId; seq: number; cmd: Command }>();
     expectTypeOf<Turn>().toEqualTypeOf<{ t: number; cmds: SeatedCommand[] }>();
@@ -258,6 +260,9 @@ describe('I0 contracts', () => {
       | 'evening'
       | 'streets'
       | 'footfall'
+      // R3 (R3.0)
+      | 'supplies'
+      | 'townBook'
     >();
     expectTypeOf<ViewSnapshot['meta']>().toEqualTypeOf<WorldState['meta']>();
     expectTypeOf<keyof ClockView>().toEqualTypeOf<
@@ -355,6 +360,9 @@ describe('I0 contracts', () => {
       | 'gaps.updated'
       | 'streets.updated'
       | 'footfall.updated'
+      // R3 (R3.0)
+      | 'supplies.updated'
+      | 'townBook.updated'
     >();
     expectTypeOf<keyof LayerPatch>().toEqualTypeOf<'layer' | 'rect' | 'data'>();
   });
@@ -399,13 +407,15 @@ describe('I0 contracts', () => {
       | 'follow'
       | 'setBubbles'
       | 'highlight'
+      // R3G (additive): the endpaper map as a still for the printed storybook
+      | 'endpaperStill'
     >();
     expectTypeOf<Ghost['kind']>().toExtend<string>();
     expectTypeOf<ToWorker['k']>().toEqualTypeOf<
-      'init' | 'turns' | 'snapshot' | 'hash' | 'inspect' | 'debugCorrupt'
+      'init' | 'turns' | 'snapshot' | 'hash' | 'inspect' | 'thread' | 'debugCorrupt' | 'debugThreads'
     >();
     expectTypeOf<FromWorker['k']>().toEqualTypeOf<
-      'ready' | 'update' | 'agents' | 'hash' | 'snapshot' | 'error' | 'inspected'
+      'ready' | 'update' | 'agents' | 'hash' | 'snapshot' | 'error' | 'inspected' | 'threaded'
     >();
     expectTypeOf<RoomConnection>().toHaveProperty('submit');
     expectTypeOf<RoomConnection>().toHaveProperty('status');

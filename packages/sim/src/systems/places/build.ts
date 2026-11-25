@@ -37,8 +37,16 @@ const VIEW_PIECES = new Set(P.viewPieces);
 export interface PlaceExtra {
   /** A lantern or other light stands on its tiles (the lit part after `PLACES.litHour`). */
   lights: boolean;
-  /** Winter spares it: sheltered, warm, or the ice. */
+  /** Winter spares it: sheltered, warm, or the ice. R3.0: a fire's warmth is read each tick (`fires`). */
   winterExempt: boolean;
+  /** R3.0: the light pieces on its tiles, sorted by id (its lit part reads supplies' decorLit each tick). */
+  lamps: EntityId[];
+  /** R3.0: its fires (members that warm), sorted by id: warm while one burns (supplies' pieceRests). */
+  fires: EntityId[];
+  /** R3.0: sheltered, heated or the ice: winter spares it whatever its fires do. */
+  exempt: boolean;
+  /** R3.0: a heated host (the Bath House, the tavern): warm whatever its fires do. */
+  hostWarm: boolean;
   /** What stands there as found at rebuild (PlaceFeature bits: pieces, buildings, water). */
   base: number;
   /** `base` and the bits that move with the map (a mature tree, no road), set each tick by draw.ts. */
@@ -138,6 +146,8 @@ interface Draft {
   kinds: number;
   sheltered: boolean;
   warm: boolean;
+  /** R3.0: warm from a heated host (the Bath House, the tavern), not a fire. */
+  hostWarm: boolean;
   ice: boolean;
   walkTiles: number;
   household?: EntityId;
@@ -159,6 +169,7 @@ function draft(id: string, source: PlaceSource, def: string, tile: number): Draf
     kinds: 0,
     sheltered: false,
     warm: false,
+    hostWarm: false,
     ice: false,
     walkTiles: 0,
     porch: false,
@@ -205,7 +216,10 @@ function addHost(d: Draft, b: Building, host: HostDef, door: number): void {
   d.standing += host.standing;
   for (const k of host.kinds) d.kinds |= kindBit(k);
   if (host.sheltered) d.sheltered = true;
-  if (host.warm) d.warm = true;
+  if (host.warm) {
+    d.warm = true;
+    d.hostWarm = true;
+  }
   addAround(d.tiles, door);
 }
 
@@ -334,12 +348,47 @@ export function buildPlaces(state: WorldState, sig?: readonly number[]): BuiltPl
   }
 
   // Fires: a fire within reach of a spot warms that spot; one on its own is a place of its own.
+  // The first spot (in list order) within spotRadius of a tile, found from the lowest list index
+  // at each spot tile over the diamond around it.
+  let spotsGridded = false;
+  const firstSpot = (t: number): Draft | undefined => {
+    if (!spotsGridded) {
+      spotsGridded = true;
+      spotEpochId++;
+      if (spotEpochId === 0x7fffffff) {
+        spotEpoch.fill(0);
+        spotEpochId = 1;
+      }
+      for (let i = spots.length - 1; i >= 0; i--) {
+        const at = spots[i]!.tile;
+        spotEpoch[at] = spotEpochId;
+        spotAt[at] = i;
+      }
+    }
+    const fx = t % S;
+    const fz = (t - fx) / S;
+    let best = -1;
+    for (let dz = -R; dz <= R; dz++) {
+      const z = fz + dz;
+      if (z < 0 || z >= S) continue;
+      const w = R - Math.abs(dz);
+      for (let dx = -w; dx <= w; dx++) {
+        const x = fx + dx;
+        if (x < 0 || x >= S) continue;
+        const at = z * S + x;
+        if (spotEpoch[at] !== spotEpochId) continue;
+        const i = spotAt[at]!;
+        if (best < 0 || i < best) best = i;
+      }
+    }
+    return best < 0 ? undefined : spots[best];
+  };
   for (const piece of state.decor) {
     if (claimed.has(piece.id) || !DECOR_INFO.get(piece.def)?.warm) continue;
     const def = content.decorById.get(piece.def)!;
     claimed.add(piece.id);
     const t = tileOfDecor(piece);
-    const spot = spots.find((s) => manhattan(s.tile, t) <= P.spotRadius);
+    const spot = spots.length > 0 ? firstSpot(t) : undefined;
     if (spot) {
       addPiece(spot, piece, def);
       addAround(spot.tiles, t);
@@ -440,7 +489,9 @@ export function buildPlaces(state: WorldState, sig?: readonly number[]): BuiltPl
 
   // What changed since this state's last build: a place whose draft is the same and none of whose
   // inputs changed is the place that build finished (the loop below reads nothing else), so it is kept.
-  const changes = last ? changesSince(state, last, outlets, wet) : null;
+  const decorNow = decorSnapshot(state);
+  const buildingsNow = buildingSnapshot(state);
+  const changes = last ? changesSince(last, outlets, wet, decorNow, buildingsNow) : null;
   const finished = new Map<string, Finished>();
 
   const places: Place[] = [];
@@ -492,6 +543,7 @@ export function buildPlaces(state: WorldState, sig?: readonly number[]): BuiltPl
     // Kinds: pieces and water decide most of them. One query for the decor over the place's box.
     let pieceKinds = 0;
     let lights = false;
+    const lamps: EntityId[] = [];
     // The tree and quiet bits move with the map (trees grow, roads come and go): draw.ts sets them
     // each tick from the place's tiles, so they are never a step behind a fresh rebuild.
     let features = 0;
@@ -505,7 +557,10 @@ export function buildPlaces(state: WorldState, sig?: readonly number[]): BuiltPl
         seenDefs.push(piece.def);
         pieceKinds += 1;
       }
-      if (info.light) lights = true;
+      if (info.light) {
+        lights = true;
+        lamps.push(piece.id);
+      }
       features |= info.features;
       if (info.play) d.kinds |= kindBit('play');
       if (info.view) d.kinds |= kindBit('view');
@@ -555,9 +610,19 @@ export function buildPlaces(state: WorldState, sig?: readonly number[]): BuiltPl
       },
     };
     if (d.household !== undefined) place.household = d.household;
+    const fires: EntityId[] = [];
+    for (const id of place.members) {
+      const m = findById(state.decor, id);
+      if (m && DECOR_INFO.get(m.def)?.warm) fires.push(id);
+    }
+    lamps.sort((a, b) => a - b);
     const extra: PlaceExtra = {
       lights,
       winterExempt: d.sheltered || d.warm || d.ice,
+      lamps,
+      fires,
+      exempt: d.sheltered || d.hostWarm || d.ice,
+      hostWarm: d.hostWarm,
       base: features,
       features,
     };
@@ -572,8 +637,8 @@ export function buildPlaces(state: WorldState, sig?: readonly number[]): BuiltPl
     outletList: outlets,
     cafes,
     finished,
-    decor: decorSnapshot(state),
-    buildings: buildingSnapshot(state),
+    decor: decorNow,
+    buildings: buildingsNow,
     outlets: outlets.flat(),
     wet,
   });
@@ -688,10 +753,11 @@ const dirty = new Int32Array(S * S);
 let dirtyId = 0;
 
 function changesSince(
-  state: WorldState,
   last: LastBuild,
   outlets: readonly [EntityId, number][],
   wet: Uint8Array,
+  decorNow: Snapshot,
+  buildingsNow: Snapshot,
 ): Changes | null {
   // A new water mask (water or roads changed) touches places anywhere: finish them all.
   if (wet !== last.wet) return null;
@@ -701,11 +767,11 @@ function changesSince(
     dirtyId = 1;
   }
   const T = S * S;
-  diff(last.decor, decorSnapshot(state), (_id, value) => {
+  diff(last.decor, decorNow, (_id, value) => {
     dirty[value % T] = dirtyId;
   });
   const buildings = new Set<EntityId>();
-  diff(last.buildings, buildingSnapshot(state), (id) => {
+  diff(last.buildings, buildingsNow, (id) => {
     buildings.add(id);
   });
   // Outlets: the pairs in one list and not the other (both are in building order, by id).
@@ -750,6 +816,7 @@ function unchanged(prev: Finished, d: Draft, c: Changes): boolean {
     prev.kinds0 !== d.kinds ||
     a.sheltered !== d.sheltered ||
     a.warm !== d.warm ||
+    a.hostWarm !== d.hostWarm ||
     a.ice !== d.ice ||
     a.walkTiles !== d.walkTiles ||
     a.household !== d.household ||
@@ -776,6 +843,11 @@ const extraOf = new WeakMap<Place, PlaceExtra>();
 export function placeExtra(place: Place): PlaceExtra | undefined {
   return extraOf.get(place);
 }
+
+/** Each sitting spot's lowest list index by tile for the fires pass (valid where spotEpoch is current). */
+const spotEpoch = new Int32Array(S * S);
+const spotAt = new Int32Array(S * S);
+let spotEpochId = 0;
 
 /** Seat pieces by tile for the spots pass: seatHead[tile] is valid when seatEpoch[tile] is current. */
 const seatEpoch = new Int32Array(S * S);

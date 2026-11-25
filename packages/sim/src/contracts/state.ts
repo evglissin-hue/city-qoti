@@ -31,6 +31,7 @@ import type {
   WeatherState,
 } from './seasons';
 import type { EveningsState, GapsState, PlaceState, Street } from './evenings';
+import type { MastersState, SuppliesState, ThreadsState, TownBookState } from './masters';
 import type { ValleySettings } from './settings';
 import type {
   Cart,
@@ -146,6 +147,17 @@ export interface Building {
    * is within `cafeRadius` of `cafeSeats` seats); `cafeTables` reads it for the place pass.
    */
   cafe?: true;
+  /**
+   * R3 (R3.0): residents who bought a Treat at its door on the round on evening `day` (stops and
+   * passing trade, counted once a sale by recordSale): the per-outlet evening customers R2C's "a shop
+   * nobody passes" lacked. Reads 0 for any other day. Absent until its first round sale.
+   */
+  roundSales?: { day: number; customers: number };
+  /**
+   * R3 (R3.0): the master on its crew (a business or specialized building), kept in step by R3B's
+   * masters system: the sign over the door (BuildingView.master). Absent while none works there.
+   */
+  masterId?: EntityId;
 }
 
 export interface Decor {
@@ -263,4 +275,19 @@ export interface WorldState {
   streets: Street[];
   /** The evening under way and the last few, for the edition, the Charter and the feats (R2A, R2B, R2C). */
   evenings: EveningsState;
+  // R3 slices (R3.0). docs/spec/20-architecture.md, "R3 contracts"; docs/spec/19-evenings.md, Data and
+  // budgets. Sandbox valleys keep them empty.
+  /** Lit bits and reach ticks, supplied pieces' records, what places drew, the lamplighters (R3A). */
+  supplies: SuppliesState;
+  /** The season each trade last made a master, and masters ever made (R3B). */
+  masters: MastersState;
+  /** Pages found, hints and the callings earned (R3C). */
+  townBook: TownBookState;
+  /** The door-pair counts behind Follow the thread (R3D). */
+  threads: ThreadsState;
+  /**
+   * R3: the first calling earned (`townBook.callings[0]`), for readers that ask for one calling as
+   * P1's did; absent until one is earned. R3C keeps it in step.
+   */
+  calling?: string;
 }

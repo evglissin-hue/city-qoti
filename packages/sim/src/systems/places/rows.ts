@@ -4,10 +4,11 @@
 // `places.updated` when something changed.
 import { content } from '@qoti/content';
 import type { Place, PlaceState, TickCtx, WorldState } from '../../contracts';
-import { newPlaceState } from '../../state/evenings';
+import { newPlaceState, placeState } from '../../state/evenings';
 import { placesView } from '../../view/places';
 import { hourOf } from '../economy/time';
 import { dayIndex } from '../residents/time';
+import { placeServes } from './api';
 import { placeIndex } from './index';
 import { placeNameFor } from './names';
 
@@ -97,10 +98,33 @@ export function refreshRows(state: WorldState, ctx: TickCtx): void {
   while (i < rows.length) pass(rows[i++]!);
   if (changed) rows.splice(0, rows.length, ...merged);
 
+  countServed(state, found);
+
   const print = fingerprint(state);
   const homeNow = hourOf(state.tick) === content.places.homeHour;
   if (changed || homeNow || announced.get(state) !== print) {
     announced.set(state, print);
     ctx.events.push({ e: 'places.updated', p: placesView(state) });
+  }
+}
+
+/**
+ * R3X: `PlaceState.served` was never written (the gaps' "had nothing to sell" could not end, the Shops
+ * bar read every place as unserved). From 18:00 to the evening's close each hourly pass counts the
+ * outlets of each place with Treats on the shelf and keeps the evening's most, so a shelf the round
+ * emptied by 21:00 still counts as having served. recordSale also counts a sale at a stop (api.ts).
+ */
+function countServed(state: WorldState, found: readonly Place[]): void {
+  const hour = hourOf(state.tick);
+  if (hour < 18 || hour > content.places.homeHour) return;
+  for (const place of found) {
+    const row = placeState(state, place.id);
+    if (!row || row.served.length === 0) continue;
+    const last = row.served.length - 1;
+    // Only a place someone came to tonight: the gap and the Shops bar read busy places, and a City's
+    // hundreds of quiet ones would cost the hourly pass its budget (r2a places city).
+    if ((row.visitors[row.visitors.length - 1] ?? 0) === 0) continue;
+    const n = placeServes(state, place).length;
+    if (n > row.served[last]!) row.served[last] = n;
   }
 }

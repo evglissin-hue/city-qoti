@@ -3,7 +3,8 @@ import { BoxGeometry, MeshBasicMaterial, PerspectiveCamera, Scene, type Instance
 import { describe, expect, it } from 'vitest';
 import { createWorldEnv } from './env';
 import { addInstance, emptyScatterChunk, ScatterField } from './scatter';
-import { StepCache, THIN_STEPS, thinStep } from './thin';
+import { seasonBlendAt } from './seasons';
+import { cherryLook, StepCache, THIN_STEPS, thinStep } from './thin';
 
 const spring = 0;
 const summer = 1;
@@ -116,5 +117,25 @@ describe('ScatterField.setChunk (V2B)', () => {
     // The camera has not moved: the new trees still show on the next update.
     expect(field.update(camera)).toBe(true);
     expect(field.drawn.get('k')!.high).toBe(2);
+  });
+});
+
+describe('cherryLook (R3X)', () => {
+  it('blossoms on spring days 1 to 4, as the woods do', () => {
+    for (const d of [1, 2, 3, 4]) expect(cherryLook(0, d)).toBe('blossom');
+    // seasonBlendAt's blossom is gone on day 5 by evening.
+    expect(seasonBlendAt(0, 5, 22).blossom).toBeLessThan(0.01);
+    expect(seasonBlendAt(0, 4, 12).blossom).toBeGreaterThan(0.5);
+  });
+
+  it('is in leaf from spring day 5 through summer and autumn day 1', () => {
+    for (const d of [5, 6]) expect(cherryLook(0, d)).toBe('leaf');
+    for (let d = 1; d <= 6; d++) expect(cherryLook(1, d)).toBe('leaf');
+    expect(cherryLook(2, 1)).toBe('leaf');
+  });
+
+  it('turns from autumn day 2 to its end, and is in leaf in winter', () => {
+    for (let d = 2; d <= 6; d++) expect(cherryLook(2, d)).toBe('autumn');
+    for (let d = 1; d <= 6; d++) expect(cherryLook(3, d)).toBe('leaf');
   });
 });

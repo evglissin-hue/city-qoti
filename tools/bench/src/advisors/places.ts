@@ -24,6 +24,7 @@ import {
 } from '@qoti/sim';
 import { REPAY_RESERVE, type Planner } from '../planner';
 import { count, G, idx, S, sites } from '../town';
+import { firewoodAllows, specialtyNear } from './lamps';
 import { serveService, wellFor } from './siting';
 import type { Advisor, AdvisorDef } from './types';
 
@@ -337,7 +338,10 @@ class Places implements Advisor {
    */
   private patternSite(): void {
     const w = this.w;
-    const outlets = w.buildings.filter((b) => this.isOutlet(b)).sort((a, b) => a.id - b.id);
+    // R3E: outlets beside a trade that could make a Town Book page (a specialty's Treat) come first.
+    const found = w.buildings.filter((b) => this.isOutlet(b));
+    const near = new Map(found.map((b) => [b.id, specialtyNear(w, doorTile(b))] as const));
+    const outlets = found.sort((a, b) => near.get(b.id)! - near.get(a.id)! || a.id - b.id);
     if (outlets.length === 0) return;
     if (this.livePlaces().some((pl) => pl.serves.length > 0)) return;
     const seatPiece = (d: { def: string }): boolean => {
@@ -415,6 +419,8 @@ class Places implements Advisor {
     const w = this.w;
     if (calendar(w.tick).season !== AUTUMN) return;
     if (!w.hearth.unlocked.includes('brazier') || !content.decorById.has('brazier')) return;
+    // R3E: a fire burns firewood from Village rank: only where Fuel stands above the winter mark.
+    if (!firewoodAllows(w)) return;
     const cap = Math.ceil(grownups(w) / BRAZIER_GROWNUPS);
     const braziers = w.decor.filter((d) => d.def === 'brazier');
     if (braziers.length >= cap) return;

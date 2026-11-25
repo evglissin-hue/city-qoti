@@ -102,6 +102,10 @@ export const lantern: DecorDef = {
   tags: ['lantern', 'light'],
   art: { kit: 'lantern' },
   charm: [{ category: 'light', value: 2, radius: 3, nightValue: 6 }],
+  // R3X: a stout lantern candle lasts eight nights, as a household's lasts five, so one candle lights eight
+  // lanterns a night (was four: a Village's hundred lanterns wanted 25 a night, more than its hives' honey
+  // could make, and the town went dark the day it was made one).
+  supply: { kind: 'nightly', good: 'candles', qty: 1, per: 8, rests: 'unlit' },
 };
 
 export const lowWall: DecorDef = {
@@ -149,6 +153,7 @@ export const birdbath: DecorDef = {
   art: { kit: 'birdbath' },
   charm: [{ category: 'comfort', value: 6, radius: 3 }],
   locked: true,
+  supply: { kind: 'well', radius: 8, rests: 'dry' },
 };
 
 export const curvedBench: DecorDef = {
@@ -174,6 +179,8 @@ export const hangingLantern: DecorDef = {
   art: { kit: 'hanging-lantern' },
   charm: [{ category: 'light', value: 3, radius: 3, nightValue: 7 }],
   locked: true,
+  // R3X: as the lantern's (one candle lights eight a night).
+  supply: { kind: 'nightly', good: 'candles', qty: 1, per: 8, rests: 'unlit' },
 };
 
 export const herbPlanter: DecorDef = {

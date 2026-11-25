@@ -136,6 +136,16 @@ function withoutR2Fields(events: Ev[]): Ev[] {
       void storeys;
       return { ...e, b };
     }
+    // R3A: every Balances line says what places drew and whether the carrier buys for them.
+    const bal = (e as Ev & { b?: { lines?: Record<string, unknown>[] } }).b;
+    if (e.e === 'balances.updated' && bal?.lines) {
+      const lines = bal.lines.map((line) => {
+        const { drawnByPlaces, forPlaces, ...rest } = line;
+        void [drawnByPlaces, forPlaces];
+        return rest;
+      });
+      return { ...e, b: { ...bal, lines } };
+    }
     return ev;
   });
 }
@@ -145,7 +155,9 @@ const EXPECT = {
     n: 20,
     kinds:
       '[["balances.updated",4],["budget.updated",4],["notify",4],["town.updated",4],["trade.updated",4]]',
-    sha: '084126526773b5a0',
+    // R3X: the neighbors buy the nine masters' goods now (content neighbors.ts), so the trade view's
+    // prices carry them; the same 20 events of the same kinds (was 084126526773b5a0).
+    sha: 'aa2f6e768edd6a84',
   },
   growth: {
     n: 44,

@@ -67,6 +67,8 @@ export interface DayLine {
   vacantHomes: number;
   coins: number;
   food: number;
+  /** R3X: Food in the households' pantries (the carrier's essentials count it as food in hand). */
+  pantryFood: number;
   foodMade: number;
   foodEaten: number;
   timber: number;
@@ -141,6 +143,7 @@ function dayLine(w: WorldState, day: number): DayLine {
     vacantHomes: vacantHomes(w),
     coins: Math.round(w.economy.treasury / PENNIES_PER_COIN),
     food: FOODS.reduce((n, g) => n + stock[g]!, 0),
+    pantryFood: w.households.reduce((n, h) => n + FOODS.reduce((m, g) => m + (h.pantry[g] ?? 0), 0), 0),
     foodMade: FOODS.reduce((n, g) => n + (w.economy.yesterday.produced[g] ?? 0), 0),
     foodEaten: FOODS.reduce((n, g) => n + (w.economy.yesterday.consumed[g] ?? 0), 0),
     timber: stock[G('timber')]!,

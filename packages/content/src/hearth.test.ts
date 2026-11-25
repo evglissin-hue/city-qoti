@@ -55,6 +55,9 @@ describe('the Chronicle', () => {
     'threat-dial': ['who', 'dial'],
     'household-arrived': ['family', 'place'],
     'household-left': ['family', 'place'],
+    'master-lost': ['name', 'title', 'why'],
+    'master-made': ['name', 'title', 'place'],
+    'master-story': ['name', 'title', 'place'],
     'pattern-discovered': ['pattern', 'place', 'credit', 'flavor'],
     'season-summary': ['season', 'year', 'people', 'coins', 'pages', 'wishes', 'books'],
     'wishes-digest': ['wishes', 'examples'],
@@ -88,6 +91,11 @@ describe('the Chronicle', () => {
     'guide-done': ['surveyor'],
     // P1 (callings)
     calling: ['calling', 'credit'],
+    // R3H
+    'specialized-grew': ['building', 'level', 'more'],
+    'specialized-shrank': ['building', 'level', 'why'],
+    // R3 (R3C)
+    'town-book-page': ['page', 'place', 'text', 'credit'],
     // P3A
     'business-grew': ['business', 'level', 'hands'],
   };

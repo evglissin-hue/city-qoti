@@ -6,6 +6,7 @@ import { isStandard } from '../state/hamlet';
 import { startCharter } from '../state/village';
 import { applyRankDefaults } from '../state/zones';
 import { celebrateRank, refreshCharter } from '../systems/charter';
+import { sendCharterCrate } from '../systems/supplies/crate';
 import { townView } from '../view';
 import { charterView } from '../view/village';
 import { balancesView } from '../view/balances';
@@ -33,6 +34,8 @@ export const claim: HandlerFor<'charter.claim'> = {
     // R1: the carrier takes up the new rank's default rules (Wares and Treats turn to Always at
     // Village rank) for every family the Ledger has not set by hand.
     applyRankDefaults(state);
+    // R3X: the lanterns begin to burn candles with the rank, and the County sends the first week of them.
+    sendCharterCrate(state, ctx, def.rank);
     ctx.events.push({ e: 'balances.updated', b: balancesView(state) });
     ctx.events.push({ e: 'charter.updated', c: charterView(state) });
     ctx.events.push({ e: 'town.updated', t: townView(state) });

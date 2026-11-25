@@ -27,6 +27,7 @@ import {
   type Material,
   type Object3D,
 } from 'three';
+import { endpaperStill } from './endpaper';
 import { CameraController, FOV, setFreeCamera } from '../input/camera';
 import type { Mirror } from '../state/mirror';
 import type { CaptureOptions, EntityPick, Ghost, RenderApi, TilePick } from './api';
@@ -1106,6 +1107,10 @@ export class Renderer implements RenderApi {
 
   focus(x: number, z: number, distance?: number): void {
     this.rig.focus(x + 0.5, z + 0.5, distance);
+  }
+
+  endpaperStill(size?: number): Promise<Blob | null> {
+    return endpaperStill(this.mirror, { size });
   }
 
   setQuality(q: Quality): void {

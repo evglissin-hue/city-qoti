@@ -7,7 +7,7 @@ import { useEffect, useRef } from 'preact/hooks';
 import type { Session } from '../app/session';
 import type { RenderApi } from '../render/api';
 import { levelY } from '../render/coords';
-import { gapLabel, gapSpot } from './gaps';
+import { gapLabel, gapSpot, slipStack } from './gaps';
 
 type Project = (x: number, y: number, z: number) => { x: number; y: number; onScreen: boolean } | null;
 
@@ -42,6 +42,7 @@ export function GapTags({ session }: { session: Session }) {
     return () => cancelAnimationFrame(frame);
   }, [session, m, live]);
   if (!live) return null;
+  const stack = slipStack(open);
   return (
     <div class="gap-layer" aria-hidden="false" data-testid="gap-tags">
       {open.map((g) => (
@@ -59,7 +60,7 @@ export function GapTags({ session }: { session: Session }) {
             class={`gap-tag lane-${g.lane}`}
             data-testid={`gap-tag-${g.id}`}
             title={`${g.text}\n${g.closes}`}
-            style={{ '--tilt': `${((g.id * 7) % 5) - 2}deg` }}
+            style={{ '--tilt': `${((g.id * 7) % 5) - 2}deg`, '--stack': stack.get(g.id) ?? 0 }}
             onClick={() => {
               const { x, z } = gapSpot(g);
               session.render?.focus(x, z);

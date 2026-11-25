@@ -157,6 +157,15 @@ describe('the Balances book', () => {
     expect(makersText(session, 'candles')).toBe('');
   });
 
+  it('labels the family rows: a key, days with their unit, a priced cell', async () => {
+    const { session } = withBalances();
+    view = await mount(h(BalancesPanel, { session }));
+    expect(view.get('family-key').textContent).toContain('Days in hand');
+    const row = view.get('balance-row-food');
+    expect(row.querySelector('.days')!.textContent).toMatch(/\d\+? days?/);
+    expect(row.querySelector('.price-cell')!.getAttribute('title')).toContain('one unit');
+  });
+
   it('reads cover and the reserve plainly', () => {
     const line = (cover: number, use: number, reserve: number, family: 'food' | 'materials' = 'food') =>
       ({ cover, use, stock: 5, reserve, mark: null, family }) as never;
@@ -178,5 +187,60 @@ describe('the Balances book', () => {
     expect(log).toContain('Sold 20 vegetables');
     expect(log).toContain('Bought 8 wool');
     expect(view.find('dock')).not.toBeNull();
+  });
+});
+
+describe('the Balances book, places (R3D)', () => {
+  function withLines(patch: (f: string) => object) {
+    const out = mockVillageSession();
+    const b = out.session.mirror.balances.value!;
+    out.session.mirror.balances.value = {
+      ...b,
+      lines: b.lines.map((l) => ({ ...l, ...patch(l.family) })),
+    };
+    return out;
+  }
+
+  it('says what places drew, only when they drew something', async () => {
+    const { session } = withLines((f) =>
+      f === 'fuel' ? { drawnByPlaces: { lastNight: 6, before: 4 } } : {},
+    );
+    session.ui.balancesFamily.value = 'fuel';
+    view = await mount(h(BalancesPanel, { session }));
+    expect(view.get('places-drew-fuel').textContent).toBe('Places drew 6 last night, 4 the night before.');
+    view.unmount();
+    const none = withLines(() => ({ drawnByPlaces: { lastNight: 0, before: 0 } }));
+    none.session.ui.balancesFamily.value = 'fuel';
+    view = await mount(h(BalancesPanel, { session: none.session }));
+    expect(view.find('places-drew-fuel')).toBeNull();
+  });
+
+  it('offers the places switch only for the families places draw from, and sends it with the terms', async () => {
+    const { session, submitted } = withLines((f) => (f === 'fuel' ? { forPlaces: true } : {}));
+    session.ui.balancesFamily.value = 'fuel';
+    view = await mount(h(BalancesPanel, { session }));
+    const fuel = session.mirror.balances.value!.lines.find((l) => l.family === 'fuel')!;
+    expect(view.get('carrier-places-fuel').getAttribute('aria-checked')).toBe('true');
+    await view.click('carrier-places-fuel');
+    expect(last(submitted, 'carrier.setRule')).toEqual({
+      t: 'carrier.setRule',
+      family: 'fuel',
+      rule: fuel.rule,
+      sell: fuel.sell,
+      places: false,
+    });
+    view.unmount();
+    for (const [family, shown] of [
+      ['wares', true],
+      ['food', false],
+      ['materials', false],
+      ['treats', false],
+    ] as const) {
+      session.ui.balancesFamily.value = family;
+      view = await mount(h(BalancesPanel, { session }));
+      expect(view.find(`carrier-places-${family}`) !== null, family).toBe(shown);
+      view.unmount();
+    }
+    view = null;
   });
 });

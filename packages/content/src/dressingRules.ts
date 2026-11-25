@@ -108,6 +108,11 @@ export interface DressingWho {
   /** The household's tier, for a home. */
   tier?: readonly DressingTier[];
   season?: readonly DressingSeason[];
+  /**
+   * R3X: only a building a master works at (`BuildingView.master`). A rule without it ignores the
+   * field, so every older rule matches as before.
+   */
+  master?: boolean;
 }
 
 /**
@@ -239,4 +244,8 @@ export const dressingRules: readonly DressingRule[] = [
   { id: 'storehouse-crates', who: { def: ['storehouse'] }, anchor: 'yard', piece: { kit: 'crates' }, count: { base: 0, stat: 'fill', perUnit: 0.05, max: 5 }, seed: 402, low: true },
   { id: 'storehouse-barrels', who: { def: ['storehouse'] }, anchor: 'eaves', piece: { kit: 'barrels' }, count: { base: 0, stat: 'fill', perUnit: 0.03, max: 3 }, seed: 403, low: true },
   { id: 'storehouse-sacks', who: { def: ['storehouse'] }, anchor: 'yard', piece: { kit: 'goods-sacks' }, count: { base: 0, stat: 'fill', perUnit: 0.04, max: 4 }, seed: 404, low: true },
+
+  // By master (R3X): the board a master's trade hangs at the door while they work there. `$trade`
+  // reads the building's own trade (or def) for the emblem; the layer fits it to the facade.
+  { id: 'master-sign', who: { kind: ['business', 'specialized'], master: true }, anchor: 'door', piece: { kit: 'master-sign', params: { emblem: '$trade' } }, count: { base: 1, max: 1 }, seed: 501, low: true },
 ];

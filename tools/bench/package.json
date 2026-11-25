@@ -11,11 +11,13 @@
     "hands": "tsx src/hands.ts",
     "lanes": "tsx src/lanes.ts",
     "newcomer": "tsx src/newcomerRun.ts",
-    "outcomes": "tsx src/outcomes.ts",
+    "outcomes": "tsx src/r3Outcomes.ts",
+    "r3report": "tsx src/r3Report.ts",
     "targets": "tsx src/targets.ts",
     "tune": "tsx src/tune.ts",
     "tune:summary": "tsx src/tuneSummary.ts",
-    "typecheck": "tsc -p . --noEmit"
+    "typecheck": "tsc -p . --noEmit",
+    "variety": "tsx src/variety.ts"
   },
   "dependencies": {
     "@qoti/content": "*",

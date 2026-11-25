@@ -2450,7 +2450,8 @@ button.gap-tag {
   --slip-edge: var(--ochre-deep);
   position: absolute;
   left: 0;
-  bottom: 10px;
+  /* R3X: slips on one tile pile up, each above the one below (--stack, from slipStack). */
+  bottom: calc(10px + var(--stack, 0) * 1.7rem);
   transform: translateX(-50%) rotate(var(--tilt, 0deg));
   transform-origin: 50% 100%;
   max-width: 16rem;
@@ -2506,4 +2507,10 @@ button.gap-tag:hover {
 
 .game-ui.lamplight button.gap-tag.lane-hearth {
   --slip: #eccfc2;
+}
+
+/* R3X: a gap slip never shows through the open book's page-turn row. */
+.game-ui:has(> .book-slot) .gap-layer {
+  opacity: 0;
+  visibility: hidden;
 }

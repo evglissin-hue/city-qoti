@@ -4,12 +4,14 @@
 //
 // Reach is walking distance along road tiles from the building's door front, with a short hop
 // (Manhattan HOP tiles) from a road tile to a door or lot that does not stand on one.
+import { masterRoom } from '../masters/api';
+import { callingRoom } from '../callings/api';
 import { content } from '@qoti/content';
 import { MAP_SIZE } from '../../constants';
 import type { Building, EntityId, WorldState } from '../../contracts';
 import { entranceTiles, footprintTiles } from '../../rules/footprint';
 import { findById } from '../../state/entities';
-import { hasTag } from '../../state/zones';
+import { atLevel, hasTag } from '../../state/zones';
 import { doorTile } from '../movement/api';
 
 const S = MAP_SIZE;
@@ -38,15 +40,27 @@ interface ReachGrid {
   dist: Int16Array;
   roads: Uint8Array;
   map: Map<number, number> | null;
+  /** R3H: the reach it was walked for (a level climbed or slid walks it again). */
+  reach: number;
 }
 
 const cache = new WeakMap<WorldState, Map<EntityId, ReachGrid>>();
 
-function reachOf(b: Building): number {
+/** Its reach in tiles at its level (R3H: `levels.reach`, the Market Stall's 14, 18, 22). */
+export function specializedReach(b: Pick<Building, 'def' | 'level'>): number {
   const def = content.buildingById.get(b.def);
   if (!def) return 0;
-  if (def.reach) return def.reach;
-  return def.specialized && (def.enables?.length || def.stores?.length) ? DEFAULT_REACH : 0;
+  if (def.reach) return atLevel(b, 'reach', def.reach);
+  return def.specialized && (def.enables?.length || def.stores?.length)
+    ? atLevel(b, 'reach', DEFAULT_REACH)
+    : 0;
+}
+
+/** R3H: the farthest a building of this def reaches at any level (bounds for searches around it). */
+export function maxReach(def: { reach?: number; levels?: { reach?: number[] } } | undefined): number {
+  let r = def?.reach ?? DEFAULT_REACH;
+  for (const v of def?.levels?.reach ?? []) r = Math.max(r, v);
+  return r;
 }
 
 /** True when the box's road tiles are as the grid saw them. */
@@ -136,7 +150,15 @@ function reachGrid(state: WorldState, b: Building): ReachGrid {
     cache.set(state, perState);
   }
   const hit = perState.get(b.id);
-  if (hit && hit.def === b.def && hit.x === b.x && hit.z === b.z && hit.rot === b.rot) {
+  const reach = specializedReach(b);
+  if (
+    hit &&
+    hit.def === b.def &&
+    hit.x === b.x &&
+    hit.z === b.z &&
+    hit.rot === b.rot &&
+    hit.reach === reach
+  ) {
     if (hit.version === state.networkVersion) return hit;
     // No road anywhere changed since it was walked, or none in its own box did.
     if (roadEpoch(state) <= hit.version || sameRoads(state, hit)) {
@@ -146,7 +168,6 @@ function reachGrid(state: WorldState, b: Building): ReachGrid {
   }
   // Look at the roads now, so the epoch check above can trust this grid later (see roadEpoch).
   roadEpoch(state);
-  const reach = reachOf(b);
   const door = doorTile(b);
   const dx0 = door % S;
   const dz0 = Math.floor(door / S);
@@ -210,6 +231,7 @@ function reachGrid(state: WorldState, b: Building): ReachGrid {
     dist,
     roads,
     map: null,
+    reach,
   };
   perState.set(b.id, g);
   return g;
@@ -289,7 +311,7 @@ export function reachRoadTiles(
  * windmill about every baker near it).
  */
 export function reachTest(state: WorldState, specialized: Building): (tile: number) => boolean {
-  const reach = reachOf(specialized);
+  const reach = specializedReach(specialized);
   if (reach <= 0) return () => false;
   const g = reachGrid(state, specialized);
   const gx = g.door % S;
@@ -314,7 +336,7 @@ export function reachTest(state: WorldState, specialized: Building): (tile: numb
 
 /** True when a tile (index) lies within the specialized building's walking reach of its door. */
 export function withinReach(state: WorldState, specialized: Building, tile: number): boolean {
-  const reach = reachOf(specialized);
+  const reach = specializedReach(specialized);
   if (reach <= 0 || tile < 0 || tile >= S * S) return false;
   const g = reachGrid(state, specialized);
   // Walking along roads is never shorter than the Manhattan gap from the door, give or take a hop.
@@ -333,16 +355,49 @@ export function withinReach(state: WorldState, specialized: Building, tile: numb
   return false;
 }
 
+/** The buildings that answer to any of the tags (a pool `servedIdsFrom` can walk, in town order). */
+export function taggedBuildings(state: WorldState, tags: readonly string[]): Building[] {
+  const out: Building[] = [];
+  for (const b of state.buildings) {
+    let tagged = false;
+    for (let i = 0; i < tags.length && !tagged; i++) tagged = hasTag(b, tags[i]!);
+    if (tagged) out.push(b);
+  }
+  return out;
+}
+
+/** The door tiles of a pool, in its order (for `servedIdsFrom`, when the pool is walked many times). */
+export function doorsOf(pool: readonly Building[]): Int32Array {
+  const doors = new Int32Array(pool.length);
+  for (let i = 0; i < pool.length; i++) doors[i] = doorTile(pool[i]!);
+  return doors;
+}
+
+/**
+ * servedIds over a pool the caller holds (`taggedBuildings` of its `enables`): the levels pass
+ * builds the pool once for its night and walks it for every building it serves.
+ */
+export function servedIdsFrom(
+  state: WorldState,
+  specialized: Building,
+  pool: readonly Building[],
+  doors?: ArrayLike<number>,
+): EntityId[] {
+  // The reach grid is found once for the whole walk (not once per building).
+  const inReach = reachTest(state, specialized);
+  const ids: EntityId[] = [];
+  for (let i = 0; i < pool.length; i++) {
+    const b = pool[i]!;
+    if (b.id !== specialized.id && inReach(doors ? doors[i]! : doorTile(b))) ids.push(b.id);
+  }
+  return ids.sort((a, b) => a - b);
+}
+
 /** Ids (ascending) of the businesses of the trades it enables whose door is in its reach. */
 export function servedIds(state: WorldState, specialized: Building): EntityId[] {
   const def = content.buildingById.get(specialized.def);
   if (!def?.enables?.length) return [];
-  const ids: EntityId[] = [];
-  for (const b of state.buildings) {
-    if (b.id === specialized.id || !def.enables.some((t) => hasTag(b, t))) continue;
-    if (withinReach(state, specialized, doorTile(b))) ids.push(b.id);
-  }
-  return ids.sort((a, b) => a - b);
+  return servedIdsFrom(state, specialized, taggedBuildings(state, def.enables));
 }
 
 /** Businesses of the trades it enables standing in its reach, built and going up alike. */
@@ -420,16 +475,22 @@ function levelsAbove(state: WorldState, b: Building): number {
 
 /**
  * How many it may serve: the def's capacity; the Windmill's raised capacity when it stands the
- * given number of levels above the ground around it; a frozen river takes one carpenter from the
- * Sawmill (its wheel is stopped).
+ * given number of levels above the ground around it; R3H, one more for each level it has climbed
+ * (`levels.capacity`); a frozen river takes one carpenter from the Sawmill (its wheel is stopped).
  */
 export function capacityOf(state: WorldState, specialized: Building): number {
   const def = content.buildingById.get(specialized.def);
   if (!def) return 0;
-  let cap = def.capacity ?? 0;
+  // R3H: a level's room for one more (the Windmill's bakers), on top of a raised mill's too.
+  const base = def.capacity ?? 0;
+  const more = atLevel(specialized, 'capacity', base) - base;
+  let cap = base;
   if (def.raisedCapacity && levelsAboveCached(state, specialized) >= def.raisedCapacity[0]) {
     cap = Math.max(cap, def.raisedCapacity[1]);
   }
+  cap += more;
   if (def.id === 'sawmill' && state.weather.river.frozen) cap -= 1;
+  // R3.0: a master miller's room for one more baker (R3B), Mill Town's room by each mill (R3C).
+  cap += masterRoom(state, specialized) + callingRoom(state, specialized);
   return Math.max(0, cap);
 }

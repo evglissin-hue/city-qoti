@@ -4,15 +4,17 @@
 // (baskets.ts) records what every household wants each day instead, whether or not the shelves
 // have it, and buys without recording twice. Price caps and subsidies (levers) apply at the till,
 // and what they cost the town shows in the Budget as subsidies.
+import { recordThread } from '../threads/api';
 import { content } from '@qoti/content';
 import { LEDGER_CATEGORIES, type LedgerCategoryId } from '../../constants';
-import type { EntityId, Household, WorldState } from '../../contracts';
+import type { EntityId, Household, PlaceId, WorldState } from '../../contracts';
 import { findById } from '../../state/entities';
 import { isStandard } from '../../state/hamlet';
 import { isFood } from '../../state/zones';
 import { rankAtLeast } from '../../state/village';
 import { pay } from '../economy/money';
 import { takeFromOutlet } from '../economy/outlets';
+import { shelfOf } from './round';
 
 /**
  * True once money circulates: a standard valley at Village rank (the Charter unlocks market
@@ -52,9 +54,10 @@ function note(state: WorldState, category: LedgerCategoryId, pennies: number): v
 
 /** Units of a good an outlet can hand out now (stock not promised to porters). */
 export function outletFree(state: WorldState, outlet: EntityId, good: number): number {
-  const rt = findById(state.buildings, outlet)?.rt;
-  if (!rt) return 0;
-  return Math.max(0, (rt.store[good] ?? 0) - (rt.reservedOut[good] ?? 0));
+  const b = findById(state.buildings, outlet);
+  const shelf = b && shelfOf(b);
+  if (!shelf) return 0;
+  return Math.max(0, (shelf.stock[good] ?? 0) - (shelf.reserved?.[good] ?? 0));
 }
 
 /** P3A (meals): the cheapest food any outlet can hand out now, at the till, pennies (Infinity when none). */
@@ -93,6 +96,7 @@ export function purchase(
   qty: number,
   outlet: EntityId = 0,
   record = false,
+  to: EntityId | PlaceId = h.homeId,
 ): number {
   if (qty <= 0) return 0;
   if (record) state.market.demandToday[good] = (state.market.demandToday[good] ?? 0) + qty;
@@ -107,6 +111,8 @@ export function purchase(
   for (const id of outlets) {
     if (want <= 0) break;
     const n = takeFromOutlet(state, id, good, want);
+    // R3.0: Follow the thread's door pairs: outlet to home, or to the place it was bought at (R3D).
+    if (n > 0) recordThread(state, id, to, good, n);
     got += n;
     want -= n;
   }

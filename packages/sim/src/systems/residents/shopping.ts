@@ -3,6 +3,7 @@
 // 4 units of the kind the pantry is lowest on, and goes again until the pantry is full or the
 // outlet runs dry.
 import { MAP_SIZE, PANTRY_CAPACITY, PORTER_CARRY } from '../../constants';
+import { recordThread } from '../threads/api';
 import type { Household, Resident, TickCtx, WorldState } from '../../contracts';
 import { findById } from '../../state/entities';
 import { nearestOutletWithFood, outletFood, takeFromOutlet } from '../economy/outlets';
@@ -140,6 +141,8 @@ export function buyAtOutlet(state: WorldState, r: Resident, h: Household): void 
       took = takeFromOutlet(state, outlet, g, want);
       if (took > 0) {
         r.carry = [g, took];
+        // R3.0: Follow the thread's door pairs, outlet to home (R3D's body).
+        recordThread(state, outlet, h.homeId, g, took);
         break;
       }
     }

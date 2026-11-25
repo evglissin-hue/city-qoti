@@ -32,13 +32,18 @@ export const place: HandlerFor<'build.place'> = {
     // Playtest round three: a site nobody can walk to would wait forever.
     if (isStandard(state) && !townReachesDoor(state, { def: def.id, x: cmd.x, z: cmd.z, rot: cmd.rot }))
       return 'CUT_OFF';
-    // I3 (C5D): a wall piece placed by hand may not enclose anything either.
-    if (
-      def.defense?.blocks &&
-      wouldEnclose(worldIndex(state).reader, [[cmd.x, cmd.z, def.id]], state.buildings, state.meta.valleyGate)
-        .length > 0
-    )
-      return 'WOULD_ENCLOSE';
+    // I3 (C5D): a wall piece placed by hand may not enclose anything either. R3X: nor may any
+    // building shut a neighbor's door in (a cottage grown beside a fishery's only way to its door).
+    const standard = isStandard(state);
+    if (def.defense?.blocks || standard) {
+      const feet: [number, number, string][] = footprintTiles(def, cmd.x, cmd.z, cmd.rot).map(([x, z]) => [
+        x,
+        z,
+        def.id,
+      ]);
+      if (wouldEnclose(worldIndex(state).reader, feet, state.buildings, state.meta.valleyGate).length > 0)
+        return def.defense?.blocks ? 'WOULD_ENCLOSE' : 'CUT_OFF';
+    }
     // The replacement town hall is free, so lean times do not stand in its way.
     return raise ? null : placementBlocked(state, def);
   },

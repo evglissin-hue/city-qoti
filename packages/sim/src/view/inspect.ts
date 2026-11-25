@@ -1,5 +1,7 @@
 // Inspect request builders (C3.0 contract): full detail on demand for the inspectors and the
 // while-you-were-away letter. Baselines here; C3A enriches residents, C3C buildings, C3B the letter.
+import { buildingSupplies } from './supplies';
+import { buildingMastery } from './masters';
 import { chroniclePhrases, content, type BuildingDef } from '@qoti/content';
 import { BuildingStatus, TICKS_PER_DAY } from '../constants';
 import type {
@@ -37,7 +39,8 @@ import { lotView } from './village';
 import { buildingProfit } from '../systems/market/profit';
 import { siteFits, tradesOf } from '../systems/growth';
 import { servedBy } from '../systems/services/coverage';
-import { capacityOf, served } from '../systems/specialized/api';
+import { capacityOf, served, specializedReach } from '../systems/specialized/api';
+import { specializedClimb } from '../systems/levels/specialized';
 import type { ServiceKind } from '../systems/services/weights';
 
 export { residentDetail };
@@ -349,6 +352,8 @@ export function buildingDetail(state: WorldState, id: EntityId): BuildingDetail 
     if (method) detail.producedToday = made;
   }
   if (def && rt) addVillageDetail(state, b, def, detail);
+  // R3.0: masters (R3B), the lamplighter and a home's candle (R3A).
+  Object.assign(detail, buildingMastery(state, b), buildingSupplies(state, b));
   return detail;
 }
 
@@ -369,9 +374,14 @@ function addVillageDetail(state: WorldState, b: Building, def: BuildingDef, deta
       .map((t) => ({ id: t.id, name: t.name }));
     if (b.pinned) detail.pinned = true;
   }
-  // R1B: a specialized building's reach, who it serves and how many it may.
+  // R1B: a specialized building's reach, who it serves and how many it may (R3H: at its level).
   if (def.specialized && def.reach) {
-    detail.reach = { tiles: def.reach, served: served(state, b), capacity: capacityOf(state, b) };
+    detail.reach = { tiles: specializedReach(b), served: served(state, b), capacity: capacityOf(state, b) };
+  }
+  // R3H: a specialized building's climb (the level line).
+  if (def.levels && b.stage === 'built') {
+    const climb = specializedClimb(state, b);
+    if (climb) detail.climb = climb;
   }
   if (lot) detail.lot = lotView(lot, state);
   if (rt.tier) detail.tier = rt.tier;

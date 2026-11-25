@@ -1,6 +1,7 @@
 // R1 (R1D): the counts and named predicates the new feats read (docs/spec/15-progression.md, R1
 // feats): businesses that grew on their own, the flavors of Food on offer, Porridge No More, Market
 // Day. Pure reads of state.
+import { isMasterGood } from '../state/masters';
 import { content } from '@qoti/content';
 import type { WorldState } from '../contracts';
 import { familyIndex, hasTag, isFood } from '../state/zones';
@@ -61,7 +62,9 @@ export function porridgeNoMore(state: WorldState): boolean {
  */
 export function marketDay(state: WorldState, _bind?: Binding): boolean {
   const base: number[] = [];
-  for (let g = 0; g < content.goods.length; g++) if (isFood(g) && content.goods[g]!.raw) base.push(g);
+  // R3.0: a master's good (butter) is never a base flavor.
+  for (let g = 0; g < content.goods.length; g++)
+    if (isFood(g) && content.goods[g]!.raw && !isMasterGood(g)) base.push(g);
   if (base.length === 0) return false;
   const have = new Set<number>();
   for (const b of state.buildings) {

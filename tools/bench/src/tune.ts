@@ -41,6 +41,10 @@ if (run.street) {
 if (process.env.TUNE_SAVE) {
   const w = run.hamlet.world;
   w.time.connected = [];
+  // R3X: the players of a grown valley have said goodbye to the surveyor: a finished guide is hidden
+  // for every seat, or its farewell letter opens over the valley on every load (the grown fixture's
+  // letter blocked the R3D thread spec's lens buttons on CI, and the chair met it on each reload).
+  if (w.guide.over) w.guide.hidden = w.guide.hidden.map(() => true);
   writeFileSync(process.env.TUNE_SAVE, serialize(w));
   console.log(`saved ${process.env.TUNE_SAVE}`);
 }

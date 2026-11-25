@@ -167,6 +167,14 @@ export function keepsNoGoods(def: BuildingDef | undefined): boolean {
   return !!def?.housing && !def.storage && !def.methods;
 }
 
+/**
+ * True for a def whose goods are no part of the town's stock: the homes (which hold none), and the Town
+ * Hall, whose store holds only the County's crate of candles (supplies/crate.ts), the lanterns' alone.
+ */
+export function keepsNoStock(def: BuildingDef | undefined): boolean {
+  return keepsNoGoods(def) || def?.id === 'town-hall';
+}
+
 /** Town stock per good: storehouses, stalls and output buffers. */
 export function townStock(state: WorldState, known?: Defs): number[] {
   const n = content.goods.length;
@@ -179,7 +187,7 @@ export function townStock(state: WorldState, known?: Defs): number[] {
     if (!rt || b.stage !== 'built') continue;
     // A home keeps its goods in the pantries, never in `store` or `output` (proved by r1x/home-stock.test.ts).
     const def = defs ? defs[k] : content.buildingById.get(b.def);
-    if (keepsNoGoods(def)) continue;
+    if (keepsNoStock(def)) continue;
     addStock(out, rt);
   }
   return out;
@@ -253,10 +261,23 @@ export function budgetView(state: WorldState): BudgetView {
   };
 }
 
-/** Fills {name}, {place} and {species} in a template variant. */
+/**
+ * Fills {name}, {place} and {species} in a template variant. A value that lands right after a
+ * sentence end gets its first letter capitalized ("the founders" becomes
+ * "The founders" after "First edition. ").
+ */
 export function fillText(text: string, params: readonly [string, string][]): string {
   let out = text;
-  for (const [k, v] of params) out = out.split(`{${k}}`).join(v);
+  for (const [k, v] of params) {
+    const parts = out.split(`{${k}}`);
+    if (parts.length === 1) continue;
+    let acc = parts[0]!;
+    for (let i = 1; i < parts.length; i++) {
+      const atStart = /[.!?] $/.test(acc);
+      acc += (atStart ? v.charAt(0).toUpperCase() + v.slice(1) : v) + parts[i]!;
+    }
+    out = acc;
+  }
   return out;
 }
 

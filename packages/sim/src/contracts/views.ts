@@ -22,6 +22,7 @@ import type {
 import type { LotKind, PlanItem, RankId, RequestAsk } from './village';
 import type { BalancesView, BusinessView, DemandView } from './zones';
 import type { EveningView, FootfallView, GapsView, PlacesView, RoundStopView, StreetView } from './evenings';
+import type { SuppliesView, TownBookView } from './masters';
 
 export interface BuildingView {
   id: EntityId;
@@ -52,6 +53,8 @@ export interface BuildingView {
   storeys?: number;
   /** R2 (R2B): the shop has put tables out (Building.cafe), for the art and the inspector. */
   cafe?: true;
+  /** R3 (R3.0): a master works here: the sign over the door (R3B sets it; R3F draws it). */
+  master?: true;
 }
 
 export interface DecorView {
@@ -162,6 +165,11 @@ export interface ViewSnapshot {
   evening?: EveningView | null;
   streets?: StreetView[];
   footfall?: FootfallView;
+  // R3 (R3.0)
+  /** Tonight's lamps, resting pieces and candle-lit homes (R3A; R3F draws them). */
+  supplies?: SuppliesView;
+  /** The Town Book's pages, hints and callings (R3C). */
+  townBook?: TownBookView;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -436,6 +444,13 @@ export interface ResidentDetail {
   roundEarlier?: boolean;
   /** The evenings need and the last evening's score. */
   evening?: { need: number; score: number };
+  // R3 (R3.0), present when they apply (R3B).
+  /** Working days by trade, most first. */
+  craft?: { trade: string; days: number }[];
+  /** The trade they are master of, and its title ("master baker"). */
+  master?: { trade: string; title: string };
+  /** The master an apprentice serves under. */
+  apprenticeOf?: { id: EntityId; name: string };
 }
 
 /** Full building detail for the inspector (worker `inspect`). */
@@ -482,6 +497,54 @@ export interface BuildingDetail {
   gate?: { open: boolean };
   /** Under flood water (C5A). */
   flooded?: boolean;
+  // R3 (R3.0), present when they apply.
+  /** A business or specialized building with a master: who, the trade, and their apprentices (R3B). */
+  master?: {
+    id: EntityId;
+    name: string;
+    trade: string;
+    title: string;
+    apprentices: { id: EntityId; name: string }[];
+  };
+  /** The Town Hall: the lamplighter's jobs, who holds them, lanterns supplied tonight and the candles they took (R3A). */
+  lamplighter?: { jobs: number; held: { id: EntityId; name: string }[]; lanterns: number; candles: number };
+  /** A home: nights of candlelight left (R3A). */
+  candle?: number;
+  /** A specialized building that climbs levels: how its climb stands (R3H). */
+  climb?: SpecializedClimbView;
+}
+
+/**
+ * R3 (R3H): a specialized building's climb, for the inspector's level line ("Two more good days of
+ * timber carried off and the Lodge takes on a fourth hand"). Numbers only; the client words them.
+ */
+export interface SpecializedClimbView {
+  /** 1 to `max`. */
+  level: number;
+  /** Its top level (the length of its def's levels). */
+  max: number;
+  /** Good days running toward the next level (positive), or failing days toward a slide (negative). */
+  days: number;
+  /** Good days running that climb a level, and failing days that slide one (the businesses' own). */
+  upDays: number;
+  downDays: number;
+  /** What a good day is (`SpecializedLevelsDef.good`). */
+  good: 'carried' | 'customers' | 'served' | 'full';
+  /**
+   * Today so far: units carried off of those made (`carried`), customers of the mark (`customers`),
+   * businesses served without going short of those served (`served`), goods in store of the mark (`full`).
+   */
+  today: { have: number; need: number };
+  /** What the next level brings, in words ("a fourth hand", "its woods out to 10 tiles"); empty at the top. */
+  next: string[];
+  /** What the level below has that this one gives up on a slide (empty at level 1). */
+  lose: string[];
+  /** It rests today (a frozen river): its days wait for the thaw. */
+  resting?: true;
+  /** The town holds more of what it makes than it can use (`carried`): no good day comes of it. */
+  surplus?: true;
+  /** A mill (`served`): the places taken and its room; a good day wants every place taken. */
+  places?: { taken: number; room: number };
 }
 
 /** I1 (C3C): the Workforce report. Jobs per building and the town's totals. */
@@ -646,6 +709,8 @@ export interface CharterView {
   }[];
   ready: boolean;
   history: { rank: RankId; tick: number; seats: SeatId[] }[];
+  /** R3 (R3.0): callings earned, in order (R3C; the board and the goal pill show them). */
+  callings?: { id: string; name: string }[];
 }
 
 export interface InnovationView {
@@ -709,7 +774,17 @@ export interface LetterView {
   step: number;
 }
 
-export type LifeEventKind = 'couple' | 'wedding' | 'birth' | 'apprentice' | 'retired' | 'seaside';
+export type LifeEventKind =
+  | 'couple'
+  | 'wedding'
+  | 'birth'
+  | 'apprentice'
+  | 'retired'
+  | 'seaside'
+  /** R3 (R3.0): a resident became a master (R3B: the sign, a Chronicle line and a letter). */
+  | 'master'
+  /** R3: a master's household left the valley, or the master retired. */
+  | 'masterLost';
 
 // ---------------------------------------------------------------------------------------------
 // R2 (R2.0): agents on the round.

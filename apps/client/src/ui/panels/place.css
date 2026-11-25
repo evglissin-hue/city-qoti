@@ -134,3 +134,14 @@ form.rename p {
   margin: 4px 0 0;
   font-size: 0.9rem;
 }
+
+/* R3D: the priority control wears the Hearth's accent; the supplies in words stay quiet. */
+.place .village-dial button.active,
+.place .village-dial button.active:hover:not(:disabled) {
+  background: var(--hearth);
+  color: #fffaf0;
+}
+
+.place .supplies-words {
+  margin: 2px 0 0;
+}

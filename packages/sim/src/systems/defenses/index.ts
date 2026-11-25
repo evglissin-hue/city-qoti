@@ -76,9 +76,12 @@ export function defenseTick(state: WorldState, ctx: TickCtx): void {
       if (Math.abs(x - tower.x) <= range && Math.abs(z - tower.z) <= range) drain(r, units);
     }
   }
-  // Lantern light (recomputed when the decor changes; cheap to keep for a tick).
+  // Lantern light (recomputed when the decor or the night's lit set changes; cheap to keep for a tick).
+  // R3.0: the key holds the night settled (supplies), so a cache from an earlier night's raid is never
+  // read on a later one, and a seat joining mid-raid reads what its partner reads.
   const nd = state.decor.length;
-  const key = `${nd}:${nd ? state.decor[nd - 1]!.id : 0}:${state.hearth.sites.length}`;
+  const sup = state.supplies;
+  const key = `${nd}:${nd ? state.decor[nd - 1]!.id : 0}:${state.hearth.sites.length}:${sup.night}:${sup.lamps.length}`;
   let lit = litCache.get(state);
   if (!lit || lit.key !== key) {
     lit = { key, tiles: litTiles(state), walk: lanternWalkTiles(state) };

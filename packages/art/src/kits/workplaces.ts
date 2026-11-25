@@ -52,6 +52,8 @@ import { roofPart, type RoofMaterial } from './roofs';
 import { customOf, level, roofColor, streams } from './style';
 import type { Kit, KitBuildOptions } from './types';
 import { roundStack } from './village';
+import { levelOf } from './business';
+import { derrick, leanTo, logPile, plankStack } from './levelPieces';
 
 const EARTH = 0xb59a6e;
 const GRAVEL = 0xa9a49a;
@@ -426,6 +428,7 @@ function forester(opts: KitBuildOptions | undefined): Built {
   const [ex] = opts?.entrance ?? [1, 1];
   const { rnd } = streams(opts, 14);
   const c = customOf(opts);
+  const lv = levelOf(opts);
   const { s, anchors } = start(opts);
   groundPatch(s, 0.08, 0.08, w - 0.08, d - 0.08, vary(0xb5946a, rnd, 0.4), rnd);
   // The log lodge on the right, the open chopping shed against its left wall.
@@ -441,7 +444,8 @@ function forester(opts: KitBuildOptions | undefined): Built {
     x1,
     z1,
     base: 0.06,
-    wallH: 0.64,
+    // R3H: level 2 raises the walls for a loft (a clear half storey over level 1) and the roof with them.
+    wallH: lv >= 2 ? 1.08 : 0.64,
     wall: 'log',
     wallColor: palette.wood,
     trim: palette.timber,
@@ -449,7 +453,7 @@ function forester(opts: KitBuildOptions | undefined): Built {
       shape: 'gable',
       material,
       color: vary(roofColor(c, material, 0x55625a), rnd, 0.5),
-      rise: 0.5,
+      rise: lv >= 3 ? 0.78 : lv >= 2 ? 0.68 : 0.5,
       overhang: 0.18,
       ridgeAlongX: true,
     },
@@ -478,7 +482,7 @@ function forester(opts: KitBuildOptions | undefined): Built {
         x1 - 0.18,
         (z0 + z1) / 2 - 0.12,
         sh.top - 0.1,
-        sh.ridge + 0.14,
+        sh.ridge + (lv >= 3 ? 0.55 : lv >= 2 ? 0.3 : 0.14),
         vary(palette.stone, rnd),
       ),
     );
@@ -518,7 +522,7 @@ function forester(opts: KitBuildOptions | undefined): Built {
     },
   );
   // Felled logs by the output, waiting for the saw.
-  pileOf(s, 'logs', Math.max(1, level(opts, 'out:timber')), 1.2, 0, 1.62, rnd);
+  if (lv < 2) pileOf(s, 'logs', Math.max(1, level(opts, 'out:timber')), 1.2, 0, 1.62, rnd);
   // The nursery: a bed of saplings for replanting, green from above.
   const bx0 = 1.6;
   const bx1 = w - 0.1;
@@ -537,6 +541,72 @@ function forester(opts: KitBuildOptions | undefined): Built {
     // A saw on the lodge wall.
     faceBox(s, front, doorU + 0.2, 0.4, clad, doorU + 0.45, 0.46, clad + 0.006, palette.metal);
   });
+  if (lv >= 2) {
+    // R3H level 2: a bigger timber yard, a long stacked pile and a second sawhorse with a log on it.
+    const lr = streams(opts, 114).rnd;
+    logPile(s, 0.9, 1.4, 1.56, 1.92, 7, lr);
+    s.detail(() => {
+      sawhorse(s, 1.22, 1.2, true, lr);
+      cylX(s, 1.04, 1.4, 0.2, 1.2, 0.05, vary(palette.bark, lr, 0.5), 6, 0xd9b98a);
+    });
+    // The loft: a window in each gable end and a dormer over the door.
+    const lofty = 0.06 + 1.08 + 0.14;
+    const loftStyle = windowStyle(c, green, { box: false, shutters: true });
+    windowPart(
+      s,
+      { dir: 'x+', plane: x1 },
+      (z0 + z1) / 2,
+      lofty,
+      0.16,
+      0.2,
+      loftStyle,
+      lr,
+      anchors.lights,
+      clad,
+    );
+    windowPart(
+      s,
+      { dir: 'x-', plane: x0 },
+      (z0 + z1) / 2,
+      lofty,
+      0.16,
+      0.2,
+      loftStyle,
+      lr,
+      anchors.lights,
+      clad,
+    );
+    dormerPart(
+      s,
+      front,
+      doorU - 0.28,
+      sh.top - 0.1,
+      0.3,
+      vary(palette.wood, lr, 0.4),
+      sh.roof.color,
+      palette.timber,
+      lr,
+      anchors.lights,
+    );
+    // Level 3: a lean-to woodshed over the stack, with a log rack beside it.
+    if (lv >= 3)
+      leanTo(
+        s,
+        {
+          x0: 0.8,
+          z0: 1.3,
+          x1: 1.64,
+          z1: 1.98,
+          lo: 0.9,
+          hi: 1.24,
+          high: 'z-',
+          material,
+          color: vary(roofColor(c, material, 0x55625a), lr, 0.5),
+          wall: vary(0xc9a46e, lr, 0.5),
+        },
+        lr,
+      );
+  }
   if (c.sign) signBoard(s, front, doorU, 0.78, 0.34, clad, anchors);
   return { s, anchors };
 }
@@ -547,6 +617,7 @@ function sawpit(opts: KitBuildOptions | undefined): Built {
   const [w, d] = opts?.size ?? [2, 3];
   const { rnd } = streams(opts, 15);
   const c = customOf(opts);
+  const lv = levelOf(opts);
   const { s, anchors } = start(opts);
   groundPatch(s, 0.08, 0.1, w - 0.08, d - 0.08, 0xc2a57a, rnd);
   // The pit, with a timber rim.
@@ -570,7 +641,8 @@ function sawpit(opts: KitBuildOptions | undefined): Built {
   beam(s, [0.94, 0.07, 1.44], [1.06, 0.07, 1.44], 0.012, palette.wood);
   // The open shelter: six posts and a gable roof.
   const material = c.roofMaterial ?? 'shingle';
-  const roofY = 0.95;
+  // R3H: the shelter's roof stands higher from level 2, so a far sawmill reads taller.
+  const roofY = lv >= 3 ? 1.3 : lv >= 2 ? 1.15 : 0.95;
   for (const x of [0.32, w - 0.32])
     for (const z of [0.45, 1.35, 2.25]) {
       beam(s, [x, 0, z], [x, roofY, z], 0.032, palette.timber);
@@ -597,6 +669,34 @@ function sawpit(opts: KitBuildOptions | undefined): Built {
   s.blob(1.55, 0.0, 1.0, 0.18, 0.08, 0.16, 0xe6cf9f, 1);
   s.blob(1.6, 0.0, 1.25, 0.1, 0.05, 0.09, 0xead8ad, 0);
   bench(s, 0.22, 1.2, false, rnd);
+  if (lv >= 2) {
+    // R3H level 2: a longer plank stack and a second saw bench; level 3 roofs the stack as a drying shed.
+    const lr = streams(opts, 115).rnd;
+    plankStack(s, 1.4, 2.5, 1.92, 2.94, 11, lr);
+    s.detail(() => {
+      bench(s, 0.22, 1.9, false, lr);
+      sawhorse(s, 1.72, 0.8, false, lr);
+      sawhorse(s, 1.72, 1.15, false, lr);
+      s.box(1.6, 0.17, 0.62, 1.84, 0.2, 1.3, vary(0xc9a46e, lr, 0.5));
+    });
+    if (lv >= 3)
+      leanTo(
+        s,
+        {
+          x0: 1.34,
+          z0: 2.46,
+          x1: 1.98,
+          z1: 2.98,
+          lo: 0.9,
+          hi: 1.12,
+          high: 'z-',
+          material,
+          color: vary(roofColor(c, material, 0x8a6f58), lr, 0.5),
+          wall: vary(0xc9a46e, lr, 0.5),
+        },
+        lr,
+      );
+  }
   if (c.sign) signBoard(s, { dir: 'z+', plane: 2.6 }, w / 2, roofY - 0.1, 0.5, 0.04, anchors);
   return { s, anchors };
 }
@@ -607,6 +707,7 @@ function quarry(opts: KitBuildOptions | undefined): Built {
   const [w, d] = opts?.size ?? [3, 3];
   const { rnd } = streams(opts, 16);
   const c = customOf(opts);
+  const lv = levelOf(opts);
   const { s, anchors } = start(opts);
   groundPatch(s, 0.05, 0.05, w - 0.05, d - 0.05, GRAVEL, rnd);
   // Cut terraces stepping up toward the back, faced with fresh pale cuts and darker weathered rock.
@@ -657,6 +758,36 @@ function quarry(opts: KitBuildOptions | undefined): Built {
   s.rbox(cx - 0.18, 0.12, cz - 0.24, cx + 0.18, 0.18, cz + 0.2, vary(palette.wood, rnd, 0.5), 0.01);
   for (const x of [cx - 0.22, cx + 0.22]) cylX(s, x - 0.02, x + 0.02, 0.11, cz, 0.11, palette.darkWood, 10);
   pileOf(s, 'stone', 1, cx, 0.18, cz, rnd);
+  if (lv >= 2) {
+    // R3H level 2: a second derrick over the upper cut and a bigger stack of dressed blocks.
+    const lr = streams(opts, 116).rnd;
+    derrick(s, 1.5, 2.0, 0.95, 1.25, 1.65, lr);
+    pileOf(s, 'stone', 3, 1.2, 0, 2.72, lr);
+    pileOf(s, 'stone', 2, 1.7, 0, 2.78, lr);
+    if (lv >= 3) {
+      // Level 3: a deeper cut to the east with its own terrace, and a second loaded cart.
+      for (let k = 0; k < 2; k++) {
+        const bx0 = 2.05 + k * 0.42;
+        s.rbox(
+          bx0 + 0.005,
+          0,
+          0.05,
+          bx0 + 0.415,
+          0.62 - (k % 2) * 0.04,
+          0.62,
+          vary(0xc8c0b0, lr, 1.0),
+          0.025,
+        );
+      }
+      const kx = 2.65;
+      const kz = 1.0;
+      s.rbox(kx - 0.18, 0.12, kz - 0.24, kx + 0.18, 0.18, kz + 0.2, vary(palette.wood, lr, 0.5), 0.01);
+      for (const x of [kx - 0.22, kx + 0.22])
+        cylX(s, x - 0.02, x + 0.02, 0.11, kz, 0.11, palette.darkWood, 10);
+      pileOf(s, 'stone', 2, kx, 0.18, kz, lr);
+      for (const z of [kz - 0.35, kz + 0.35]) s.box(2.3, 0, z - 0.012, 2.95, 0.04, z + 0.012, palette.timber);
+    }
+  }
   if (c.sign) signBoard(s, { dir: 'z+', plane: 2.0 }, 2.35, 0.75, 0.4, 0.04, anchors);
   return { s, anchors };
 }
@@ -763,6 +894,7 @@ function fishersHut(opts: KitBuildOptions | undefined): Built {
   const [ex] = opts?.entrance ?? [1, 1];
   const { rnd } = streams(opts, 18);
   const c = customOf(opts);
+  const lv = levelOf(opts);
   const { s, anchors } = start(opts);
   const x0 = 0.18;
   const x1 = 1.55;
@@ -775,7 +907,7 @@ function fishersHut(opts: KitBuildOptions | undefined): Built {
     x1,
     z1,
     base: 0.06,
-    wallH: 0.64,
+    wallH: lv >= 3 ? 1.12 : lv >= 2 ? 0.92 : 0.64,
     wall: 'weatherboard',
     wallColor: c.wall ?? vary(0x6f8fa3, rnd, 0.4),
     trim: palette.white,
@@ -783,7 +915,7 @@ function fishersHut(opts: KitBuildOptions | undefined): Built {
       shape: 'gable',
       material,
       color: vary(roofColor(c, material, 0x6b625c), rnd, 0.5),
-      rise: 0.5,
+      rise: lv >= 3 ? 0.66 : lv >= 2 ? 0.58 : 0.5,
       overhang: 0.15,
       ridgeAlongX: true,
     },
@@ -822,10 +954,77 @@ function fishersHut(opts: KitBuildOptions | undefined): Built {
   anchors.lights!.push(postLantern(s, jx0 + 0.02, d + 0.05, 0.6));
   rowboat(s, 0.5, 0, 1.55, false, c.accent ?? vary(palette.teal, rnd, 0.5), rnd);
   const fish = 2 + Math.min(4, Math.round(level(opts, 'out:fish')));
-  dryingRack(s, w - 0.2, 0.62, false, fish, rnd);
+  if (lv < 3) dryingRack(s, w - 0.2, 0.62, false, fish, rnd);
   netFrame(s, x0 + 0.1, z0 - 0.02, true);
-  trap(s, x1 + 0.15, z1 + 0.15, true);
-  trap(s, x1 + 0.2, z1 + 0.35, false);
+  if (lv < 2) {
+    trap(s, x1 + 0.15, z1 + 0.15, true);
+    trap(s, x1 + 0.2, z1 + 0.35, false);
+  }
+  if (lv >= 2) {
+    // R3H level 2: a second jetty with a hoist post, its own lantern and a crate on the boards.
+    const lr = streams(opts, 118).rnd;
+    const kx0 = 1.58;
+    const kx1 = 1.92;
+    const kz1 = d + 0.4;
+    for (let z = z1 + 0.02; z < kz1; z += 0.11)
+      s.box(kx0, 0.06, z, kx1, 0.085, z + 0.1, vary(palette.wood, lr, 0.8));
+    s.box(kx0, 0.04, z1 + 0.02, kx0 + 0.03, 0.06, kz1, palette.darkWood);
+    s.box(kx1 - 0.03, 0.04, z1 + 0.02, kx1, 0.06, kz1, palette.darkWood);
+    for (const x of [kx0 + 0.02, kx1 - 0.02])
+      for (const z of [z1 + 0.5, kz1 - 0.04]) beam(s, [x, -0.15, z], [x, 0.2, z], 0.03, palette.timber);
+    // The hoist: a tall post with a boom over the water and a crate on its rope.
+    const hx = kx1 - 0.05;
+    const hz = d - 0.1;
+    s.box(hx - 0.035, 0.08, hz - 0.035, hx + 0.035, 0.95, hz + 0.035, palette.timber);
+    beam(s, [hx, 0.9, hz], [hx - 0.3, 0.9, hz + 0.18], 0.03, palette.wood);
+    beam(s, [hx, 0.4, hz], [hx - 0.22, 0.88, hz + 0.14], 0.02, palette.timber);
+    s.nearOnly(() => {
+      beam(s, [hx - 0.3, 0.88, hz + 0.18], [hx - 0.3, 0.42, hz + 0.18], 0.006, 0xbfa27a);
+      crateOf(s, 'fish', hx - 0.3, 0.3, hz + 0.18, lr);
+      barrel(s, kx0 + 0.1, 0.085, z1 + 0.3, lr, 0.8);
+    });
+    // A T-head at the tip, wider than the jetty and out past the first one, so the second reads long.
+    const tz0 = d + 0.12;
+    const tz1 = d + 0.42;
+    for (let x = kx0 - 0.1; x < kx1 + 0.1; x += 0.11)
+      s.box(x, 0.06, tz0, Math.min(x + 0.1, kx1 + 0.1), 0.085, tz1, vary(palette.wood, lr, 0.8));
+    for (const x of [kx0 - 0.07, kx1 + 0.07])
+      for (const z of [tz0 + 0.04, tz1 - 0.04]) beam(s, [x, -0.15, z], [x, 0.2, z], 0.03, palette.timber);
+    anchors.lights!.push(postLantern(s, kx0 + 0.02, kz1 - 0.04, 0.6));
+  }
+  if (lv >= 3) {
+    // Level 3: a tall drying rack of fish in two tiers, and a second boat pulled up by the first.
+    const lr = streams(opts, 218).rnd;
+    const rx = w - 0.16;
+    for (const z of [0.18, 0.98]) {
+      s.box(rx - 0.18, 0, z - 0.025, rx - 0.12, 1.18, z + 0.025, palette.timber);
+      s.box(rx + 0.12, 0, z - 0.025, rx + 0.18, 1.18, z + 0.025, palette.timber);
+    }
+    for (const y of [0.45, 0.76, 1.07]) s.box(rx - 0.19, y, 0.16, rx + 0.19, y + 0.03, 1.0, palette.wood);
+    s.detail(() => {
+      for (const y of [0.35, 0.66, 0.97])
+        for (let i = 0; i < 6; i++)
+          s.blob(
+            rx + (i % 2 ? 0.05 : -0.05),
+            y - 0.05,
+            0.26 + i * 0.12,
+            0.022,
+            0.08,
+            0.016,
+            vary(0x9fb4bd, lr, 0.8),
+            0,
+          );
+    });
+    // A boat at each jetty: the red one by the first, a blue one tied up on the far side of the second.
+    s.levels(
+      () => rowboat(s, 2.04, 0, d - 0.1, false, vary(palette.teal, lr, 0.5), lr),
+      () => s.box(1.9, 0.01, d - 0.46, 2.18, 0.1, d + 0.26, palette.teal),
+    );
+    s.levels(
+      () => rowboat(s, 0.86, 0, 1.6, false, vary(palette.accentRed, lr, 0.5), lr),
+      () => s.box(0.74, 0.01, 1.3, 0.98, 0.1, 1.9, palette.accentRed),
+    );
+  }
   if (c.sign) signBoard(s, front, doorU, 0.68, 0.32, 0.02, anchors);
   return { s, anchors };
 }
@@ -850,6 +1049,7 @@ function storehouse(opts: KitBuildOptions | undefined): Built {
   const [ex] = opts?.entrance ?? [1, 2];
   const { rnd, look } = streams(opts, 19);
   const c = customOf(opts);
+  const lv = levelOf(opts);
   const { s, anchors } = start(opts);
   groundPatch(s, 0.08, 1.85, w - 0.08, d - 0.06, EARTH, rnd);
   const x0 = 0.18;
@@ -863,7 +1063,8 @@ function storehouse(opts: KitBuildOptions | undefined): Built {
     x1,
     z1,
     base: 0.12,
-    wallH: 1.3,
+    // R3H: a raised wall from level 2 (the lucam and its hoist beam ride up with the eaves).
+    wallH: lv >= 3 ? 2.0 : lv >= 2 ? 1.9 : 1.3,
     wall: 'stone',
     wallColor: vary(palette.stone, rnd, 0.6),
     trim: palette.timber,
@@ -872,7 +1073,7 @@ function storehouse(opts: KitBuildOptions | undefined): Built {
       shape: 'gable',
       material,
       color: vary(roofColor(c, material), rnd, 0.5),
-      rise: 0.78,
+      rise: lv >= 3 ? 1.08 : lv >= 2 ? 0.98 : 0.78,
       overhang: 0.16,
       ridgeAlongX: true,
     },
@@ -956,6 +1157,36 @@ function storehouse(opts: KitBuildOptions | undefined): Built {
     if (lv > 0) crateOf(s, good, x, 0, z1 + 0.14, rnd);
     if (lv > 2) crateOf(s, good, x, 0.12, z1 + 0.14, rnd);
   }
+  if (lv >= 2) {
+    // R3H level 2: a whole upper storey, a row of loft windows on every side under the raised wall.
+    const ur = streams(opts, 119).rnd;
+    windowRow(s, front, x0, x1, 1.6, style, ur, anchors.lights!, [doorU], 0.75, [0.18, 0.2], 0.02);
+    for (const f of [
+      { dir: 'x+', plane: sh.outer[2] },
+      { dir: 'x-', plane: sh.outer[0] },
+    ] as const)
+      windowRow(s, f, z0, z1, 1.6, style, ur, anchors.lights!, [], 0.9, [0.18, 0.2], 0.02);
+  }
+  if (lv >= 3) {
+    // Level 3: a side wing in the yard, a lean-to bay with its own roof over the heavy goods.
+    const lr = streams(opts, 219).rnd;
+    leanTo(
+      s,
+      {
+        x0: 1.9,
+        z0: 1.95,
+        x1: 2.96,
+        z1: 2.96,
+        lo: 1.05,
+        hi: 1.6,
+        high: 'x+',
+        material,
+        color: vary(roofColor(c, material), lr, 0.5),
+        wall: vary(0x9a6b43, lr, 0.4),
+      },
+      lr,
+    );
+  }
   if (c.sign) signBoard(s, front, doorU, 0.88, 0.5, 0.015, anchors);
   return { s, anchors };
 }
@@ -968,6 +1199,7 @@ function marketStall(opts: KitBuildOptions | undefined): Built {
   const [w, d] = opts?.size ?? [1, 2];
   const { rnd, look } = streams(opts, 20);
   const c = customOf(opts);
+  const lv = levelOf(opts);
   const { s, anchors } = start(opts);
   const accent =
     c.accent ?? [palette.accentRed, palette.teal, palette.navy, palette.mustard][Math.floor(look() * 4)]!;
@@ -976,8 +1208,12 @@ function marketStall(opts: KitBuildOptions | undefined): Built {
   const z0 = 0.2;
   const z1 = d - 0.22;
   // Posts: taller at the back so the awning slopes toward the customers.
-  const back = 1.05;
-  const frontH = 0.86;
+  // R3H: from level 2 the stall is a long two-bay stall under a canopy standing much higher, so it
+  // reads bigger than a level 1 stall from the default camera.
+  const up = lv >= 2 ? 0.4 : 0;
+  const back = 1.05 + up;
+  const frontH = 0.86 + up;
+  const zm = (z0 + z1) / 2;
   for (const [x, z, h] of [
     [x0, z0, back],
     [x1, z0, back],
@@ -988,27 +1224,82 @@ function marketStall(opts: KitBuildOptions | undefined): Built {
   // Awning in stripes with a scalloped edge (P3C: cloth).
   s.surface(SURFACE.cloth);
   const n = 6;
-  for (let i = 0; i < n; i++) {
-    const xa = x0 - 0.06 + ((x1 - x0 + 0.12) * i) / n;
-    const xb = x0 - 0.06 + ((x1 - x0 + 0.12) * (i + 1)) / n;
-    const hex = i % 2 === 0 ? accent : palette.white;
-    panel(
-      s,
-      [xa, back + 0.02, z0 - 0.08],
-      [xb, back + 0.02, z0 - 0.08],
-      [xb, frontH + 0.02, z1 + 0.14],
-      [xa, frontH + 0.02, z1 + 0.14],
-      hex,
-      vary(hex, rnd, 1.5),
-    );
-    panel(
-      s,
-      [xa, frontH + 0.02, z1 + 0.14],
-      [xb, frontH + 0.02, z1 + 0.14],
-      [(xa + xb) / 2, frontH - 0.07, z1 + 0.15],
-      [(xa + xb) / 2, frontH - 0.07, z1 + 0.15],
-      hex,
-    );
+  if (lv < 2) {
+    for (let i = 0; i < n; i++) {
+      const xa = x0 - 0.06 + ((x1 - x0 + 0.12) * i) / n;
+      const xb = x0 - 0.06 + ((x1 - x0 + 0.12) * (i + 1)) / n;
+      const hex = i % 2 === 0 ? accent : palette.white;
+      panel(
+        s,
+        [xa, back + 0.02, z0 - 0.08],
+        [xb, back + 0.02, z0 - 0.08],
+        [xb, frontH + 0.02, z1 + 0.14],
+        [xa, frontH + 0.02, z1 + 0.14],
+        hex,
+        vary(hex, rnd, 1.5),
+      );
+      panel(
+        s,
+        [xa, frontH + 0.02, z1 + 0.14],
+        [xb, frontH + 0.02, z1 + 0.14],
+        [(xa + xb) / 2, frontH - 0.07, z1 + 0.15],
+        [(xa + xb) / 2, frontH - 0.07, z1 + 0.15],
+        hex,
+      );
+    }
+  } else {
+    // Two bays: the back bay slopes from the back posts to a middle post, then the front bay steps up
+    // a hand's width and slopes on to the customers, each with its own scalloped edge.
+    const bays: [number, number, number, number][] = [
+      [z0 - 0.08, back + 0.02, zm + 0.04, back - 0.2],
+      [zm + 0.04, back - 0.08, z1 + 0.14, frontH + 0.02],
+    ];
+    for (const [za, ya, zb, yb] of bays) {
+      for (let i = 0; i < n; i++) {
+        const xa = x0 - 0.06 + ((x1 - x0 + 0.12) * i) / n;
+        const xb = x0 - 0.06 + ((x1 - x0 + 0.12) * (i + 1)) / n;
+        const hex = i % 2 === 0 ? accent : palette.white;
+        panel(s, [xa, ya, za], [xb, ya, za], [xb, yb, zb], [xa, yb, zb], hex, vary(hex, rnd, 1.5));
+        panel(
+          s,
+          [xa, yb, zb],
+          [xb, yb, zb],
+          [(xa + xb) / 2, yb - 0.08, zb + 0.01],
+          [(xa + xb) / 2, yb - 0.08, zb + 0.01],
+          hex,
+        );
+      }
+    }
+    // The middle posts, and the riser between the bays.
+    for (const x of [x0, x1]) beam(s, [x, 0, zm], [x, back - 0.1, zm], 0.025, palette.timber);
+    s.box(x0 - 0.06, back - 0.28, zm + 0.03, x1 + 0.06, back - 0.08, zm + 0.05, palette.white);
+    if (lv >= 3) {
+      // Level 3: a second, higher tier over the back bay, a small gabled canopy on tall posts.
+      const eave = back + 0.42;
+      const ridge = back + 0.66;
+      const za = z0 - 0.1;
+      const zb = zm + 0.12;
+      const xm = (x0 + x1) / 2;
+      for (const [x, z] of [
+        [x0, z0],
+        [x1, z0],
+        [x0, zm],
+        [x1, zm],
+      ] as const)
+        beam(s, [x, back - 0.1, z], [x, eave, z], 0.025, palette.timber);
+      for (let i = 0; i < n; i++) {
+        const za2 = za + ((zb - za) * i) / n;
+        const zb2 = za + ((zb - za) * (i + 1)) / n;
+        const hex = i % 2 === 0 ? palette.white : accent;
+        panel(s, [x0 - 0.08, eave, za2], [x0 - 0.08, eave, zb2], [xm, ridge, zb2], [xm, ridge, za2], hex);
+        panel(s, [x1 + 0.08, eave, zb2], [x1 + 0.08, eave, za2], [xm, ridge, za2], [xm, ridge, zb2], hex);
+      }
+      // The gable ends, boarded, and the ridge beam.
+      for (const z of [za, zb]) {
+        panel(s, [x0 - 0.08, eave, z], [x1 + 0.08, eave, z], [xm, ridge, z], [xm, ridge, z], palette.timber);
+      }
+      s.box(xm - 0.015, ridge - 0.01, za, xm + 0.015, ridge + 0.015, zb, palette.timber);
+    }
   }
   s.surface(SURFACE.plain);
   // The counter with a cloth and the goods on show, then crates and a barrel behind.
@@ -1055,6 +1346,91 @@ function marketStall(opts: KitBuildOptions | undefined): Built {
   ] as const)
     s.box(bx - l / 2, y - 0.006, bz + 0.04, bx + l / 2, y + 0.006, bz + 0.043, palette.white);
   flowerPot(s, x0 - 0.02, 0, z1 + 0.18, rnd);
+  if (lv >= 2) {
+    // R3H level 2: a back shelf of goods along the whole wall and a tower of crates.
+    const lr = streams(opts, 120).rnd;
+    s.box(x0 + 0.04, 0.0, z0 + 0.02, x1 - 0.04, 0.03, z0 + 0.14, palette.timber);
+    for (const sy of [0.04, 0.4, 0.74])
+      s.box(x0 + 0.04, sy, z0 + 0.02, x1 - 0.04, sy + 0.03, z0 + 0.14, vary(palette.wood, lr, 0.5));
+    for (const x of [x0 + 0.05, x1 - 0.05])
+      s.box(x - 0.02, 0, z0 + 0.02, x + 0.02, 0.77, z0 + 0.14, palette.timber);
+    const hues = [accent, 0xe2c25a, 0x7fae4e, palette.white, 0xc8553d];
+    for (const sy of [0.07, 0.43]) {
+      for (let i = 0; i < 4; i++) {
+        const x = x0 + 0.1 + i * 0.17;
+        s.rbox(
+          x,
+          sy + 0.03,
+          z0 + 0.04,
+          x + 0.14,
+          sy + 0.15 + (i % 2) * 0.05,
+          z0 + 0.12,
+          hues[(i + (sy > 0.2 ? 2 : 0)) % hues.length]!,
+          0.01,
+        );
+      }
+    }
+    // The counter turns the corner and runs back along the right side into the middle bay, its own
+    // baskets of goods on it, with crates and a barrel along the left side.
+    const sz0 = zm - 0.12;
+    s.rbox(x1 - 0.3, 0, sz0, x1 - 0.02, 0.36, cz0 + 0.02, vary(palette.wood, lr, 0.5), 0.015);
+    s.box(x1 - 0.31, 0.36, sz0 - 0.01, x1 - 0.01, 0.38, cz0 + 0.03, palette.white);
+    s.box(x1 - 0.015, 0.3, sz0, x1 - 0.003, 0.37, cz0 + 0.02, vary(accent, lr, 0.5));
+    for (let i = 0; i < 2; i++) {
+      const bz = sz0 + 0.14 + i * 0.5 * (cz0 - sz0 - 0.28);
+      s.cylinder(x1 - 0.16, bz, 0.08, 0.1, 0.38, 0.43, 0xa8794a, 8);
+      for (let j = 0; j < 4; j++)
+        s.blob(
+          x1 - 0.16 + (j % 2 ? 0.035 : -0.035),
+          0.45,
+          bz + (j < 2 ? -0.03 : 0.03),
+          0.035,
+          0.03,
+          0.035,
+          [0xe2803a, 0x7fae4e, 0x9c3a4f, 0xe2c25a][(i + j) % 4]!,
+          0,
+        );
+    }
+    s.detail(() => {
+      crateOf(s, display[1 % display.length]![0], x0 + 0.2, 0, zm + 0.12, lr);
+      barrel(s, x0 + 0.17, 0, zm + 0.42, lr, 0.9);
+      for (let k = 0; k < 3; k++) crateOf(s, display[0]![0], x1 - 0.2, k * 0.12, z0 + 0.5, lr);
+      for (let k = 0; k < 2; k++)
+        crateOf(s, display[1 % display.length]![0], x0 + 0.2, k * 0.12, z0 + 0.5, lr);
+    });
+  }
+  if (lv >= 3) {
+    // Level 3: a tall pole at the front corner with a painted hanging sign, bunting up to the second tier.
+    const lr = streams(opts, 220).rnd;
+    const px = x1 + 0.1;
+    const pz = z1 + 0.2;
+    s.box(px - 0.03, 0, pz - 0.03, px + 0.03, 1.95, pz + 0.03, palette.timber);
+    s.box(px - 0.4, 1.7, pz - 0.015, px, 1.74, pz + 0.015, palette.wood);
+    s.box(px - 0.4, 1.4, pz - 0.015, px - 0.36, 1.74, pz + 0.015, palette.timber);
+    s.rbox(px - 0.58, 1.34, pz - 0.03, px - 0.2, 1.62, pz + 0.03, accent, 0.012);
+    s.box(px - 0.54, 1.38, pz + 0.03, px - 0.24, 1.58, pz + 0.04, palette.paper);
+    s.blob(px - 0.39, 1.48, pz + 0.045, 0.07, 0.05, 0.01, vary(0xd9a24a, lr, 0.5), 0);
+    // Bunting from the pole top to the back post, little flags hanging from the string.
+    const a: V3 = [px, 1.92, pz];
+    const b: V3 = [x0 - 0.08, back + 0.42, zm + 0.12];
+    beam(s, a, b, 0.008, palette.timber);
+    s.nearOnly(() => {
+      for (let i = 1; i < 7; i++) {
+        const f = i / 7;
+        const fx = a[0] + (b[0] - a[0]) * f;
+        const fy = a[1] + (b[1] - a[1]) * f - Math.sin(f * Math.PI) * 0.04;
+        const hex = [accent, palette.white, 0xe2c25a][i % 3]!;
+        panel(
+          s,
+          [fx - 0.035, fy, a[2] + (b[2] - a[2]) * f],
+          [fx + 0.035, fy, a[2] + (b[2] - a[2]) * f],
+          [fx, fy - 0.09, a[2] + (b[2] - a[2]) * f],
+          [fx, fy - 0.09, a[2] + (b[2] - a[2]) * f],
+          hex,
+        );
+      }
+    });
+  }
   if (c.sign) {
     s.box(x0, frontH - 0.02, z1 + 0.15, x1, frontH + 0.0, z1 + 0.17, palette.timber);
     anchors.sign = {

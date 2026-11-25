@@ -7,6 +7,7 @@ import {
   calendar,
   canPaintRoad,
   canPlaceBuilding,
+  decorBlocked,
   canPlaceDecor,
   rankAtLeast,
   doorTile,
@@ -24,6 +25,7 @@ import {
 import type { Planner } from '../planner';
 import { walledIn } from '../rows';
 import { count, G, idx, S, sites } from '../town';
+import { candlesAllow } from './lamps';
 import { wellFor } from './siting';
 import type { Advisor, AdvisorDef } from './types';
 
@@ -108,6 +110,8 @@ class Hearth implements Advisor {
     if (!route || route.length > 90 || this.p.coins() < 60) return false;
     let ok = false;
     for (let k = 1; k < route.length; k += 3) {
+      // R3E: from Village rank a lantern burns a candle: only where the town's candles cover it.
+      if (!candlesAllow(this.w)) break;
       const i = route[k]!;
       ok =
         this.place('lantern', this.p.decorSpot('lantern', i % S, Math.floor(i / S), 1), 'on the way home') ||
@@ -118,6 +122,10 @@ class Hearth implements Advisor {
 
   private place(def: string, at: [number, number] | null, why: string): boolean {
     if (!at) return false;
+    // R3X: a player does not keep asking for a priced piece the town cannot pay for; it waits until
+    // the coins or goods are there.
+    const d = content.decorById.get(def);
+    if (d && decorBlocked(this.w, d)) return false;
     return this.p.do(`${def} ${why}`, [
       { t: 'decor.place', def, fx: at[0], fz: at[1], rot: (at[0] * 31 + at[1]) % 64 },
     ]);
@@ -227,8 +235,11 @@ class Hearth implements Advisor {
     if (pick) {
       const door = doorTile(pick);
       const [x, z] = [door % S, Math.floor(door / S)];
-      this.place('lantern', p.decorSpot('lantern', x, z, 2), 'on the lane');
-      this.place(w.decor.length % 2 ? 'flower-bed' : 'planter', p.decorSpot('planter', x, z, 2), 'by a door');
+      if (candlesAllow(w)) this.place('lantern', p.decorSpot('lantern', x, z, 2), 'on the lane');
+      // R3X: the spot is found for the piece placed (a planter's spot, on the road, was asked of a
+      // flower bed: hazel's Village audit had "flower-bed by a door" refused on 5 days).
+      const bed = w.decor.length % 2 ? 'flower-bed' : 'planter';
+      this.place(bed, p.decorSpot(bed, x, z, 2), 'by a door');
     }
     this.treePlace();
     this.wellGathering();

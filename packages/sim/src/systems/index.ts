@@ -9,7 +9,9 @@
 // R1 slots (R1.0): 65 carrier (10:00, in the caravans' old slot; the peddler and P1's callings left the
 // pipeline) and 69 levels (23:30). R2 slots (R2.0): 73 places (hourly, after the patterns pass at the
 // same offset) and 79 gaps (21:00, after the evening is scored); docs/build/r2-wave-notes.md has where
-// each R2 system runs in the day.
+// each R2 system runs in the day. R3 slots (R3.0): 41 threads (midnight), 57 supplies (every half hour:
+// the settling at 17:30, the lamps out at 07:00), 81 townbook (21:20, after the gaps), 87 masters
+// (23:45, after the levels) and 88 callings (15:00, its old slot); docs/build/r3-wave-notes.md.
 import type { System } from '../contracts';
 import { achievements } from './achievements';
 import { carrier } from './carrier';
@@ -27,6 +29,7 @@ import { gaps } from './gaps';
 import { growth } from './growth';
 import { guide } from './guide';
 import { habitats } from './habitats';
+import { callings } from './callings';
 import { charm } from './hearth/charm';
 import { patterns } from './hearth/patterns';
 import { places } from './places';
@@ -36,6 +39,7 @@ import { levels } from './levels';
 import { loans } from './loans';
 import { logistics } from './logistics';
 import { market } from './market';
+import { masters } from './masters';
 import { baskets } from './market/baskets';
 import { wages } from './market/wages';
 import { movement } from './movement';
@@ -48,8 +52,11 @@ import { residents } from './residents';
 import { seasons } from './seasons';
 import { services } from './services';
 import { stories } from './stories';
+import { supplies } from './supplies';
 import { threats } from './threats';
+import { threads } from './threads';
 import { tiers } from './tiers';
+import { townbook } from './townbook';
 import { trade } from './trade';
 import { traffic } from './traffic';
 import { trees } from './trees';
@@ -64,6 +71,7 @@ import { zoning } from './zoning';
 export const systems: readonly System[] = [
   achievements,
   baskets,
+  callings,
   carrier,
   charm,
   charter,
@@ -86,6 +94,7 @@ export const systems: readonly System[] = [
   loans,
   logistics,
   market,
+  masters,
   movement,
   patterns,
   places,
@@ -98,8 +107,11 @@ export const systems: readonly System[] = [
   seasons,
   services,
   stories,
+  supplies,
+  threads,
   threats,
   tiers,
+  townbook,
   trade,
   traffic,
   trees,

@@ -44,10 +44,34 @@ const row = (over: Partial<TargetRow> = {}): TargetRow => ({
   grownRowLots: 4,
   craftsBy40: true,
   craftsThird70: true,
+  lanternsLit: 80,
+  lanternsLitWinter: 60,
+  candlesDrawn: 31,
+  firewoodDrawn: 12,
+  gap4Opened: 2,
+  gap4Closed: 1,
+  mastersFirstDay: 52,
+  mastersEnd: 3,
+  mastersByTrade: 'baker 2, dairy 1',
+  mastersSold: 17,
+  pagesSpecialty: 4,
+  pagesCustom: 2,
+  pagesBySeat: '2/1/3',
+  callings: 1,
   ...over,
 });
 
 describe('the targets table', () => {
+  it('prints the R3 columns, and prints without failing them (R3X sets the targets)', () => {
+    const line = formatTarget(row());
+    expect(TARGET_HEAD).toContain('lit%/win');
+    expect(line).toContain('80/60');
+    expect(line).toContain('baker 2, dairy 1');
+    expect(line).toContain('2/1/3');
+    expect(formatTarget(row({ lanternsLit: null, lanternsLitWinter: null }))).toContain('-/-');
+    expect(failedTargets(row({ lanternsLit: 0, mastersEnd: 0, callings: 0 }))).toEqual([]);
+  });
+
   it('prints the evening columns and PASS for R1 lines that hold', () => {
     const line = formatTarget(row());
     expect(line).toContain(' 82 ');

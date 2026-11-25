@@ -4,6 +4,8 @@ import type {
   InspectResult,
   LayerPatch,
   SimEvent,
+  ThreadSubject,
+  ThreadView,
   Turn,
   ValleySettings,
   ViewSnapshot,
@@ -28,8 +30,16 @@ export type ToWorker =
    * an entity id; 'away' takes a seat. Answered by `inspected` with the same reqId.
    */
   | { k: 'inspect'; reqId: number; kind: InspectKind; id: number }
+  /** R3D: a Thread, the one sentence of where a thing came from and where it goes. Answered by `threaded`. */
+  | { k: 'thread'; reqId: number; subject: ThreadSubject }
   /** Debug only (C3X): nudges the state so this seat's hash drifts, for resync tests. */
-  | { k: 'debugCorrupt' };
+  | { k: 'debugCorrupt' }
+  /**
+   * R3D, debug only (e2e): records door pairs as if goods had moved, so a Thread can be read from the
+   * real sim on a fixture whose evenings sell few Treats. Each pair: from, to (a building id or a
+   * PlaceId), the good's id, units. Like debugCorrupt, this sim then drifts from a room's.
+   */
+  | { k: 'debugThreads'; pairs: [from: number, to: number | string, good: string, units: number][] };
 
 export type FromWorker =
   | { k: 'ready'; view: ViewSnapshot }
@@ -39,6 +49,8 @@ export type FromWorker =
   | { k: 'agents'; t: number; data: Float32Array }
   /** I1 (C3.0): reply to `inspect`; null when the entity is gone. */
   | { k: 'inspected'; reqId: number; data: InspectResult }
+  /** R3D: reply to `thread`; null when the subject is gone. */
+  | { k: 'threaded'; reqId: number; data: ThreadView | null }
   /** Every 50 turns, and in reply to a hash request (with its reqId). */
   | { k: 'hash'; t: number; h: string; reqId?: number }
   | { k: 'snapshot'; reqId: number; t: number; data: Uint8Array }

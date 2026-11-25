@@ -28,6 +28,7 @@ export {
   placementFree,
   matches,
   mix32,
+  paramsFor,
   resolveDressing,
   rulesFor,
   subjectKey,
@@ -38,6 +39,21 @@ export {
   type Placement,
 } from './dressing';
 export {
+  facadeOf,
+  FACADE_CELLS_X,
+  FACADE_CELLS_Y,
+  FACADE_PROUD,
+  FACADE_SUB,
+  FACADE_TOUCH,
+  facadeSignSpots,
+  SIGN_SIZE,
+  signWall,
+  WALL_BEHIND_DOOR,
+  WINDOW_CLEAR,
+  type Facade,
+  type FacadeSpot,
+} from './facade';
+export {
   artKitId,
   kitById,
   kits,
@@ -47,9 +63,11 @@ export {
   type KitBuildOptions,
   type KitPart,
 } from './kits';
+export { MASTER_EMBLEMS } from './kits/masterSign';
 export type { AnchorPoint, AnchorRect, AnchorRun } from './kits/types';
 export type { AnimalKind } from './kits/types';
 export { animalArt, standingAnimal, wolfGeometry, type AnimalArt } from './kits/animals';
+export { levelPoleGeometry, levelPoleSpot, withLevelPole, type PoleSpot } from './kits/levelPole';
 export {
   BED_Y,
   CARTER_SEAT,
@@ -78,6 +96,11 @@ export {
   extraGeometry,
   HAT_KINDS,
   isSpecies,
+  POLE_CARRY,
+  POLE_GRIP,
+  POLE_LIFT,
+  POLE_REACH,
+  POLE_TIP,
   residentGeometry,
   residentLook,
   SPECIES_ART,
@@ -165,3 +188,15 @@ export {
 } from './surface';
 export { BONFIRE_FLAME, circusGeometry, FESTIVAL_COLORS, festoonPosts, STALL_COUNTER } from './kits/festival';
 export { fitModules, moduleAnchors } from './kits/modules';
+export {
+  BRAZIER_FIRE,
+  clothOf,
+  FADE,
+  faded,
+  LAMP_LIT_GLOW,
+  LAMP_LIT_GROW,
+  lampFlameGeometry,
+  restOf,
+  type FlameBox,
+  type PieceRest,
+} from './kits/lamplight';

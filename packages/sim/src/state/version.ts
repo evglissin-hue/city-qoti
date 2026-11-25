@@ -1,5 +1,6 @@
 // Save versions (docs/spec/21-networking-and-saves.md, Version changes and The fresh start).
 import { migrate7to8 } from './migrate8';
+import { migrate8to9 } from './migrate9';
 
 /**
  * Bump whenever the shape of saved state changes, and add a migration with a test. Version 6 is R1's
@@ -7,9 +8,11 @@ import { migrate7to8 } from './migrate8';
  * refused (OLD_VALLEY), not converted, and migrations begin again from 6. Version 7 (P2, the R1
  * playtest) adds the day's count of grown sites started, for the growth pass's second run at 13:00.
  * Version 8 is R2.0's: the evening round (footfall, places, gaps, street names, the evening's tally,
- * the evenings need, the lot fields and storeys, the `round` RNG stream).
+ * the evenings need, the lot fields and storeys, the `round` RNG stream). Version 9 is R3.0's: masters and
+ * the Town Book (the nine masters' goods in every per-good array, craft and masters, supplies, the
+ * Town Book, the thread counts, the skating spots fixed at the freeze).
  */
-export const SAVE_VERSION = 8;
+export const SAVE_VERSION = 9;
 
 /** The oldest save this game opens: R1's fresh start. */
 export const OLDEST_SAVE_VERSION = 6;
@@ -31,6 +34,7 @@ function addGrowthStarts(save: SaveObject): SaveObject {
 export const migrations: ReadonlyMap<number, Migration> = new Map<number, Migration>([
   [6, addGrowthStarts],
   [7, migrate7to8],
+  [8, migrate8to9],
 ]);
 
 /**

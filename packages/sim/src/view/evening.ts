@@ -19,6 +19,7 @@ import { findById } from '../state/entities';
 import { eveningsNeed, shownName } from '../state/evenings';
 import { dayIndex, tickOfDay } from '../systems/economy/time';
 import { buildingCredit, placeCredit } from '../systems/gaps/credit';
+import { crateNews, crateNewsDay } from '../systems/supplies/crateNews';
 import { sellsTreats } from '../systems/market/round';
 import { placeById, placeServes } from '../systems/places/api';
 import { capitalized, folkText, gapClosedText, gapView, outletName, seatNames } from './gaps';
@@ -157,11 +158,14 @@ export function eveningView(state: WorldState): EveningView | null {
   }));
   const closedToday = state.gaps.closed.filter((g) => g.closedDay === t.day);
   const openedToday = state.gaps.open.filter((g) => g.openedDay === t.day);
-  const news = t.out > 0 || closedToday.length > 0 || openedToday.length > 0;
+  // R3X: the evening the County's crate comes, the edition says what burns the lanterns now.
+  const crate = crateNewsDay(state) === t.day;
+  const news = t.out > 0 || closedToday.length > 0 || openedToday.length > 0 || crate;
   const tally = { ...t };
   if (!news) return { tally, lines: [{ text: honestLine(state), seats: [], refs: [] }], places };
 
   const lines: EditionLine[] = [];
+  if (crate) lines.push({ text: crateNews(), seats: [], refs: [] });
   for (const g of closedToday) {
     lines.push({
       text: gapClosedText(state, g),

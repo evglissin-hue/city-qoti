@@ -17,6 +17,7 @@ import {
 } from '@qoti/sim';
 import type { Planner } from '../planner';
 import { FOODS, idx } from '../town';
+import { candlesAllow } from './lamps';
 import type { Advisor, AdvisorDef, Visit } from './types';
 
 /** R1F: days between two plans the Hearth sketches. */
@@ -134,6 +135,7 @@ class Together implements Advisor {
         this.p.do(`approve ${p.name}`, [{ t: 'plan.approve', id: p.id }]);
     }
     const items: Command[] = [];
+    let lanterns = 0;
     const add = (def: string, at: [number, number] | null) => {
       if (at) items.push({ t: 'decor.place', def, fx: at[0], fz: at[1], rot: 0 });
     };
@@ -143,7 +145,11 @@ class Together implements Advisor {
       const home = r ? findById(w.buildings, findById(w.households, r.householdId)?.homeId ?? 0) : undefined;
       if (!goal || !home) continue;
       const wants = JSON.stringify(goal);
-      if (wants.includes('"lantern"')) add('lantern', this.p.decorSpot('lantern', home.x, home.z, 3));
+      // R3E: a lantern burns a candle from Village rank: only where the town's candles cover it.
+      if (wants.includes('"lantern"') && candlesAllow(w, 1 + lanterns)) {
+        add('lantern', this.p.decorSpot('lantern', home.x, home.z, 3));
+        lanterns++;
+      }
       if ('charm' in goal) {
         add('flower-bed', this.p.decorSpot('flower-bed', home.x, home.z, 3));
         add('cherry-tree', this.p.decorSpot('cherry-tree', home.x, home.z, 3));

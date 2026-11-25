@@ -29,6 +29,7 @@ import { askText } from './panels/Requests';
 import type { Letter } from './state';
 import { FAMILY_WORD, inPlay, LIFE_ICON, priceText } from './village';
 import { seasonAlerts } from './seasonAlerts';
+import { specializedLevelAlerts } from './specializedAlerts';
 
 export type AlertAction =
   | { kind: 'building'; id: number }
@@ -258,6 +259,7 @@ export function computeAlerts(
     });
   }
   out.push(...zoneAlerts(m, 'growth'));
+  out.push(...specializedLevelAlerts(m));
   // P3A: a business that grew a level today is news, after the warnings so it never pushes them off.
   out.push(...businessGrewAlerts(m));
 

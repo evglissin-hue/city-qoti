@@ -165,6 +165,15 @@ export interface Resident {
    * when they stayed in.
    */
   roundEvening?: number;
+  // R3 (R3.0), absent until they apply (docs/spec/19-evenings.md, Masters; 11-residents.md).
+  /**
+   * Working days by trade, sorted by trade (a trade id, or a specialized building's def id): a day
+   * worked adds one, `MASTERY.apprenticeWeight` for an apprentice under a master. Kept across winters
+   * and changes of work; a day resting out of season counts nothing and loses nothing.
+   */
+  craft?: [trade: string, days: number][];
+  /** The trade they are master of (ResidentFlags.master is set too). */
+  mastery?: string;
 }
 
 export interface Household {
@@ -204,6 +213,12 @@ export interface Household {
    * it is owed, in hundredths, as the basket accrues). Absent until its first errand.
    */
   doorstep?: number;
+  /**
+   * R3 (R3.0): nights of candlelight left (19-evenings.md, Supplies: Windows). A unit of candles
+   * bought within its Wares adds `SUPPLIES.candleNights`; the settling burns one a night. While some
+   * are left every window of its home is lit until bedtime. Absent or 0: today's share of windows.
+   */
+  candle?: number;
 }
 
 /** Construction progress of a site (standard valleys). */
@@ -267,6 +282,14 @@ export interface BuildingRuntime {
   moduleNext?: [slot: string, module: string];
   /** Under flood water until this tick (C5A). */
   flooded?: number;
+  // R3 (R3B), absent until used.
+  /**
+   * Work toward the master's own cycle (19-evenings.md, Masters: the master's good), in worker-ticks:
+   * while a master of the building's trade is inside, their own work goes to the master's recipe
+   * (`MasterDef.method`) instead of the trade's, so the master's good is made in the same building
+   * from the same raw good, never as a multiplier. Absent until a master first works there.
+   */
+  masterProgress?: number;
 }
 
 export interface PorterJob {

@@ -209,7 +209,11 @@ describe('dressingSubject (V3.0)', () => {
     for (const r of content.dressingRules ?? []) {
       const named = (r.who.def?.length ?? 0) + (r.who.trade?.length ?? 0);
       const kinds = r.who.kind ?? [];
-      expect(named > 0 || (kinds.length > 0 && !kinds.includes('specialized')), r.id).toBe(true);
+      // R3X: a rule for a master's building opens specialized ones too, but only those with a master.
+      expect(
+        named > 0 || r.who.master === true || (kinds.length > 0 && !kinds.includes('specialized')),
+        r.id,
+      ).toBe(true);
     }
   });
 
@@ -622,7 +626,12 @@ describe('dressingLayer, front and door pieces fit every plot they match (V3X)',
       const asks: (string | undefined)[] =
         def.category === 'home' || trades.length === 0 ? [undefined] : trades.map((t) => t.id);
       for (const trade of asks) {
-        const b = building(1, def.id, { ...(trade ? { trade, level: 3 } : {}) });
+        // R3X: only what can have a master gets the master's sign (masterSign.test.ts covers those).
+        if (rule.who.master && !content.masterByOf.has(trade ?? def.id)) continue;
+        const b = building(1, def.id, {
+          ...(trade ? { trade, level: 3 } : {}),
+          ...(rule.who.master ? { master: true } : {}),
+        });
         const households: Partial<HouseholdView>[] =
           def.category === 'home'
             ? [

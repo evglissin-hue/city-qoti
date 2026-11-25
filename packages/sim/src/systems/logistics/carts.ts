@@ -160,7 +160,7 @@ export function matchCarts(
           for (const t of spots) {
             if (t === s || t.b.stage !== 'built' || !isStorehouse(t.def) || !takes(t.def, g) || !road(t))
               continue;
-            if (storageSpace(t.def, t.rt) < CART_MIN_LOAD || tileDistance(s.door, t.door) < CART_MIN_TRIP)
+            if (storageSpace(t.b, t.rt) < CART_MIN_LOAD || tileDistance(s.door, t.door) < CART_MIN_TRIP)
               continue;
             const d = tileDistance(c.tile, s.door);
             if (!best || d < best.d)
@@ -173,7 +173,7 @@ export function matchCarts(
     const g = best.good;
     let qty = Math.min(cap, hooks.sourceAvail(best.src.b, best.src.def, g));
     if (best.need) qty = Math.min(qty, best.need.want);
-    if (isStorage(best.dest.def)) qty = Math.min(qty, storageSpace(best.dest.def, best.dest.rt));
+    if (isStorage(best.dest.def)) qty = Math.min(qty, storageSpace(best.dest.b, best.dest.rt));
     if (qty <= 0) continue;
     const lg = state.logistics;
     const job: PorterJob = {

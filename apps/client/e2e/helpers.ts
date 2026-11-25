@@ -25,7 +25,7 @@ export interface QotiHook {
   mode(): string | null;
   residentIds(): number[];
   buildingsOf(def: string): number[];
-  select(sel: { kind: string; id: number } | null): void;
+  select(sel: { kind: string; id: number | string } | null): void;
   undoSize(): number;
   // I2 (C4D)
   valleyId(): string | null;
@@ -39,10 +39,32 @@ export interface QotiHook {
   roadAt(x: number, z: number): number;
   /** R2X: the building on a tile, 0 for none. */
   occupantAt(x: number, z: number): number;
-  places(): { id: string; name: string; tile: number; tiles: number[]; members: number[]; source: string }[];
+  places(): {
+    id: string;
+    name: string;
+    tile: number;
+    tiles: number[];
+    members: number[];
+    source: string;
+    /** The place's draw (PlaceView.draw): 0 for the sim's own places before an evening, above 0 in the mocks. */
+    draw: number;
+    /** R3: its supplied pieces by kind (absent before R3A, or the R3 mocks). */
+    supplies?: unknown[];
+  }[];
   gaps(): { open: { id: number; tile: number; text: string }[]; closed: { id: number }[] } | null;
   focusTile(x: number, z: number, distance?: number): void;
   setLens(lens: 'hearth' | 'ledger'): void;
+  // R3 (R3D)
+  submit(cmd: unknown): number;
+  undo(): void;
+  openPanel(id: string | null): void;
+  setUi(name: string, value: unknown): void;
+  businesses(): { id: number; masterId?: number; apprentices?: number[]; graceDays?: number }[];
+  supplies(): { candles: number[]; lamplighters: { jobs: number; held: number[] } } | null;
+  /** Which ground layer shows: an inspector's own picture or a Thread's route. */
+  groundHighlight(): 'inspector' | 'thread' | null;
+  /** A cider's door pairs recorded in the real sim; null when the valley lacks a piece of it. */
+  threadScene(): { press: number; place: string; placeName: string; at: [number, number] } | null;
   // I3 (C5G)
   audio: {
     state(): string;

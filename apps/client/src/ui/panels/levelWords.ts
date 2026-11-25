@@ -1,7 +1,7 @@
 // The road to the next level, in words: what a business needs to climb (and how far along it is),
 // and what a home still wants for its next tier. Pure, so the inspectors only print the lines.
-import type { TradeDef } from '@qoti/content';
-import { KEEPER_DAYS_L3, LEVEL_DOWN_DAYS, LEVEL_UP_DAYS, SHOP_CUSTOMERS } from '@qoti/sim';
+import { content, type TradeDef } from '@qoti/content';
+import { LEVEL_DOWN_DAYS, LEVEL_UP_DAYS, SHOP_CUSTOMERS } from '@qoti/sim';
 import type { BusinessView, ResidentDetail } from '@qoti/sim';
 import { goodName } from '../format';
 import { TIER_WORD } from '../hamlet';
@@ -32,16 +32,26 @@ function roomWords(trade: TradeDef, to: number): string {
  * room it wants. Null when the trade is unknown. Numbers come from the sim's own constants.
  */
 export function nextLevelLine(
-  view: Pick<BusinessView, 'level' | 'levelDays'>,
+  view: Pick<BusinessView, 'level' | 'levelDays' | 'graceDays' | 'masterId'>,
   trade: TradeDef | undefined,
 ): string | null {
   if (!trade) return null;
   const { level, levelDays } = view;
+  // R3X: a level 3 whose master has gone keeps its level a few days, then slides (R3B's grace); the
+  // inspector said "the top of its trade" through it.
+  if (level >= 3 && view.graceDays !== undefined && !view.masterId) {
+    const d = view.graceDays;
+    return `Level 3 while its master is away: ${d} ${d === 1 ? 'day' : 'days'} before it slides to level 2, unless a master of the trade joins the crew.`;
+  }
   if (levelDays < 0) {
     const left = Math.max(1, LEVEL_DOWN_DAYS + levelDays);
     return `A poor day: ${left} more in a row and it shrinks to level ${level - 1}.`;
   }
   if (level >= 3) return 'Level 3, the top of its trade.';
+  // R3B: level 3 is held by a master of the trade on the crew; a trade whose masters bring no
+  // level 3 tops out at 2.
+  const masterLifts = content.masterByOf.get(trade.id)?.level3 === true;
+  if (level >= 2 && !masterLifts) return 'Level 2, the top of its trade.';
   const to = level + 1;
   const so = levelDays > 0 ? `${levelDays} so far` : 'none yet';
   const head = `Level ${to} after ${plural(LEVEL_UP_DAYS, 'good day', 'good days')} running: ${so}.`;
@@ -52,7 +62,13 @@ export function nextLevelLine(
   } else {
     good = `A good day brings ${plural(SHOP_CUSTOMERS[level - 1]!, 'customer', 'customers')}`;
   }
-  const keeper = to >= 3 ? `, and its keeper's ${KEEPER_DAYS_L3} working days` : '';
+  // R3X: a master already on the crew is said as met, not asked for.
+  const keeper =
+    to >= 3
+      ? view.masterId
+        ? ', and its master on the crew already'
+        : ', and a master of the trade on its crew'
+      : '';
   return `${head} ${good}, with ${roomWords(trade, to)}${keeper}.`;
 }
 

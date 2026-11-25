@@ -10,14 +10,15 @@
 import type { BuildingDef, ProductionMethod } from '@qoti/content';
 import { content } from '@qoti/content';
 import { BuildingStatus, TICKS_PER_HOUR } from '../../constants';
-import type { Building, BuildingRuntime, System, TickCtx, WorldState } from '../../contracts';
+import type { Building, BuildingRuntime, EntityId, System, TickCtx, WorldState } from '../../contracts';
 import { isStandard } from '../../state/hamlet';
-import { jobsOf, methodOf } from '../../state/zones';
+import { atLevel, jobsOf, methodOf } from '../../state/zones';
 import { isWorkTime, tickOfDay } from '../economy/time';
 import { countShort } from '../levels/counters';
 import { defOf, outputCap } from '../logistics/stores';
 import { CROP_STEP_TICKS, tendFields } from './fields';
 import { FORESTRY_RANGE, fellTree, lodgeYield, plantSapling, treeToFell, woodsThin } from './forestry';
+import { masterWork } from './master';
 import { yieldPermille } from './modifiers';
 import { conditionPercent, consume, crewPower, cycleWork, heightPercent, produce } from './produce';
 import { inputsShort, outputBlocked, refreshAllStatus } from './status';
@@ -48,9 +49,12 @@ export const production: System = {
   },
 };
 
-/** Hands that count: a business's crew at its level (a bigger crew, never a multiplier), else the method's. */
+/**
+ * Hands that count: a business's crew at its level (a bigger crew, never a multiplier), or (R3H) a
+ * specialized building's at its level, else the method's.
+ */
 function crewCap(b: Building, method: ProductionMethod): number {
-  return Math.max(1, b.trade ? jobsOf(b) : method.workers);
+  return Math.max(1, b.trade || content.buildingById.get(b.def)?.levels?.crew ? jobsOf(b) : method.workers);
 }
 
 /** Work per tick from the crew inside, after condition and the height bonus. */
@@ -60,8 +64,9 @@ export function crewWork(
   def: BuildingDef,
   rt: BuildingRuntime,
   method: ProductionMethod,
+  skip: EntityId = 0,
 ): number {
-  const crew = crewPower(state, b, rt, crewCap(b, method));
+  const crew = crewPower(state, b, rt, crewCap(b, method), skip);
   if (crew === 0) return 0;
   const work = Math.floor((crew * conditionPercent(rt) * heightPercent(state, b, def, method)) / 10000);
   // I3 (C5.0): weather, pollinators, pests and the like, through the yield hook.
@@ -93,8 +98,10 @@ function work(
   rt: BuildingRuntime,
   method: ProductionMethod,
 ): void {
+  // R3B: a master's own lane first; while it runs the master's hands are not the trade's.
+  const skip = masterWork(state, ctx, b, def, rt);
   if (!canRun(state, b, rt, def, method)) return;
-  const power = crewWork(state, b, def, rt, method);
+  const power = crewWork(state, b, def, rt, method, skip);
   if (power === 0) return;
   const cycle = cycleWork(method);
   rt.progress += power;
@@ -114,10 +121,10 @@ function finishCycle(
   if (method.kind === 'fell') {
     // R1X: woods the town has grown into are planted back before any more is felled.
     if (woodsThin(state, b, def)) {
-      plantSapling(state, ctx, b, def, method.range ?? FORESTRY_RANGE, ctx.rng('misc'));
+      plantSapling(state, ctx, b, def, atLevel(b, 'reach', method.range ?? FORESTRY_RANGE), ctx.rng('misc'));
       return true;
     }
-    const tile = treeToFell(state, b, def, method.range ?? FORESTRY_RANGE);
+    const tile = treeToFell(state, b, def, atLevel(b, 'reach', method.range ?? FORESTRY_RANGE));
     if (tile < 0) {
       rt.status |= BuildingStatus.noTrees;
       return false;
@@ -135,12 +142,12 @@ function finishCycle(
     }
     if (g < 0 || rt.output[g]! + n > outputCap(def)) return false;
     fellTree(state, ctx, tile);
-    plantSapling(state, ctx, b, def, method.range ?? FORESTRY_RANGE, ctx.rng('misc'));
+    plantSapling(state, ctx, b, def, atLevel(b, 'reach', method.range ?? FORESTRY_RANGE), ctx.rng('misc'));
     produce(state, ctx, b, g, n);
     return true;
   }
   if (method.kind === 'plant') {
-    plantSapling(state, ctx, b, def, method.range ?? FORESTRY_RANGE, ctx.rng('misc'));
+    plantSapling(state, ctx, b, def, atLevel(b, 'reach', method.range ?? FORESTRY_RANGE), ctx.rng('misc'));
     return true;
   }
   for (const [id, qty] of method.inputs) {

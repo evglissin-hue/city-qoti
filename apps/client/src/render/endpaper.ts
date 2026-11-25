@@ -800,3 +800,61 @@ export class EndpaperWriter {
     this.worker = null;
   }
 }
+
+/**
+ * R3G's still for the printed storybook: the endpaper map drawn once at print resolution by its own
+ * one-shot worker (the live map's writer and texture are untouched) and returned as a PNG. The
+ * clean map by default (no inks). Null when nothing could be drawn or encoded; it never throws.
+ */
+export async function endpaperStill(
+  mirror: Mirror,
+  opts: { size?: number; inks?: boolean; makeWorker?: () => EndpaperWorkerLike; timeoutMs?: number } = {},
+): Promise<Blob | null> {
+  let worker: EndpaperWorkerLike | null = null;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const size = opts.size ?? 2048;
+    const input = endpaperInput(mirror, opts.inks ? endpaperInks(mirror) : {});
+    worker = (opts.makeWorker ?? createEndpaperWorker)();
+    const w = worker;
+    const reply = await new Promise<EndpaperReply | null>((resolve) => {
+      timer = setTimeout(() => resolve(null), opts.timeoutMs ?? 20000);
+      w.onmessage = (e) => {
+        if (e.data.type === 'drawn' && e.data.id === 1) resolve(e.data);
+      };
+      w.postMessage({ type: 'draw', id: 1, size, input });
+    });
+    const bitmap = reply?.bitmap ?? null;
+    if (!bitmap) return null;
+    try {
+      if (typeof OffscreenCanvas !== 'undefined') {
+        const c = new OffscreenCanvas(bitmap.width, bitmap.height);
+        const ctx = c.getContext('2d');
+        if (!ctx) return null;
+        ctx.drawImage(bitmap, 0, 0);
+        return await c.convertToBlob({ type: 'image/png' });
+      }
+      if (typeof document !== 'undefined') {
+        const c = document.createElement('canvas');
+        c.width = bitmap.width;
+        c.height = bitmap.height;
+        const ctx = c.getContext('2d');
+        if (!ctx) return null;
+        ctx.drawImage(bitmap, 0, 0);
+        return await new Promise<Blob | null>((resolve) => c.toBlob((b) => resolve(b), 'image/png'));
+      }
+      return null;
+    } finally {
+      bitmap.close?.();
+    }
+  } catch {
+    return null;
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+    try {
+      worker?.terminate();
+    } catch {
+      /* ignore */
+    }
+  }
+}

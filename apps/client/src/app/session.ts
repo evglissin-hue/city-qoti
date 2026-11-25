@@ -9,6 +9,8 @@ import {
   TICKS_PER_DAY,
   type Command,
   type InspectKind,
+  type ThreadSubject,
+  type ThreadView,
   type InspectResult,
   type SeatId,
   type Speed,
@@ -151,6 +153,11 @@ export class Session {
   /** I1: full detail for an inspector or the away letter, from the sim worker. */
   inspect(kind: InspectKind, id: number): Promise<InspectResult> {
     return this.host.inspect(kind, id);
+  }
+
+  /** R3D: the Thread for a subject, from the sim worker. */
+  thread(subject: ThreadSubject): Promise<ThreadView | null> {
+    return this.host.thread(subject);
   }
 
   get seat(): SeatId {
@@ -708,6 +715,11 @@ export class Session {
     const held = this.heldTurns ?? [];
     this.heldTurns = null;
     if (held.length) this.host.turns(held);
+  }
+
+  /** R3D, debug only (e2e): records door pairs in the sim, as if goods had moved. */
+  seedThreadsForTest(pairs: [from: number, to: number | string, good: string, units: number][]): void {
+    this.host.seedThreadsForTest(pairs);
   }
 
   /** Debug only (?debug): makes this seat's sim drift from the room's, for resync tests. */

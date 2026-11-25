@@ -1,7 +1,7 @@
 // Building status bits (docs/spec/13-ledger.md, Reports: no workers, missing input, output full,
 // no road, no porters, plus paused, disrepair and the construction waits). Refreshed hourly for
 // every building and right away after construction milestones; a change sends building.updated.
-import { jobsOf, methodOf } from '../../state/zones';
+import { atLevel, jobsOf, methodOf } from '../../state/zones';
 import type { BuildingDef, ProductionMethod } from '@qoti/content';
 import { content } from '@qoti/content';
 import { BuildingStatus, MAP_SIZE } from '../../constants';
@@ -118,7 +118,10 @@ export function computeStatus(
   if (!method) return s;
   if (method.kind === 'craft' && inputsShort(rt, method)) s |= BuildingStatus.missingInput;
   if (outputBlocked(def, rt, method)) s |= BuildingStatus.outputFull;
-  if (method.kind === 'fell' && countMatureTrees(state, b, def, method.range ?? FORESTRY_RANGE) === 0) {
+  if (
+    method.kind === 'fell' &&
+    countMatureTrees(state, b, def, atLevel(b, 'reach', method.range ?? FORESTRY_RANGE)) === 0
+  ) {
     s |= BuildingStatus.noTrees;
   }
   if (method.kind === 'farm' && ownedFields(state, b, def) === 0) s |= BuildingStatus.noFields;

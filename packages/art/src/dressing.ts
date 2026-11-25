@@ -35,6 +35,8 @@ export interface DressingSubject {
   /** The household's tier, for a home with one. */
   tier?: DressingTier;
   season: DressingSeason;
+  /** R3X: a master works here (`BuildingView.master`); only rules with `who.master` read it. */
+  master?: boolean;
   /** The stats a rule may scale with (`DRESSING_STATS`); a missing one reads as 0. */
   stats: Readonly<Partial<Record<DressingStat, number>>>;
 }
@@ -55,6 +57,24 @@ export interface Placement {
   scale: number;
   /** A per-piece seed for the kit's own variation. */
   seed: number;
+}
+
+/**
+ * R3X: a piece's params for one building. A string param written `'$trade'` reads the building's
+ * trade (its def when it has none), so one rule can paint each trade's own emblem; every other value
+ * passes through unchanged.
+ */
+export function paramsFor(
+  params: Readonly<Record<string, number | string | boolean>>,
+  s: DressingSubject,
+): Readonly<Record<string, number | string | boolean>> {
+  let out: Record<string, number | string | boolean> | null = null;
+  for (const [k, v] of Object.entries(params)) {
+    if (v !== '$trade') continue;
+    out ??= { ...params };
+    out[k] = s.trade ?? s.def;
+  }
+  return out ?? params;
 }
 
 /** A 32-bit integer hash of two values (the resolver's only source of variety). */
@@ -88,6 +108,8 @@ export function matches(rule: DressingRule, s: DressingSubject): boolean {
   if (w.place && (s.place === undefined || !w.place.includes(s.place))) return false;
   if (w.tier && (s.tier === undefined || !w.tier.includes(s.tier))) return false;
   if (w.season && !w.season.includes(s.season)) return false;
+  // R3X: a rule that names `master` dresses only a building with one; the rest never read the field.
+  if (w.master && !s.master) return false;
   return true;
 }
 
@@ -146,7 +168,7 @@ export function resolveDressing(
         rule: rule.id,
         anchor: rule.anchor,
         kit: rule.piece.kit,
-        ...(rule.piece.params ? { params: rule.piece.params } : {}),
+        ...(rule.piece.params ? { params: paramsFor(rule.piece.params, subject) } : {}),
         at,
         yaw,
         scale: 0.9 + rnd() * 0.2,
@@ -208,7 +230,7 @@ function placeAt(
 export function subjectKey(s: DressingSubject): string {
   let stats = '';
   for (const d of DRESSING_STATS) stats += `${s.stats[d.id] ?? 0},`;
-  return `${s.def}|${s.kind ?? '-'}|${s.trade ?? ''}|${s.level}|${s.place ?? ''}|${s.tier ?? ''}|${s.season}|${stats}`;
+  return `${s.def}|${s.kind ?? '-'}|${s.trade ?? ''}|${s.level}|${s.place ?? ''}|${s.tier ?? ''}|${s.season}|${s.master ? 'm' : ''}|${stats}`;
 }
 
 /** The rules a preset draws: Low ('some') keeps only signs and stock piles (`low`), the rest all. */
@@ -248,6 +270,9 @@ export function validateDressingRules(
     if (r.chance !== undefined && !(r.chance > 0 && r.chance <= 1)) errors.push(`${at}: chance ${r.chance}`);
     for (const t of r.who.trade ?? []) if (!isTrade(t)) errors.push(`${at}: no trade ${t}`);
     for (const d of r.who.def ?? []) if (!isDef(d)) errors.push(`${at}: no building ${d}`);
+    // R3X: `master` only narrows: a rule that sets it sets it true (false would be every building).
+    if (r.who.master !== undefined && r.who.master !== true)
+      errors.push(`${at}: master must be true when set`);
     if (r.who.minLevel !== undefined && !(r.who.minLevel >= 1 && r.who.minLevel <= 3))
       errors.push(`${at}: minLevel ${r.who.minLevel}`);
   }
@@ -446,7 +471,7 @@ function overlaps(a: GroundBox, b: GroundBox): boolean {
 function snaps(p: Placement): boolean {
   // V3A: doorstep pieces (boots, churns) stand against the front wall beside the door; a sign stays
   // out by the path, where it can be read.
-  if (p.anchor === 'door') return p.kit !== 'yard-sign';
+  if (p.anchor === 'door') return p.kit !== 'yard-sign' && p.kit !== 'master-sign';
   return p.anchor === 'eaves' || p.anchor === 'sills' || p.anchor === 'front' || p.kit === 'yard-awning';
 }
 

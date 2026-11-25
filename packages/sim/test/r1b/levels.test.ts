@@ -1,10 +1,10 @@
 // R1B levels (docs/spec/13-ledger.md, Levels): up after two good days, down after four failing
-// ones, out-of-season days count neither, room to grow, the keeper's days for level 3, and a crew
+// ones, out-of-season days count neither, room to grow, a master for level 3, and a crew
 // that grows with the level. The levels system's day end is run directly, so the rest of the town
 // stays out of it.
 import { content } from '@qoti/content';
 import { describe, expect, it } from 'vitest';
-import { DAYS_PER_SEASON, MAP_SIZE, TICKS_PER_DAY } from '../../src/constants';
+import { DAYS_PER_SEASON, MAP_SIZE, ResidentFlags, TICKS_PER_DAY } from '../../src/constants';
 import type { Building, BusinessCounters, WorldState } from '../../src/contracts';
 import { Road } from '../../src/map/layers';
 import { entranceTiles } from '../../src/rules/footprint';
@@ -155,7 +155,7 @@ describe('levels', () => {
     expect(b.level).toBe(2);
   });
 
-  it('level 3 needs a street at the door and the keeper’s 20 working days', () => {
+  it('level 3 needs a street at the door and a master of the trade on the crew (R3)', () => {
     const { state, b } = bakery();
     b.level = 2;
     state.map.road[frontOf(b)] = Road.lane;
@@ -164,7 +164,13 @@ describe('levels', () => {
     state.map.road[frontOf(b)] = Road.street;
     for (let d = 0; d < 6; d++) endDay(state, b, GOOD);
     expect(b.level).toBe(2);
+    // The keeper's 20 working days no longer open it: a master does.
     b.counters!.keeperDays = 20;
+    for (let d = 0; d < LEVEL_UP_DAYS; d++) endDay(state, b, GOOD);
+    expect(b.level).toBe(2);
+    const master = findById(state.residents, b.rt!.workers[0]!)!;
+    master.flags |= ResidentFlags.master;
+    master.mastery = 'baker';
     for (let d = 0; d < LEVEL_UP_DAYS; d++) endDay(state, b, GOOD);
     expect(b.level).toBe(3);
   });
@@ -269,8 +275,10 @@ describe('the Chronicle says when a business first reaches a level (P3A)', () =>
     for (let d = 0; d < LEVEL_UP_DAYS; d++) endDay(state, b, GOOD);
     expect(b.level).toBe(2);
     expect(grew(state)).toHaveLength(1);
-    // Level 3 is news: the keeper's days are in and the door is on a street.
-    b.counters!.keeperDays = 20;
+    // Level 3 is news: a master works there (R3B) and the door is on a street.
+    const master = findById(state.residents, b.rt!.workers[0]!)!;
+    master.flags |= ResidentFlags.master;
+    master.mastery = 'baker';
     for (let d = 0; d < LEVEL_UP_DAYS; d++) endDay(state, b, GOOD);
     expect(b.level).toBe(3);
     expect(grew(state)).toHaveLength(2);

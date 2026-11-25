@@ -1,4 +1,5 @@
 // Threats, the Watch and raids API (C5.0 contract; C5D owns them). docs/spec/14-challenge.md.
+import { decorLitTonight } from '../supplies/api';
 import { content } from '@qoti/content';
 import {
   DAYS_PER_SEASON,
@@ -213,7 +214,10 @@ export function watchStrength(state: WorldState): number {
   return Math.round((w.members.length * w.training * w.morale) / 10000);
 }
 
-/** A lantern stands on or next to the tile (night threats avoid it; raiders lose heart in it). */
+/**
+ * A lit lantern stands on or next to the tile (night threats avoid it; raiders lose heart in it). R3:
+ * only lanterns with a candle tonight count (14-challenge.md, the lantern line; supplies' decorLitTonight).
+ */
 export function lanternLit(state: WorldState, tile: number): boolean {
   const x = tile % MAP_SIZE;
   const z = Math.floor(tile / MAP_SIZE);
@@ -221,7 +225,7 @@ export function lanternLit(state: WorldState, tile: number): boolean {
     const dx = Math.floor(d.fx / TILE_FP);
     const dz = Math.floor(d.fz / TILE_FP);
     if (Math.abs(dx - x) > 1 || Math.abs(dz - z) > 1) continue;
-    if (content.decorById.get(d.def)?.tags.includes('lantern')) return true;
+    if (content.decorById.get(d.def)?.tags.includes('lantern') && decorLitTonight(state, d)) return true;
   }
   return false;
 }
@@ -231,6 +235,8 @@ export function litTiles(state: WorldState): Set<number> {
   const lit = new Set<number>();
   for (const d of state.decor) {
     if (!content.decorById.get(d.def)?.tags.includes('lantern')) continue;
+    // R3: only lanterns with a candle tonight (supplies' decorLitTonight).
+    if (!decorLitTonight(state, d)) continue;
     const x = decorTileX(d);
     const z = decorTileZ(d);
     for (let dz = -1; dz <= 1; dz++)

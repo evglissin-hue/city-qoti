@@ -40,3 +40,56 @@ export function chroniclePictures(
   }
   return shown;
 }
+
+/** A Town Book page as the picture rule needs it. */
+interface PagePlace {
+  id: number;
+  place: string;
+  day: number;
+}
+
+/**
+ * R3X: the Town Book pages that get a picture. A page's picture is its place, so two pages at one
+ * place would show the same view: the first found there (by day, then id) gets it, and a later one
+ * shows its framed name instead of a repeat.
+ */
+export function townBookPictured(pages: readonly PagePlace[]): Set<number> {
+  const first = new Map<string, PagePlace>();
+  for (const p of pages) {
+    const have = first.get(p.place);
+    if (!have || p.day < have.day || (p.day === have.day && p.id < have.id)) first.set(p.place, p);
+  }
+  return new Set([...first.values()].map((p) => p.id));
+}
+
+/** A slot in a printed book, in book order. */
+export interface BookSlot<P extends { url: string }> {
+  key: string;
+  picture: P | null;
+  /** A Chronicle entry's slot. */
+  entry?: ChronicleEntryView;
+  /** A Town Book page's slot: whether the page gets a picture (`townBookPictured`). */
+  pictured?: boolean;
+}
+
+/**
+ * R3X: a printed book never shows one picture twice. In book order a slot's picture is left out (the
+ * slot prints its framed name) when an earlier slot printed the same URL, when it is a Chronicle
+ * picture `chroniclePictures` drops (the same aim within one game day as the one above it), or when
+ * it is a Town Book page whose place an earlier page pictures.
+ */
+export function oncePerBook<P extends { url: string }>(slots: readonly BookSlot<P>[]): Map<string, P | null> {
+  const entries = slots.flatMap((s) => (s.entry ? [s.entry] : []));
+  const urls = new Map<number, string>();
+  for (const s of slots) if (s.entry && s.picture) urls.set(s.entry.id, s.picture.url);
+  const shown = chroniclePictures(entries, urls);
+  const printed = new Set<string>();
+  const out = new Map<string, P | null>();
+  for (const s of slots) {
+    const p = s.picture;
+    const keep = !!p && !printed.has(p.url) && (!s.entry || shown.has(s.entry.id)) && s.pictured !== false;
+    out.set(s.key, keep ? p : null);
+    if (keep) printed.add(p.url);
+  }
+  return out;
+}

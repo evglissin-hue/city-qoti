@@ -15,6 +15,7 @@ export const brazier: DecorDef = {
   standing: 8,
   warm: true,
   locked: true,
+  supply: { kind: 'evening', good: 'firewood', qty: 1, seasons: [2, 3], rests: 'cold' },
 };
 
 export const cafeTable: DecorDef = {
@@ -28,6 +29,7 @@ export const cafeTable: DecorDef = {
   art: { kit: 'bench', params: { kit: 'cafe-table', chairs: 2, cloth: true } },
   charm: [{ category: 'comfort', value: 4, radius: 2 }],
   locked: true,
+  supply: { kind: 'outlet', radius: 3, rests: 'bare' },
 };
 
 export const flowerCart: DecorDef = {
@@ -54,6 +56,7 @@ export const fountain: DecorDef = {
   art: { kit: 'birdbath', params: { kit: 'fountain', tiers: 2 } },
   charm: [{ category: 'comfort', value: 8, radius: 3 }],
   locked: true,
+  supply: { kind: 'well', radius: 8, rests: 'dry' },
 };
 
 export const lampPost: DecorDef = {
@@ -66,6 +69,7 @@ export const lampPost: DecorDef = {
   art: { kit: 'lantern', params: { kit: 'lamp-post', arms: 2 } },
   charm: [{ category: 'light', value: 3, radius: 3, nightValue: 8 }],
   locked: true,
+  supply: { kind: 'nightly', good: 'candles', qty: 1, per: 4, rests: 'unlit' },
 };
 
 export const maypole: DecorDef = {
@@ -78,6 +82,7 @@ export const maypole: DecorDef = {
   art: { kit: 'signpost', params: { kit: 'maypole', ribbons: 6 } },
   charm: [{ category: 'comfort', value: 7, radius: 3 }],
   locked: true,
+  supply: { kind: 'season', good: 'cloth', qty: 2, rests: 'faded' },
 };
 
 export const noticeBoard: DecorDef = {

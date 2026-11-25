@@ -25,8 +25,8 @@ describe('R1 saves', () => {
     expect(peekSaveVersion(new Uint8Array([1, 2, 3]))).toBeNull();
   });
 
-  it('is version 8 (R2.0; P2 took 7)', () => {
-    expect(SAVE_VERSION).toBe(8);
+  it('is version 9 (R3.0; R2.0 took 8, P2 7)', () => {
+    expect(SAVE_VERSION).toBe(9);
   });
 
   it('migrates 6 to 7 (P2): the growth starts are added, the rest is kept', () => {

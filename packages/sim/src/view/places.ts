@@ -1,5 +1,6 @@
 // R2 (R2.0): the places' views (docs/spec/20-architecture.md, R2 contracts): places, streets, a
 // resident's round, footfall. R2A owns this file. Panels read these through the Mirror, never the sim.
+import { placeResting, placeSupplies } from './supplies';
 import { content, placeWords as W } from '@qoti/content';
 import { MAP_SIZE } from '../constants';
 import { decorTileX, decorTileZ } from '../conditions/geo';
@@ -10,6 +11,7 @@ import type {
   PlaceState,
   PlaceView,
   Resident,
+  RestingView,
   RoundStopView,
   StreetView,
   WorldState,
@@ -50,7 +52,12 @@ function fillN(template: string, n: number): string {
 }
 
 /** What a place still wants, up to three short clauses (lower case, no final period). */
-function wantsOf(state: WorldState, place: Place, view: PlaceView): string[] {
+function wantsOf(
+  state: WorldState,
+  place: Place,
+  view: PlaceView,
+  resting?: readonly RestingView[],
+): string[] {
   const P = content.places;
   const out: string[] = [];
   const came = lastClosedVisitors(state, view.visitors);
@@ -61,7 +68,10 @@ function wantsOf(state: WorldState, place: Place, view: PlaceView): string[] {
     if (came > 0) out.push(fillN(W.wantBench, came));
   } else if (came > grown * slots) out.push(fillN(W.wantSeats, came));
   if (!place.sheltered && !hasLight(state, place)) out.push(W.wantLantern);
-  if (place.parts.winter < 0) out.push(W.wantBrazier);
+  // R3X: a place whose fire stands cold wants firewood, not another brazier (the card told a player
+  // with a cold brazier to build a brazier).
+  if (place.parts.winter < 0)
+    out.push(resting?.some((p) => p.kind === 'cold') ? (W.wantFirewood ?? W.wantBrazier) : W.wantBrazier);
   return out.slice(0, 3);
 }
 
@@ -104,9 +114,17 @@ function viewOf(state: WorldState, place: Place, row: PlaceState | undefined): P
     present: presentAt(state, place.id),
     wants: [],
   };
-  view.wants = wantsOf(state, place, view);
+  // R3.0: its priority, supplies and resting pieces (R3A), and the Town Book's pages found there (R3C).
+  const resting = placeResting(state, place);
+  view.wants = wantsOf(state, place, view, resting);
   if (row?.renamedBy !== undefined) view.renamedBy = row.renamedBy;
   if (place.household !== undefined) view.household = place.household;
+  if (row?.priority !== undefined) view.priority = row.priority;
+  const supplies = placeSupplies(state, place, resting ?? null);
+  if (supplies) view.supplies = supplies;
+  if (resting) view.resting = resting;
+  const pages = state.townBook.pages.filter((p) => p.place === place.id).map((p) => p.id);
+  if (pages.length > 0) view.pages = pages;
   return view;
 }
 

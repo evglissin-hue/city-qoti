@@ -1,5 +1,6 @@
 // Resident inspector detail (C3A): what they are doing and where, a mood breakdown in plain words,
 // needs, friends, family, a short bio and their history. View code: nothing here feeds back.
+import { residentMastery } from './masters';
 import { hasTag } from '../state/zones';
 import { content } from '@qoti/content';
 import { DAYS_PER_YEAR, MAP_SIZE, NEED_IDS, TILE_FP } from '../constants';
@@ -339,6 +340,8 @@ export function residentDetail(state: WorldState, id: EntityId): ResidentDetail 
   }
   const evening = residentEvening(r);
   if (evening) detail.evening = evening;
+  // R3.0: working days by trade, mastery and an apprentice's master (R3B).
+  Object.assign(detail, residentMastery(state, r));
   return detail;
 }
 

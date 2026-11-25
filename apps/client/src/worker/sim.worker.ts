@@ -1,4 +1,5 @@
 // The sim worker: owns the WorldState, applies turns as they arrive, posts view updates.
+import { content } from '@qoti/content';
 import {
   agentFrame,
   applyTurn,
@@ -9,8 +10,10 @@ import {
   HASH_EVERY_TURNS,
   hashState,
   inspect,
+  recordThread,
   serialize,
   type SimCtx,
+  threadView,
   type Turn,
   type WorldState,
 } from '@qoti/sim';
@@ -80,6 +83,15 @@ scope.onmessage = (e) => {
         post({ k: 'snapshot', reqId: msg.reqId, t: state.lastTurn, data }, [data.buffer as ArrayBuffer]);
         break;
       }
+      case 'debugThreads': {
+        if (state) {
+          for (const [from, to, good, units] of msg.pairs) {
+            const g = content.goodIndex.get(good);
+            if (g !== undefined) recordThread(state, from, to, g, units);
+          }
+        }
+        break;
+      }
       case 'debugCorrupt': {
         // An id nobody will ever use: invisible on screen, but every later hash differs.
         if (state) state.nextId += 1;
@@ -88,6 +100,11 @@ scope.onmessage = (e) => {
       case 'inspect': {
         if (!state) throw new Error('Inspect requested before init');
         post({ k: 'inspected', reqId: msg.reqId, data: inspect(state, msg.kind, msg.id) });
+        break;
+      }
+      case 'thread': {
+        if (!state) throw new Error('Thread requested before init');
+        post({ k: 'threaded', reqId: msg.reqId, data: threadView(state, msg.subject) });
         break;
       }
       case 'hash': {

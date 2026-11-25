@@ -145,11 +145,13 @@ describe('content', () => {
         'wildflower-verge',
         // I2 (C4C)
         'cafe-table',
+        'carved-stone',
         'flower-cart',
         'fountain',
         'lamp-post',
         'maypole',
         'notice-board',
+        'ornamental-tree',
         // I3 (C5D): the Town Gate and Watch Lookout pieces
         'gate-banner',
         'lookout-bench',
@@ -272,8 +274,9 @@ describe('I1 content', () => {
   };
 
   it('keeps the goods order fixed (saves index per-good arrays by it)', () => {
-    // R1.0: the sixteen goods of docs/spec/13-ledger.md, in its order; append-only from here.
-    expect(goods.map((g) => g.id)).toEqual([
+    // R1.0: the sixteen goods of docs/spec/13-ledger.md, in its order; append-only from here. R3.0
+    // appended the nine masters' goods after them.
+    expect(goods.slice(0, 16).map((g) => g.id)).toEqual([
       'grain',
       'vegetables',
       'fruit',
@@ -290,6 +293,17 @@ describe('I1 content', () => {
       'candles',
       'honey',
       'cider',
+    ]);
+    expect(goods.slice(16).map((g) => g.id)).toEqual([
+      'pies',
+      'butter',
+      'jam',
+      'cordial',
+      'mead',
+      'coats',
+      'toys',
+      'soap',
+      'smoked-fish',
     ]);
     goods.forEach((g, i) => expect(content.goodIndex.get(g.id)).toBe(i));
     for (const g of goods) expect(g.basePrice > 0 && g.carry > 0, g.id).toBe(true);
@@ -356,7 +370,8 @@ describe('I1 content', () => {
     expect(wishes).toHaveLength(13);
     expect(patterns).toHaveLength(20);
     // R2.0 adds three evening feats. R1 (R1D): Market Day, A Winter Without Imports, A Town That Builds Itself, Porridge No More.
-    expect(achievements).toHaveLength(23);
+    // R3.0 adds three more: The Lamplighter's Round, Master of the House, Made Together.
+    expect(achievements).toHaveLength(26);
     for (const w of wishes) {
       for (const ref of [...conditionRefs(w.when), ...conditionRefs(w.target)]) {
         expect(known(ref), `${w.id} ${ref}`).toBe(true);
@@ -374,6 +389,8 @@ describe('I1 content', () => {
     const unlockable = new Set(patterns.flatMap((p) => p.unlocks));
     // R2.0: a charter's unlock list opens pieces too (the brazier, from Village rank).
     for (const c of content.charters) for (const u of c.unlocks) unlockable.add(u);
+    // R3B: a master's unlocks open pieces too (the carved stone, the ornamental trees).
+    for (const m of content.masters) for (const u of m.unlocks ?? []) unlockable.add(u);
     // Festival pieces [I3] are placed by the festival planner, not unlocked by a pattern. The
     // callings' signature pieces [P1] wait, locked, for R3 to bring callings back earned.
     for (const d of decor.filter((x) => x.locked && !x.festival && !x.tags.includes('calling')))
@@ -438,6 +455,14 @@ describe('R1 content', () => {
       'furniture',
       'candles',
       'cider',
+      'pies',
+      'jam',
+      'cordial',
+      'mead',
+      'coats',
+      'toys',
+      'soap',
+      'smoked-fish',
     ]);
   });
 

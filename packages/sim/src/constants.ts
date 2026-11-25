@@ -191,6 +191,8 @@ export const AgentAnim = {
   run: 6,
   dance: 7,
   sit: 8,
+  /** R3 (R3.0): the lamplighter lighting a lamp at the top of his pole (R3F draws it). */
+  lightLamp: 9,
 } as const;
 /** R2 (R2.0): `sit` is a resident seated at a place on the round (AgentPose 'sit'; V3 draws it). */
 /** Agent row flags (bubbles and look hints). */
@@ -209,10 +211,19 @@ export const AgentFlags = {
   festival: 1024,
   skating: 2048,
   visitor: 4096,
+  /** R3 (R3.0): the lamplighter on his round, with his pole and light (R3A sets it; R3F draws it). */
+  lamplighter: 8192,
 } as const;
 
 /** Resident.flags bits. */
-export const ResidentFlags = { story: 1, leaving: 2, hop: 4, stuck: 8 } as const;
+export const ResidentFlags = {
+  story: 1,
+  leaving: 2,
+  hop: 4,
+  stuck: 8,
+  /** R3 (R3.0): a master of the trade in `Resident.mastery` (19-evenings.md, Masters). */
+  master: 16,
+} as const;
 
 /** BuildingRuntime.status bits (docs/spec/13-ledger.md, Reports). */
 export const BuildingStatus = {
@@ -446,3 +457,16 @@ export const RoundFlags = {
   /** Rain kept them from it (an open-air place). */
   rained: 64,
 } as const;
+
+// ---------------------------------------------------------------------------------------------
+// R3 (R3.0): masters and the Town Book (docs/spec/19-evenings.md). Structure only: every tunable number
+// is in content (content.supplies, content.mastery, content.townBook).
+
+/** Index order of supply kinds (SupplyKind): PlaceState.supplied's arrays. Append-only. */
+export const SUPPLY_KINDS = ['nightly', 'evening', 'season', 'outlet', 'well'] as const;
+/** Index order of how pieces rest (RestKind). Append-only. */
+export const REST_KINDS = ['unlit', 'cold', 'bare', 'faded', 'dry'] as const;
+/** Index order of the Town Book's leanings (Leaning): TownBookView.leanings. Append-only. */
+export const LEANINGS = ['industry', 'gardens', 'pilgrimage'] as const;
+/** Pairs each door keeps of each good in the thread counts (R3D bounds them: the strongest stay). */
+export const THREAD_PAIRS_PER_DOOR = 8;

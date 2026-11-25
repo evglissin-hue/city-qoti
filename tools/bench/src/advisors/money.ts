@@ -4,6 +4,7 @@
 // go short); the County Bank tides a short treasury over and is paid back once flush.
 // R1.0: the standing order book is gone with standing orders: the carrier imports what is short and
 // sells what is over by its own rules. The Trading Post is the village advisor's to place.
+import { content } from '@qoti/content';
 import {
   basketScore,
   creditLimit,
@@ -29,6 +30,10 @@ const LOAN_COINS = 1000;
 const TAX_CEILING = 16;
 /** R1F: days between two turns of the wage or tax lever (the levers moved most days, a chore). */
 const LEVER_DAYS = 3;
+/** R3X: credit room worth a loan while the treasury still holds coins (below it, only at the last coin). */
+const LOAN_MIN = 250;
+/** R3X: days between the purse-driven eases (tax down, wages up), slower than the treasury's moves. */
+const PURSE_DAYS = 6;
 
 /** P3A (meals): a food need under this at the morning look is a missed breakfast. */
 const MISSED_MEAL = 60;
@@ -47,6 +52,25 @@ export function workingHungry(w: WorldState): number {
     if (members.some((r) => r && (r.needs[0] ?? 100) < MISSED_MEAL)) n++;
   }
   return n;
+}
+
+/** R3X: the median purse of the Settler households, in pennies (0 when there are none). */
+export function medianSettlerPurse(w: WorldState): number {
+  const purses = w.households
+    .filter((h) => h.tier === 'settler')
+    .map((h) => h.savings)
+    .sort((a, b) => a - b);
+  return purses[purses.length >> 1] ?? 0;
+}
+
+/** R3X: the coins a Craftsfolk household puts by before it moves up (the basket's `savings`). */
+function craftsSavings(): number {
+  return content.basketByTier.get('craftsfolk')?.savings ?? 0;
+}
+
+/** R3X: coins of credit left (a tenth of the line is left unborrowed), as the loan rule reads it. */
+function creditRoom(w: WorldState): number {
+  return Math.floor((creditLimit(w) * 0.9 - loansOwed(w)) / PENNIES_PER_COIN);
 }
 
 class Money implements Advisor {
@@ -83,7 +107,22 @@ class Money implements Advisor {
     // C5X part 2: or while the town owes more than half its credit line and households get by (the
     // Village's loans grew with its purses and nothing ever firmed the tax past the first dip).
     const deep = loansOwed(w) * 2 > creditLimit(w);
-    if ((net < 0 && coins < 300 && basket >= 65) || (coins < 100 && basket >= 75) || (deep && basket >= 60)) {
+    // R3X: and only while purses can spare it. A Village is always `deep` (the advisor borrows to grow),
+    // so the squeeze held wages at 80 and tax at 16 for sixty days and the median Settler purse sat at
+    // 1 to 8 coins: nobody put six by for Craftsfolk. The squeeze waits for twice the savings; the ease
+    // starts under the savings, while the treasury has its cushion and the credit line's end is far.
+    const purse = medianSettlerPurse(w) / PENNIES_PER_COIN;
+    // The winter's food comes first: while the treasury holds less than the plan advisor keeps for
+    // the carrier's winter food, the squeeze runs whatever the purses (willow's first Village winter
+    // ran its larder to nothing on day 24 with the tax eased and the treasury under water).
+    const spare = purse >= 2 * craftsSavings() || (p.winterFood > 0 && coins < p.winterFood);
+    // Never out of the coins the plan advisor keeps for the carrier's winter food (P3A): easing in
+    // autumn on them left hazel's larder at 35 Food for 119 residents in its second winter.
+    const thin = purse < craftsSavings() && coins > 150 + p.winterFood && creditRoom(w) >= 300;
+    if (
+      spare &&
+      ((net < 0 && coins < 300 && basket >= 65) || (coins < 100 && basket >= 75) || (deep && basket >= 60))
+    ) {
       // The treasury slides while households get by: trim wages a little, then firm up the tax.
       if (l.wageLevel > 85 && fedOnWages) setWage(l.wageLevel - 5, 'trim wages');
       else if (l.wageLevel <= 85 && l.taxRate < Math.min(TAX_CEILING, TAX_RATE_RANGE[1]))
@@ -92,6 +131,12 @@ class Money implements Advisor {
       // Households going short while the treasury can spare it: ease off.
       if (l.taxRate > 6) setTax(l.taxRate - 2, 'ease the income tax');
       else if (l.wageLevel < 110) setWage(l.wageLevel + 5, 'raise wages');
+    } else if (thin) {
+      // R3X: purses under the savings a Craftsfolk household puts by: tax down first, then wages back up.
+      if (p.runDay - this.moved < PURSE_DAYS) {
+        // A purse fills over days; ease again only once the last move has had a week to show.
+      } else if (l.taxRate > 6) setTax(l.taxRate - 2, 'ease the income tax for purses');
+      else if (l.wageLevel < 100) setWage(l.wageLevel + 5, 'restore wages for purses');
     } else if (net > 0 && coins > 500 && loansOwed(w) === 0) {
       // Flush: drift back toward the usual levels.
       if (l.wageLevel < 100) setWage(l.wageLevel + 5, 'restore wages');
@@ -102,7 +147,7 @@ class Money implements Advisor {
     // R1X: a tenth of the line is left unborrowed. The line is 20 coins a resident, so a town that
     // borrows to its end and then loses a few households owes past it (oak borrowed at 161 and
     // stood at 145 owing 318 coins over).
-    const room = Math.floor((creditLimit(w) * 0.9 - owed) / PENNIES_PER_COIN);
+    const room = creditRoom(w);
     // C4X: near the end of the credit line, wages go to the floor (lean times are a step away).
     if (room < 400 && coins < 200 && l.wageLevel > 80 && fedOnWages) setWage(80, 'trim wages to the floor');
     // P1: a cushion of 120 coins, not 60, and repay only above 500, down to 350. P1 added coin
@@ -110,7 +155,13 @@ class Money implements Advisor {
     // stalls the build queue for days (six seeds at day 70 with P1's first economy: 135 residents
     // on average with the old cushion, 142 with this one; main 138 either way).
     // R1X tried a 300 floor here and oak sat lean for weeks with 100 to 299 of credit unused.
-    if (coins < 120 && room >= 100) {
+    // R3X: near the line's end, borrow only a sizeable sum, or at the last coin: a growing town's line
+    // opens twenty coins a newcomer, and borrowing every hundred that opened sent hazel's Ledger 12
+    // loans in 70 days (the lanes test's limit is 150 decisions). The winter's food is the exception:
+    // while the larder is short of the winter mark a hundred is worth borrowing, or the cart cannot
+    // buy (hazel waited for its last coin and ate its last pantry on day 48, 53 Food for 100).
+    const smallLoan = coins < 0 || p.winterFood > 0;
+    if ((coins < 120 && room >= LOAN_MIN) || (smallLoan && coins < 120 && room >= 100)) {
       p.do('take a loan', [{ t: 'loan.take', coins: Math.min(room, LOAN_COINS) }]);
     } else if (owed > 0 && coins > 500 + p.winterFood) {
       // P3A: the coins the plan advisor keeps for the carrier's winter food are not spare: repaying

@@ -19,8 +19,10 @@ async function open(page: Page) {
   await page.setViewportSize({ width: 1250, height: 800 });
   await page.goto(`/${QUERY}`);
   await waitLive(page);
-  // The mocks land once the valley is up; wait for them.
-  await page.waitForFunction(() => window.__qoti.places().length > 0, null, { timeout: 30_000 });
+  // The mocks land once the valley is up, after the sim's own (empty, draw 0) places are already
+  // in the Mirror, so `places().length > 0` is true too early on a slow host (a starved headless
+  // Chromium laid them 35 s late). Wait for the mock's own mark: a place with a draw.
+  await page.waitForFunction(() => window.__qoti.places().some((q) => q.draw > 0));
 }
 
 /**

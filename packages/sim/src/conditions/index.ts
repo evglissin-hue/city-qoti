@@ -4,6 +4,10 @@
 //
 // Distances are gaps between tile rectangles (conditions/geo.ts): a target on a tile touching the
 // home is 0 tiles away, so "within 3" means the home's own footprint plus three rings around it.
+import { callingsCount } from '../systems/callings/api';
+import { mastersCount, mastersMade } from '../systems/masters/api';
+import { lampSeasons } from '../systems/supplies/api';
+import { pagesFound, pagesTogether } from '../systems/townbook/api';
 import { hasTag, isFood } from '../state/zones';
 import { type CharmCategory, type Condition, content, type PlaceRef, type Target } from '@qoti/content';
 import { MAP_SIZE, NEED_IDS, RANKS } from '../constants';
@@ -288,6 +292,19 @@ export function countOf(state: WorldState, what: string, ref?: string): number {
       return state.evenings.allOut;
     case 'seatedSeasons':
       return state.evenings.seatedSeasons;
+    // R3 (R3.0): each owner's count (supplies R3A, masters R3B, the Town Book and callings R3C).
+    case 'lampSeasons':
+      return lampSeasons(state);
+    case 'masters':
+      return mastersCount(state, ref);
+    case 'mastersMade':
+      return mastersMade(state);
+    case 'townBookPages':
+      return pagesFound(state, ref);
+    case 'pagesTogether':
+      return pagesTogether(state);
+    case 'callings':
+      return callingsCount(state, ref);
     default:
       return 0;
   }

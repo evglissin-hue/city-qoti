@@ -29,19 +29,23 @@ import { canPlaceBuilding } from '../rules/building';
 import { canPlaceDecor } from '../rules/decor';
 import { entranceTiles, footprintSize } from '../rules/footprint';
 import { doorFront, reachesTile, townReach } from '../rules/reach';
+import { isWallDef } from '../rules/wall';
 import { gateTiles } from '../rules/wall';
 import { canPlantTree } from '../rules/tree';
+import { isMasterGood } from '../state/masters';
 import { worldIndex } from '../state/worldIndex';
 import { findById } from '../state/entities';
 import { townReachesDoor } from '../state/reach';
 import { placeState } from '../state/evenings';
 import { rankAtLeast } from '../state/village';
-import { familyIndex, jobsOf, methodOf } from '../state/zones';
+import { coverageAt, familyIndex, jobsOf, methodOf } from '../state/zones';
 import { isStandard } from '../state/hamlet';
 import { carrierCovers, passClosed } from '../systems/carrier/api';
 import { nearestOutletWithFood, outletFood } from '../systems/economy/outlets';
 import { doorTile } from '../systems/movement/api';
 import { dayIndex, hourOf, isBuildTime } from '../systems/economy/time';
+import { LEVEL_DOWN_DAYS } from '../systems/levels';
+import { servedToday, specializedDay } from '../systems/levels/specialized';
 import { currentPlan, isFestivalDay } from '../systems/festivals/api';
 import { gapAchievable } from '../systems/gaps/achievable';
 import { homesHeldNow } from '../systems/growth';
@@ -52,6 +56,10 @@ import { seasonNow } from '../systems/seasons/api';
 import { MAX_BUILDERS_PER_SITE } from '../systems/construction';
 import { available } from '../systems/logistics/tasks';
 import { allowedWork } from '../systems/production/status';
+import { supplyGapClosable } from '../systems/supplies/api';
+import { lamplighterJobs } from '../systems/supplies/lamplighter';
+import { LAMPLIGHTER_RANK, shortages, slotPriority } from '../systems/residents/jobs';
+import { pageUnproducible, supplyUnsuppliable, unproducibleContentPages } from './healthR3';
 import { townStock } from './hamlet';
 
 export type HealthKind =
@@ -135,6 +143,38 @@ export type HealthKind =
    */
   | 'garden-grown'
   /**
+   * R3H: a built specialized building with levels that has failed its good day twice as many days
+   * running as it takes to slide (it slid and still fails), with no route the town can take: short
+   * of a raw good nothing built makes and the carrier may not buy, goods with no built store to take
+   * them, a Market Stall with no home in its food reach, a store with nothing built making what it
+   * keeps. Checked once a day at 23:00, before the day end resets the counters; resting days hold
+   * the count.
+   */
+  | 'level-stuck'
+  /**
+   * R3E: a supplied piece in town (a lantern, a fire, a cloth, a cafe table, a fountain) whose supply
+   * can never come: its good has no maker the town can build and no neighbor sells it, or no outlet
+   * or well def exists for it. From `content.supplies.fromRank`; once per piece def.
+   */
+  | 'supply-unsuppliable'
+  /**
+   * R3E: a master's good in stock somewhere for a whole day while no outlet in town could shelve its
+   * family (a pie with no outlet that takes Treats). It waits for no outlet at all, not for stock.
+   */
+  | 'master-good-unsold'
+  /**
+   * R3X: a Village with lanterns whose lamplighter's job stood open at the 19:00 look on two evenings
+   * running while hands worked below its rank (a workplace's later hands, the remaining builders and
+   * porters, level hands): the round R3F draws never walks. The chair met it on willow's Village,
+   * where the first lamplighter could only come from two ranks below and every hand was a first or a second.
+   */
+  | 'lamplighter-unhired'
+  /**
+   * R3E: a Town Book hint, or any content specialty or custom, that content cannot produce: a pattern,
+   * host or supply that does not exist, a flavor that is not a Treat, or one no maker can make. Once per page.
+   */
+  | 'page-unproducible'
+  /**
    * P3A: the hands spiral the owner met (too few hands, then too little food): food under three days
    * in hand and food jobs open at two midday looks running, while hands work past the first at
    * workplaces that do not feed the town (the job ranks failed), or three sites wait and the Homes
@@ -167,6 +207,8 @@ export const DAY_TICKS = TICKS_PER_DAY;
 /** P3A: the hour the hands-spiral check looks (folk at work), and the days running it must hold. */
 export const SPIRAL_HOUR = 12;
 export const SPIRAL_DAYS = 2;
+/** R3X: the hour the lamplighter look reads the job (after the 17:30 settling and the 18:00 job pass). */
+export const LAMP_LOOK_HOUR = 19;
 /** P3A (meals): the hour the meals-missed check looks (an hour after breakfast), and the food need that counts as a missed meal. */
 export const MEALS_HOUR = 8;
 export const MEAL_MISSED_BELOW = 60;
@@ -352,6 +394,8 @@ export function handsSpiral(state: WorldState): string | null {
 export class HealthWatch {
   /** Site id → [workDone seen, tick it was first seen at that value]. */
   private readonly progress = new Map<number, [number, number]>();
+  /** R3H: the last look at which some builder was at work on a site (the queue was moving). */
+  private builtAt = -1;
   /** R2X: building id → tick it was first seen built with no walk to its door; and the hour of the last look. */
   private readonly cutOffSince = new Map<number, number>();
   private cutOffHour = -1;
@@ -373,6 +417,9 @@ export class HealthWatch {
   private readonly demandSince = new Map<number, number>();
   /** Demand bar → tick it was first seen promising a start (lotWaiting) with no site of its kind going up. */
   private readonly waitSince = new Map<number, number>();
+  /** R3H: building id → failing days in a row at 23:00; and the day last looked at. */
+  private readonly failRun = new Map<number, number>();
+  private levelDay = -1;
   /** `building:rule` → tick a specialized building's site rule was first seen broken. */
   private readonly ruleSince = new Map<string, number>();
   /** Guide step → tick first seen with an unachievable goal; likewise `arc:step` for stories. */
@@ -396,6 +443,13 @@ export class HealthWatch {
   private unsoldDay = -1;
   /** R2E: tiers (and `lot:<id>` rows) already reported, so each is said once. */
   private readonly reported = new Set<string>();
+  /** R3E: master good → tick it was first seen in stock with no outlet to shelve it; and the hour and day of the last looks. */
+  private readonly unshelvedSince = new Map<number, number>();
+  private masterHour = -1;
+  private r3Day = -1;
+  /** R3X: the day of the last lamplighter look, and how many evenings running the job stood open. */
+  private lampDay = -1;
+  private lampRun = 0;
   /** P3A: the day of the last hands-spiral look, and how many looks running it held. */
   private spiralDay = -1;
   private spiralRun = 0;
@@ -415,6 +469,12 @@ export class HealthWatch {
       if (this.visitTreasury.length > 8) this.visitTreasury.shift();
     }
     const sites = state.buildings.filter((b) => b.stage === 'construction' && b.rt?.construction);
+    // R3H: a site with every material that waits while the builders build elsewhere is in a queue,
+    // not stalled (a Hamlet with one builder and seven sites, hazel's workshop at the 48th hour). It
+    // flags once no site has had a builder for STALL_TICKS, or after twice that however busy the
+    // queue, so a site the builders pass over for ever still shows.
+    if (state.residents.some((r) => r.activity.kind === 'task' && r.activity.taskId < 0)) this.builtAt = now;
+    const queueMoving = this.builtAt >= 0 && now - this.builtAt < STALL_TICKS;
     const seen = new Set<number>();
     for (const b of sites) {
       const c = b.rt!.construction!;
@@ -424,7 +484,14 @@ export class HealthWatch {
       // The clock runs from the last progress or the last look still waiting on materials: a site
       // that waited days for its last stone was not stalled with everything in (C5A).
       if (!last || last[0] !== c.workDone || !allIn) this.progress.set(b.id, [c.workDone, now]);
-      if (allIn && last && last[0] === c.workDone && now - last[1] >= STALL_TICKS && !b.rt!.paused) {
+      const waited = last ? now - last[1] : 0;
+      if (
+        allIn &&
+        last &&
+        last[0] === c.workDone &&
+        waited >= (queueMoving ? 2 * STALL_TICKS : STALL_TICKS) &&
+        !b.rt!.paused
+      ) {
         out.push({
           kind: 'site-stalled',
           id: b.id,
@@ -675,6 +742,38 @@ export class HealthWatch {
     for (const k of [...this.ruleSince.keys()]) if (!live.has(k)) this.ruleSince.delete(k);
   }
 
+  /**
+   * level-stuck (R3H): once a game day at 23:00, before the levels pass resets the counters, read each
+   * built specialized building's day. Failing days in a row are counted (resting days hold the count,
+   * any other day resets it); a building that failed twice the slide's days and has no route the town
+   * can take is flagged.
+   */
+  private checkLevels(state: WorldState, out: HealthIssue[]): void {
+    const day = dayIndex(state.tick);
+    if (hourOf(state.tick) !== 23 || day === this.levelDay) return;
+    this.levelDay = day;
+    const live = new Set<number>();
+    for (const b of state.buildings) {
+      if (b.stage !== 'built' || !b.rt) continue;
+      const def = content.buildingById.get(b.def);
+      if (!def?.specialized || !def.levels) continue;
+      live.add(b.id);
+      const verdict = specializedDay(state, b);
+      if (verdict === 'resting') continue;
+      if (verdict !== 'failing') {
+        this.failRun.set(b.id, 0);
+        continue;
+      }
+      const run = (this.failRun.get(b.id) ?? 0) + 1;
+      this.failRun.set(b.id, run);
+      if (run < 2 * LEVEL_DOWN_DAYS) continue;
+      const why = levelDeadEnd(state, b, def);
+      if (why)
+        out.push({ kind: 'level-stuck', id: b.id, text: `${def.id} #${b.id} keeps failing its day: ${why}` });
+    }
+    for (const id of [...this.failRun.keys()]) if (!live.has(id)) this.failRun.delete(id);
+  }
+
   /** hands-spiral: handsSpiral at the day's first look from SPIRAL_HOUR, SPIRAL_DAYS days running. */
   private checkHandsSpiral(state: WorldState, out: HealthIssue[]): void {
     const day = Math.floor(state.tick / TICKS_PER_DAY);
@@ -726,7 +825,8 @@ export class HealthWatch {
     this.cutOffHour = hour;
     const live = new Set<number>();
     for (const b of state.buildings) {
-      if (b.stage !== 'built' || townReachesDoor(state, b)) continue;
+      // R3X: nobody has business at a finished wall's step; a piece going up is a site-cut-off.
+      if (b.stage !== 'built' || isWallDef(b.def) || townReachesDoor(state, b)) continue;
       live.add(b.id);
       const since = this.cutOffSince.get(b.id) ?? now;
       this.cutOffSince.set(b.id, since);
@@ -747,6 +847,101 @@ export class HealthWatch {
     this.checkTreatsUnsold(state, out);
     this.checkTiers(state, out);
     this.checkGardens(state, out);
+    this.checkSuppliesR3(state, out);
+    this.checkMasterGoodsR3(state, out);
+    this.checkPagesR3(state, out);
+    this.checkLamplighter(state, out);
+  }
+
+  /** lamplighter-unhired (R3X): at 19:00, after the settling and the evening's first job passes. */
+  private checkLamplighter(state: WorldState, out: HealthIssue[]): void {
+    const day = dayIndex(state.tick);
+    if (day === this.lampDay || hourOf(state.tick) !== LAMP_LOOK_HOUR) return;
+    this.lampDay = day;
+    if (lamplighterJobs(state) === 0 || state.supplies.lamplighters.length > 0) {
+      this.lampRun = 0;
+      return;
+    }
+    const short = shortages(state);
+    let below = 0;
+    for (const b of state.buildings) {
+      const def = content.buildingById.get(b.def);
+      if (!b.rt || !def) continue;
+      for (let k = 0; k < b.rt.workers.length; k++)
+        if (slotPriority(def, k, short, methodOf(b)) > LAMPLIGHTER_RANK) below++;
+    }
+    this.lampRun = below > 0 ? this.lampRun + 1 : 0;
+    if (this.lampRun >= 2)
+      out.push({
+        kind: 'lamplighter-unhired',
+        id: 0,
+        text: `the lamplighter's job stood open two evenings running while ${below} hands worked below its rank`,
+      });
+  }
+
+  /** supply-unsuppliable (R3E): once a day from the supplies' rank, each supplied piece def standing in town is looked at once. */
+  private checkSuppliesR3(state: WorldState, out: HealthIssue[]): void {
+    const day = dayIndex(state.tick);
+    if (day === this.r3Day) return;
+    this.r3Day = day;
+    if (!rankAtLeast(state, content.supplies.fromRank)) return;
+    for (const piece of state.decor) {
+      const key = `supply:${piece.def}`;
+      if (this.reported.has(key)) continue;
+      const def = content.decorById.get(piece.def);
+      if (!def?.supply) continue;
+      this.reported.add(key);
+      const why = supplyUnsuppliable(def);
+      if (why) out.push({ kind: 'supply-unsuppliable', id: piece.id, text: why });
+    }
+  }
+
+  /** master-good-unsold (R3E): a master's good in stock a whole day while no outlet could shelve its family (read hourly). */
+  private checkMasterGoodsR3(state: WorldState, out: HealthIssue[]): void {
+    const hour = Math.floor(state.tick / TICKS_PER_HOUR);
+    if (hour === this.masterHour) return;
+    this.masterHour = hour;
+    const now = state.tick;
+    const stocked = new Set<number>();
+    const shelved = new Set<string>();
+    for (const b of state.buildings) {
+      if (b.stage !== 'built' || !b.rt) continue;
+      for (const g of MASTER_GOODS) if ((b.rt.store[g] ?? 0) > 0 || (b.rt.output[g] ?? 0) > 0) stocked.add(g);
+      for (const f of outletFamilies(b)) shelved.add(f);
+    }
+    for (const g of MASTER_GOODS) {
+      const family = content.goods[g]?.family;
+      if (!stocked.has(g) || !family || shelved.has(family)) {
+        this.unshelvedSince.delete(g);
+        continue;
+      }
+      const since = this.unshelvedSince.get(g) ?? now;
+      this.unshelvedSince.set(g, since);
+      if (now - since >= DAY_TICKS)
+        out.push({
+          kind: 'master-good-unsold',
+          id: g,
+          text: `${content.goods[g]!.id} is made and no outlet in town takes ${family}: it has nowhere to be sold`,
+        });
+    }
+  }
+
+  /** page-unproducible (R3E): content pages once at the first look, hints as they appear. */
+  private checkPagesR3(state: WorldState, out: HealthIssue[]): void {
+    if (!this.reported.has('pages')) {
+      this.reported.add('pages');
+      for (const [id, why] of unproducibleContentPages()) {
+        this.reported.add(`page:${id}`);
+        out.push({ kind: 'page-unproducible', id: 0, text: why });
+      }
+    }
+    for (const id of state.townBook.hints) {
+      const key = `page:${id}`;
+      if (this.reported.has(key)) continue;
+      this.reported.add(key);
+      const why = pageUnproducible(id);
+      if (why) out.push({ kind: 'page-unproducible', id: 0, text: `the Town Book hints at ${id}: ${why}` });
+    }
   }
 
   /** gap-dead-end and gap-unmeetable: an open gap with nothing that could close it for a whole day (read once an hour). */
@@ -772,7 +967,8 @@ export class HealthWatch {
         continue;
       }
       // R2E's: closable is true when something could close it, and also when the kind is one this
-      // check has no rule for (R3's shortOfSupplies, or any later kind): never flag what is not understood.
+      // check has no rule for (any later kind): never flag what is not understood. R3's shortOfSupplies
+      // asks R3A's supplyGapClosable.
       if (gapClosable(state, gap)) continue;
       live.add(gap.id);
       const since = this.gapSince.get(gap.id) ?? now;
@@ -949,6 +1145,7 @@ export class HealthWatch {
     this.checkDemand(state, out);
     this.checkGrowthWait(state, out);
     this.checkSiteRules(state, out);
+    this.checkLevels(state, out);
 
     // Voiced wishes the town could not meet by building anything.
     const wishes = new Set<number>();
@@ -1018,6 +1215,20 @@ export class HealthWatch {
   }
 }
 
+/** R3E: the master goods' indexes, in good order (found once). */
+const MASTER_GOODS: readonly number[] = content.goods.flatMap((_, i) => (isMasterGood(i) ? [i] : []));
+
+/** R3E: the families a built outlet puts on its shelf (the tavern pours Treats; a stall or shop by its trade's level). */
+function outletFamilies(b: Building): readonly string[] {
+  const tags = content.buildingById.get(b.def)?.tags;
+  if (!tags || b.stage !== 'built') return [];
+  if (tags.includes('tavern')) return ['treats'];
+  if (!tags.includes('outlet') || !tags.includes('market')) return [];
+  const trade = content.tradeById.get(b.trade ?? (tags.includes('shop') ? 'shop' : ''));
+  if (!trade?.sells) return ['food', 'fuel', 'materials', 'wares', 'treats'];
+  return trade.sells[Math.max(1, Math.min(trade.sells.length, b.level ?? 1)) - 1]!;
+}
+
 function idleBuilders(state: WorldState): number {
   let n = 0;
   for (const b of state.buildings) {
@@ -1046,6 +1257,86 @@ function carrierMayBuy(state: WorldState, good: number): boolean {
   return (
     !!family && family.rule !== 'never' && content.neighbors.some((n) => n.sells.some(([x]) => x === def.id))
   );
+}
+
+/** True when some built building (not `except`) has a method that makes the good. */
+function builtMakes(state: WorldState, good: string, except: number): boolean {
+  return state.buildings.some(
+    (o) => o.stage === 'built' && o.id !== except && !!methodOf(o)?.outputs.some(([g]) => g === good),
+  );
+}
+
+/** The raw goods a method needs that nothing built makes and the carrier may not buy, as words, or null. */
+function unmakeableInput(state: WorldState, b: Building, except: number): string | null {
+  for (const [good] of methodOf(b)?.inputs ?? []) {
+    const g = content.goodIndex.get(good);
+    if (g === undefined || builtMakes(state, good, except) || carrierMayBuy(state, g)) continue;
+    return good;
+  }
+  return null;
+}
+
+/**
+ * R3H: why a specialized building that keeps failing its day has no way out, or null when the town
+ * has a route (a maker to build, a store to raise, a carrier to allow, a home to be built near).
+ */
+function levelDeadEnd(state: WorldState, b: Building, def: BuildingDef): string | null {
+  const c = b.counters;
+  switch (def.levels?.good) {
+    case 'carried': {
+      if (c?.shortToday) {
+        const good = unmakeableInput(state, b, b.id);
+        return good ? `short of ${good}, which nothing built makes and the carrier may not buy` : null;
+      }
+      const family = (def.methods?.[0]?.outputs ?? []).map(([g]) => content.goodById.get(g)?.family);
+      // A store that names no families takes every one (the Market Square, the Trading Post).
+      const taken = state.buildings.some((o) => {
+        if (o.stage !== 'built' || o.id === b.id) return false;
+        const d = content.buildingById.get(o.def);
+        return !!d?.storage && (!d.stores || d.stores.some((f) => family.includes(f)));
+      });
+      return taken ? null : 'its goods have no built store in town to take them';
+    }
+    case 'customers': {
+      const r = coverageAt(b, 'food', 14);
+      const door = doorTile(b, def);
+      const dx0 = door % MAP_SIZE;
+      const dz0 = Math.floor(door / MAP_SIZE);
+      const near = state.households.some((h) => {
+        const home = state.buildings.find((o) => o.id === h.homeId);
+        if (!home) return false;
+        const d = doorTile(home);
+        const dx = (d % MAP_SIZE) - dx0;
+        const dz = Math.floor(d / MAP_SIZE) - dz0;
+        return dx * dx + dz * dz <= r * r;
+      });
+      return near ? null : `no home's door lies within its food reach of ${r} tiles`;
+    }
+    case 'served': {
+      for (const s of servedToday(state, b)) {
+        if (!s.counters?.shortToday) continue;
+        const good = unmakeableInput(state, s, s.id);
+        if (good)
+          return `a business it serves is short of ${good}, which nothing built makes and the carrier may not buy`;
+      }
+      return null;
+    }
+    case 'full': {
+      // A store that names no families keeps every one (the Trading Post).
+      const keeps = def.stores as readonly string[] | undefined;
+      const made = state.buildings.some(
+        (o) =>
+          o.stage === 'built' &&
+          o.id !== b.id &&
+          !!methodOf(o)?.outputs.some(
+            ([g]) => !keeps || keeps.includes(content.goodById.get(g)?.family ?? ''),
+          ),
+      );
+      return made ? null : 'nothing built in town makes the goods it keeps';
+    }
+    default:
+      return null;
+  }
 }
 
 /**
@@ -1266,7 +1557,8 @@ function outletCouldStandNear(state: WorldState, tile: number, radius: number): 
  *   (it can be improved), or an unlocked seat piece that fits within that radius of the door.
  * - nowhereToGo (subject `street:<id>`): a place already within `PLACES.radius` of the street, or a
  *   seat piece that fits within that radius of its anchor.
- * Any other kind (R3's shortOfSupplies, anything later) is never flagged: true.
+ * - shortOfSupplies: R3A's rule (supplies' supplyGapClosable).
+ * Any later kind is never flagged: true.
  */
 export function gapClosable(state: WorldState, gap: Gap): boolean {
   const p = content.places;
@@ -1283,6 +1575,8 @@ export function gapClosable(state: WorldState, gap: Gap): boolean {
     if (placeIndex(state).places.some((pl) => manhattan(pl.tile, door) <= p.placeNearShopRadius)) return true;
     return seatFitsNear(state, door, p.placeNearShopRadius);
   }
+  // R3.0: the fourth gap's own rule (R3A).
+  if (gap.kind === 'shortOfSupplies') return supplyGapClosable(state, gap);
   if (gap.kind === 'nowhereToGo') {
     const id = Number(gap.subject.replace(/^street:/, ''));
     const street = state.streets.find((s) => s.id === id);

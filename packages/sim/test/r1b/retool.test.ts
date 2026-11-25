@@ -4,6 +4,7 @@
 // three days, pinned or not.
 import { content } from '@qoti/content';
 import { describe, expect, it } from 'vitest';
+import { ResidentFlags } from '../../src/constants';
 import type { Building, WorldState } from '../../src/contracts';
 import { findById, removeById } from '../../src/state/entities';
 import { growthPass } from '../../src/systems/growth';
@@ -79,6 +80,22 @@ describe('retooling', () => {
     for (let d = 0; d < SURPLUS_DAYS + 3; d++) night(s);
     expect(b.trade).toBe('cider-maker');
     expect(b.pinned).toBe(true);
+  });
+
+  it('never retools for surplus while a master of its trade works there (R3X), and does once they go', () => {
+    const f = villageFixture();
+    const s = f.state;
+    const b = businessOnLot(f, 'cider-maker', 0);
+    const m = s.residents.find((r) => r.stage === 'adult')!;
+    m.flags |= ResidentFlags.master;
+    m.mastery = 'cider-maker';
+    b.rt!.workers.push(m.id);
+    ciderGlutClothShort(f);
+    for (let d = 0; d < SURPLUS_DAYS + 3; d++) night(s);
+    expect(b.trade).toBe('cider-maker');
+    b.rt!.workers.splice(b.rt!.workers.indexOf(m.id), 1);
+    night(s);
+    expect(b.trade).toBe('weaver');
   });
 
   it('retools one business a night across the town', () => {

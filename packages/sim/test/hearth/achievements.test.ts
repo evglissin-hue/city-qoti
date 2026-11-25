@@ -124,6 +124,13 @@ const SETUPS = new Map<string, (s: WorldState) => void>([
       }
     },
   ],
+  // R3 (R3B): the first master made.
+  [
+    'master-of-the-house',
+    (s) => {
+      s.masters.made = 1;
+    },
+  ],
   // R2 (R2C): the evening feats read the runs and the gaps the gaps pass keeps (test/r2c).
   [
     'out-of-an-evening',
@@ -137,6 +144,23 @@ const SETUPS = new Map<string, (s: WorldState) => void>([
       s.evenings.seatedSeasons = 1;
     },
   ],
+  // R3 (R3C): a Town Book page credited to both seats.
+  [
+    'made-together',
+    (s) => {
+      s.townBook.pages.push({
+        id: s.nextId++,
+        kind: 'custom',
+        def: 'green-evenings',
+        place: 'site:village-green:1',
+        dayOfSeason: 1,
+        name: 'Evenings on the Green',
+        day: 0,
+        seats: [0, 1],
+        leaning: 'gardens',
+      });
+    },
+  ],
   [
     'mind-the-gap',
     (s) => {
@@ -144,14 +168,38 @@ const SETUPS = new Map<string, (s: WorldState) => void>([
       s.gaps.closedBySeat = [3, 7, 0, 0];
     },
   ],
+  // R3 (R3A): a season settled with every lantern lit counts for the lamplighter's round.
+  [
+    'lamplighters-round',
+    (s) => {
+      s.supplies.roundSeasons = 1;
+    },
+  ],
 ]);
 
+// R3 (R3.0): each R3 feat read a counter whose stand-in (R3.0) always gave 0. R3A (lampSeasons, The
+// Lamplighter's Round), R3B (Master of the House) and R3C (Made Together) replaced them, so every feat
+// has its setup now and none is pending.
+const PENDING = new Set<string>();
+
 describe('every achievement', () => {
-  it('has a setup', () => {
-    expect([...SETUPS.keys()].sort()).toEqual(content.achievements.map((a) => a.id).sort());
+  it('has a setup, or is pending on its R3 stand-in', () => {
+    expect([...SETUPS.keys(), ...PENDING].sort()).toEqual(content.achievements.map((a) => a.id).sort());
+    for (const id of PENDING)
+      expect(SETUPS.has(id), `${id} has a setup now: take it off PENDING`).toBe(false);
   });
 
-  for (const a of content.achievements) {
+  it('does not unlock a pending feat on the stand-ins', () => {
+    const s = hamletFixture().state;
+    // Id by id: an empty PENDING (every feat has its setup now) has nothing to hold back.
+    const unlocked = checkAchievements(s, createTickCtx(s));
+    for (const id of PENDING) {
+      expect(unlocked).not.toContain(id);
+      expect(s.achievements.some((x) => x.id === id)).toBe(false);
+    }
+  });
+
+  for (const a of content.achievements.filter((x) => !PENDING.has(x.id))) {
     it(`${a.id}: unlocks once, with a plaque, a line and a notice`, () => {
       const f = hamletFixture();
       const s = f.state;

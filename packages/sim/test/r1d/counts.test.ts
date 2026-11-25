@@ -1,5 +1,6 @@
 // R1D: the new counts and named predicates the R1 feats read (docs/spec/15-progression.md):
 // businesses, businessTrades, foodFlavors, importFreeWinters, porridgeNoMore and marketDay.
+import { MASTER_GOOD_IDS } from '../../src/state/masters';
 import { content } from '@qoti/content';
 import { describe, expect, it } from 'vitest';
 import { countOf, evaluate } from '../../src/conditions';
@@ -107,7 +108,9 @@ describe('porridgeNoMore', () => {
 
 describe('marketDay', () => {
   const day = codePredicates.get('marketDay')!;
-  const base = () => content.goods.filter((g) => g.family === 'food' && g.raw).map((g) => g.id);
+  // R3.0: a master's good (butter) is never a base flavor.
+  const base = () =>
+    content.goods.filter((g) => g.family === 'food' && g.raw && !MASTER_GOOD_IDS.has(g.id)).map((g) => g.id);
 
   it('wants every base Food flavor on the stalls at once', () => {
     const { state: s } = hamletFixture();

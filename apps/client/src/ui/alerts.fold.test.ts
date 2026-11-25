@@ -5,7 +5,7 @@ import { BuildingStatus, TICKS_PER_DAY, type BuildingView, type GapsView, type L
 import { describe, expect, it } from 'vitest';
 import { alertsForLens, computeAlerts, foldSame, type Alert } from './alerts';
 import { pluralName } from './format';
-import { gapAlerts, gapLabel, gapSpot } from './gaps';
+import { gapAlerts, gapLabel, gapSpot, slipStack } from './gaps';
 import { mockSession, mockVillageSession, mockSeasonsSession, type MockSession } from './mocks/session';
 import { overlayEveningMocks } from './mocks/evening';
 
@@ -150,6 +150,22 @@ describe('gap rows', () => {
     expect(gapLabel({ kind: 'nowhereToGo' })).toBe('Nowhere to go of an evening');
     for (const kind of ['nothingToSell', 'nobodyPasses', 'nowhereToGo', 'shortOfSupplies'] as const)
       expect(gapLabel({ kind }).length).toBeLessThanOrEqual(28);
+  });
+
+  it('piles the slips of gaps on one tile, each above the one below, by id (R3X)', () => {
+    // The chair's well: nothing to sell and running short on one tile, one slip hid the other.
+    const stack = slipStack([
+      { id: 9, tile: 500 },
+      { id: 4, tile: 500 },
+      { id: 7, tile: 501 },
+      { id: 12, tile: 500 },
+    ]);
+    expect([...stack].sort((a, b) => a[0] - b[0])).toEqual([
+      [4, 0],
+      [7, 0],
+      [9, 1],
+      [12, 2],
+    ]);
   });
 });
 

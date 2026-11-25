@@ -12,6 +12,7 @@
 // reachable too. A business answers to its trade id and its building's id and tags (hasTag), and
 // its trade's method makes goods. Story steps, the twists a season offers and commission asks are
 // walked as well (R1.0 and R1D rewrote several of them).
+import { MASTER_GOOD_IDS } from '../../src/state/masters';
 import { type BuildingDef, type Condition, content, type Target, type TradeDef } from '@qoti/content';
 import { describe, expect, it } from 'vitest';
 import { codePredicates } from '../../src/conditions/code';
@@ -132,7 +133,13 @@ function world(ranks: ReadonlySet<string>) {
   function producible(good: string): boolean {
     return (
       defsOf(reachable).some((d) => d.methods?.some((m) => m.outputs.some(([o]) => o === good))) ||
-      trades.some((t) => t.method?.outputs.some(([o]) => o === good))
+      trades.some((t) => t.method?.outputs.some(([o]) => o === good)) ||
+      // R3B: a master's good, made where a master of a reachable trade or building works.
+      content.masters.some(
+        (m) =>
+          !!m.method?.outputs.some(([o]) => o === good) &&
+          (trades.some((t) => t.id === m.of) || defsOf(reachable).some((d) => d.id === m.of)),
+      )
     );
   }
 
@@ -230,7 +237,8 @@ function world(ranks: ReadonlySet<string>) {
           : 'not enough kinds of Food for a stall';
       if (c.code === 'porridgeNoMore') return flavors('food').length >= 3 ? null : 'not three kinds of Food';
       if (c.code === 'marketDay') {
-        const base = content.goods.filter((g) => g.family === 'food' && g.raw);
+        // R3.0: a master's good (butter) is never a base flavor (conditions/r1.ts marketDay).
+        const base = content.goods.filter((g) => g.family === 'food' && g.raw && !MASTER_GOOD_IDS.has(g.id));
         const missing = base.find((g) => !(producible(g.id) || importable(g.id)));
         return missing ? `no way to have ${missing.id}` : answersTo('market') ? null : 'no stall';
       }
@@ -318,10 +326,12 @@ describe('every goal can be met by content alone', () => {
     expect(problem({ count: { what: 'goodProduced', ref: 'no-such-good' } })).not.toBeNull();
     expect(problem({ any: [{ count: { what: 'pattern', ref: 'nope' } }] })).not.toBeNull();
     expect(problem({ code: 'noSuchPredicate' })).not.toBeNull();
-    // R1: a removed good, a removed def's tag, a menu of pies.
-    expect(problem({ stock: { good: 'pies', atLeast: 1 } })).not.toBeNull();
+    // R1: a removed def's tag; a menu of a good nothing makes. R3B: pies come back with a master
+    // baker (content.masters), so a menu or a stock of pies can be met.
     expect(problem({ near: { buildingTag: 'bakery', of: 'home', within: 12 } })).not.toBeNull();
-    expect(problem({ code: 'festivalMenu', ref: 'pies', params: [['atLeast', 10]] })).not.toBeNull();
+    expect(problem({ code: 'festivalMenu', ref: 'no-such-good', params: [['atLeast', 10]] })).not.toBeNull();
+    expect(problem({ stock: { good: 'pies', atLeast: 1 } })).toBeNull();
+    expect(problem({ code: 'festivalMenu', ref: 'pies', params: [['atLeast', 10]] })).toBeNull();
     // A business answers to its trade.
     expect(problem({ near: { buildingTag: 'market-garden', of: 'home', within: 3 } })).toBeNull();
     expect(problem({ count: { what: 'goodProduced', ref: 'cider', atLeast: 1 } })).toBeNull();

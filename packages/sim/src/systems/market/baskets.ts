@@ -15,6 +15,9 @@
 // Demand for the price rule is what households want, not what they managed to buy: each day the
 // household pass records every group's daily quantity, shared across its goods by preference
 // weight, so an empty shelf still shows up as wanted (and its price climbs).
+import { isMasterGood } from '../../state/masters';
+import { masterGoodsInTown } from '../masters/api';
+import { householdBought } from '../supplies/api';
 import { content, type GoodFamily, type NeedsBasket } from '@qoti/content';
 import { PENNIES_PER_COIN, TICKS_PER_HOUR, TIERS } from '../../constants';
 import type { EntityId, Household, Resident, System, TickCtx, WorldState } from '../../contracts';
@@ -364,20 +367,33 @@ function buyGroup(
       state.economy.today.consumed[best]! += got;
       state.economy.season.consumed[best]! += got;
       left -= got;
+      // R3.0: a candle bought within its Wares lights its windows (R3A's body).
+      householdBought(state, h, best, got);
     }
   }
   return units - left;
 }
 
-/** Adds a group's day to the wanted tally, in hundredths of a unit per good, by weight. */
-function want(g: NeedGroup, hundredths: number, tally: number[]): void {
+/**
+ * Adds a group's day to the wanted tally, in hundredths of a unit per good, by weight. A master's
+ * good the town does not have (`inTown`, masterGoodsInTown) is not asked for: it keeps its base
+ * price, and the day goes to the family's other flavors.
+ */
+function want(g: NeedGroup, hundredths: number, tally: number[], inTown: readonly boolean[]): void {
   let total = 0;
-  for (const [, w] of g.goods) total += w;
+  for (const [id, w] of g.goods) if (asked(id, inTown)) total += w;
   if (total <= 0) return;
   for (const [id, w] of g.goods) {
+    if (!asked(id, inTown)) continue;
     const gi = content.goodIndex.get(id);
     if (gi !== undefined) tally[gi]! += Math.floor((hundredths * w) / total);
   }
+}
+
+/** True unless the good is a master's and the town has none of it (R3B). */
+function asked(id: string, inTown: readonly boolean[]): boolean {
+  const gi = content.goodIndex.get(id);
+  return gi === undefined || !isMasterGood(gi) || inTown[gi] === true;
 }
 
 /**
@@ -434,6 +450,7 @@ function supperTreat(state: WorldState, h: Household, basket: NeedsBasket): void
 export function shopBaskets(state: WorldState, ctx: TickCtx): void {
   const season = calendar(state.tick).season;
   const tally = new Array<number>(content.goods.length).fill(0);
+  const inTown = masterGoodsInTown(state);
   // C4X: nobody feasts while food is short, under three days a head (treats doubled the town's
   // eating the day the Village charter opened the market and ran the larder down to nothing).
   const feast = foodDays(state) >= TREAT_FOOD_DAYS;
@@ -448,7 +465,7 @@ export function shopBaskets(state: WorldState, ctx: TickCtx): void {
     for (let i = 0; i < groups.length; i++) {
       const g = groups[i]!;
       if (g.season !== undefined && g.season !== season) continue;
-      want(g, perDayHundredths(g, h), tally);
+      want(g, perDayHundredths(g, h), tally, inTown);
       // Food is bought on outings; Treats (R2B) on the evening round and settled at 21:30.
       if (g.id === FOOD_GROUP || g.id === TREATS_GROUP) continue;
       h.owed![i]! += perDayHundredths(g, h);

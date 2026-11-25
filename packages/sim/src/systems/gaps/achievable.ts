@@ -3,6 +3,7 @@
 import type { GapKind } from '@qoti/content';
 import type { WorldState } from '../../contracts';
 import { targetAvailable } from '../hearth/wishes/achievable';
+import { supplyGapAchievable } from '../supplies/api';
 
 /** True when the town has, or can make, what would close a gap of this kind. */
 export function gapAchievable(state: WorldState, kind: GapKind): boolean {
@@ -12,6 +13,9 @@ export function gapAchievable(state: WorldState, kind: GapKind): boolean {
     case 'nobodyPasses':
     case 'nowhereToGo':
       return targetAvailable(state, { tag: 'seat' });
+    // R3.0: the fourth gap's own rule (R3A).
+    case 'shortOfSupplies':
+      return supplyGapAchievable(state);
     default:
       return false;
   }

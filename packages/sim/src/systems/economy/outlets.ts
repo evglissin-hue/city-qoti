@@ -1,12 +1,13 @@
 // Outlet API (C3.0 contract; C3C owns it). Residents (C3A) shop through it: market stalls first,
 // storehouses when no stall is within reach. Porters keep stalls stocked to STALL_RESTOCK_TARGET
 // food (logistics); goods a porter has been promised (reservedOut) are never handed out.
-import { isFood } from '../../state/zones';
+import { coverageAt, isFood } from '../../state/zones';
 import { content, type BuildingDef } from '@qoti/content';
 import { MAP_SIZE } from '../../constants';
 import type { BuildingRuntime, EntityId, WorldState } from '../../contracts';
 import { findById } from '../../state/entities';
 import { countCustomer, countSold } from '../levels/counters';
+import { shelfOf } from '../market/round';
 import { doorTile } from '../movement/api';
 
 /** Takes up to qty units of a good from an outlet's store; returns the units taken. */
@@ -19,10 +20,12 @@ export function takeFromOutlet(
   const b = findById(state.buildings, buildingId);
   const rt = b?.rt;
   if (!rt || b.stage !== 'built') return 0;
-  const free = (rt.store[goodIndex] ?? 0) - (rt.reservedOut[goodIndex] ?? 0);
+  // R3A: a tavern sells what it pours (its input); everyone else sells from the store.
+  const shelf = shelfOf(b)!;
+  const free = (shelf.stock[goodIndex] ?? 0) - (shelf.reserved?.[goodIndex] ?? 0);
   const n = Math.max(0, Math.min(qty, free));
   if (n > 0) {
-    rt.store[goodIndex]! -= n;
+    shelf.stock[goodIndex]! -= n;
     // R1B: a shop counts what it sold and who came (levels).
     countSold(b, n);
     countCustomer(b);
@@ -58,7 +61,8 @@ export function outletFood(state: WorldState, buildingId: EntityId): number {
  * R2X: the outlet defs, and for a market its food coverage radius squared, found once (evening
  * shopping asks for the nearest outlet for every shopper; the scan read each building's tags).
  */
-let outletDefs: Map<string, { def: BuildingDef; market: boolean; r2: number }> | null = null;
+let outletDefs: Map<string, { def: BuildingDef; market: boolean; r2: number; levelled: boolean }> | null =
+  null;
 
 function outletDef(id: string) {
   if (!outletDefs) {
@@ -67,7 +71,7 @@ function outletDef(id: string) {
       if (!def.tags?.includes('outlet')) continue;
       const market = def.tags.includes('market');
       const r = market ? (def.coverage?.find((c) => c.kind === 'food')?.radius ?? 14) : 0;
-      outletDefs.set(def.id, { def, market, r2: r * r });
+      outletDefs.set(def.id, { def, market, r2: r * r, levelled: market && !!def.levels?.reach });
     }
   }
   return outletDefs.get(id);
@@ -100,7 +104,9 @@ export function nearestOutletWithFood(state: WorldState, tile: number): EntityId
     const dz = Math.floor(door / MAP_SIZE) - z;
     const d = dx * dx + dz * dz;
     if (o.market) {
-      if (d <= o.r2 && d < bestStallD) {
+      // R3H: a stall's food reaches farther at each level it has climbed.
+      const r = o.levelled ? coverageAt(b, 'food', 14) : 0;
+      if (d <= (o.levelled ? r * r : o.r2) && d < bestStallD) {
         bestStallD = d;
         bestStall = b.id;
       } else if (d > o.r2 && d < farStallD) {

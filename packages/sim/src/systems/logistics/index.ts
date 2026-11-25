@@ -7,6 +7,7 @@
 // with ties going to the nearest source. A job reserves goods at the source (reservedOut) and
 // room at the destination (reservedIn), so nothing is promised twice. Trips walk through the
 // movement API and never assume arrival in the same tick.
+import { recordThread } from '../threads/api';
 import { FOOD_GOODS, methodOf } from '../../state/zones';
 import type { BuildingDef } from '@qoti/content';
 import { content } from '@qoti/content';
@@ -131,15 +132,41 @@ function spotsOf(state: WorldState): Spot[] {
 }
 
 /**
+ * R3X: a Treat that a trade turns into something that is no Treat (honey into the chandler's candles) is
+ * also taken from the outlets' shelves for that trade's input. The Treats shelves fill first (class 1)
+ * and took every unit the hives made, so the chandler's input stood at nothing, it rested and let its hand
+ * go, and the lanterns went dark for want of candles with 20 to 40 honey on the shelves (willow, birch).
+ */
+const MAKERS_TAKE_FROM_SHELVES: ReadonlySet<number> = new Set(
+  content.trades.flatMap((t) => {
+    const out = t.makes === null ? undefined : content.goodIndex.get(t.makes);
+    if (out === undefined || content.goods[out]!.family === 'treats') return [];
+    return t.from.flatMap((id) => {
+      const g = content.goodIndex.get(id);
+      return g !== undefined && content.goods[g]!.family === 'treats' ? [g] : [];
+    });
+  }),
+);
+
+/**
  * Units a porter may pick up here: storehouse stock or a producer's output. Stalls keep theirs, but
  * for a good no household buys (wool): R2B, one a shop took onto its shelf before shelves kept to what
  * households buy goes on to the maker that wants it.
  */
-export function sourceAvail(b: Building, def: BuildingDef | undefined, good: number): number {
+export function sourceAvail(
+  b: Building,
+  def: BuildingDef | undefined,
+  good: number,
+  /** R3X: the need is a maker's own input, which may take a Treat off a shelf (`MAKERS_TAKE_FROM_SHELVES`). */
+  forMaker = false,
+): number {
   const rt = b.rt;
   if (!rt || b.stage !== 'built') return 0;
   if (isStorehouse(def)) return (rt.store[good] ?? 0) - (rt.reservedOut[good] ?? 0);
-  if (isMarket(def) && INPUT_ONLY.has(content.goods[good]?.id ?? '')) {
+  if (
+    isMarket(def) &&
+    (INPUT_ONLY.has(content.goods[good]?.id ?? '') || (forMaker && MAKERS_TAKE_FROM_SHELVES.has(good)))
+  ) {
     return (rt.store[good] ?? 0) - (rt.reservedOut[good] ?? 0);
   }
   if (isStorage(def)) return 0;
@@ -148,6 +175,14 @@ export function sourceAvail(b: Building, def: BuildingDef | undefined, good: num
 
 function needsOf(spots: readonly Spot[]): Need[] {
   const out: Need[] = [];
+  // R3X: room is kept for Treats only while some store or maker has a Treat to bring; with none in
+  // town the room would only cost a stall its food.
+  let treatsToBring = false;
+  for (const s of spots) {
+    if (treatsToBring || isMarket(s.def)) continue;
+    for (let g = 0; g < content.goods.length && !treatsToBring; g++)
+      if (content.goods[g]!.family === 'treats' && sourceAvail(s.b, s.def, g) > 0) treatsToBring = true;
+  }
   for (const s of spots) {
     const { b, def, rt } = s;
     const c = rt.construction;
@@ -177,35 +212,72 @@ function needsOf(spots: readonly Spot[]): Need[] {
       continue;
     }
     if (isMarket(def)) {
-      const want = Math.min(STALL_RESTOCK_TARGET - foodIncoming(rt), storageSpace(def, rt));
-      if (want > 0) out.push({ dest: s, good: -1, want, cls: JobClass.stallFood });
+      const space = storageSpace(s.b, rt);
+      const kept = treatsToBring ? treatsReserve(def, rt) : 0;
       // R1B: an outlet that takes Wares or Treats (the Market Square takes every family, a stall
-      // Food and Treats) is kept stocked with them too, a few of each.
-      for (let g = 0; g < content.goods.length; g++) {
-        const family = content.goods[g]!.family;
-        if ((family !== 'wares' && family !== 'treats') || !takes(def, g)) continue;
-        // R2B: a shelf holds what households buy; wool is the weaver's input, never a Wares flavor
-        // (a Village's shops each kept eight while its weaver went without, and the carrier would
-        // not buy what the town held).
-        if (INPUT_ONLY.has(content.goods[g]!.id)) continue;
-        const room = Math.min(
-          MARKET_GOODS_TARGET - (rt.store[g] ?? 0) - (rt.reservedIn[g] ?? 0),
-          storageSpace(def, rt),
-        );
-        if (room > 0) out.push({ dest: s, good: g, want: room, cls: JobClass.stallFood });
-      }
+      // Food and Treats) is kept stocked with them too, a few of each. R3X: one with no Treat held or
+      // coming asks for them before its food (ties go to the first need: a Square filled its thirty
+      // food first, a trip a time, and reached the evening bare).
+      const goodsNeeds = (treats: boolean): void => {
+        for (let g = 0; g < content.goods.length; g++) {
+          const family = content.goods[g]!.family;
+          if ((family !== 'wares' && family !== 'treats') || !takes(def, g)) continue;
+          if ((family === 'treats') !== treats) continue;
+          // R2B: a shelf holds what households buy; wool is the weaver's input, never a Wares flavor
+          // (a Village's shops each kept eight while its weaver went without, and the carrier would
+          // not buy what the town held).
+          if (INPUT_ONLY.has(content.goods[g]!.id)) continue;
+          const room = Math.min(
+            MARKET_GOODS_TARGET - (rt.store[g] ?? 0) - (rt.reservedIn[g] ?? 0),
+            treats ? space : space - kept,
+          );
+          if (room > 0) out.push({ dest: s, good: g, want: room, cls: JobClass.stallFood });
+        }
+      };
+      const bare = kept >= (content.places.treatsRoom ?? 12);
+      if (bare) goodsNeeds(true);
+      // R3X: food and Wares stop short of the last `treatsRoom` units of storage while the Treats held
+      // (and on their way) are fewer than that, so a pantry the food restock filled never leaves the
+      // shelf bare for the round (measured: shops ended the afternoon full of food and Wares, 3 Treats).
+      const want = Math.min(STALL_RESTOCK_TARGET - foodIncoming(rt), space - kept);
+      if (want > 0) out.push({ dest: s, good: -1, want, cls: JobClass.stallFood });
+      if (!bare) goodsNeeds(true);
+      goodsNeeds(false);
       continue;
     }
     const method = methodOf(s.b);
     if (rt.paused || !method || method.kind !== 'craft') continue;
+    // R3X: a tavern's pouring stock is its Treats on the round (R3A, the owner's ruling), so its Treat
+    // input is kept to a shelf's worth (`treatsRoom`), not two cycles: two ciders poured away by day
+    // left the round nothing to sell, and the tavern's nothing-to-sell gap never closed.
+    const pours = s.def.tags?.includes('tavern') ?? false;
     for (const [id, qty] of method.inputs) {
       const g = content.goodIndex.get(id);
       if (g === undefined) continue;
-      const want = INPUT_TARGET_CYCLES * qty - rt.input[g]! - rt.reservedIn[g]!;
+      const target =
+        pours && content.goods[g]!.family === 'treats'
+          ? Math.max(INPUT_TARGET_CYCLES * qty, content.places.treatsRoom ?? 12)
+          : INPUT_TARGET_CYCLES * qty;
+      const want = target - rt.input[g]! - rt.reservedIn[g]!;
       if (want > 0) out.push({ dest: s, good: g, want, cls: JobClass.input });
     }
   }
   return out;
+}
+
+/**
+ * R3X: units of a market outlet's storage held back from food and Wares for its Treats: the room
+ * (`PLACES.treatsRoom`) less the Treats it holds or has coming, never below 0; none when it takes no Treats.
+ */
+export function treatsReserve(def: BuildingDef | undefined, rt: BuildingRuntime): number {
+  let held = 0;
+  let takesAny = false;
+  for (let g = 0; g < content.goods.length; g++) {
+    if (content.goods[g]!.family !== 'treats' || !takes(def, g)) continue;
+    takesAny = true;
+    held += (rt.store[g] ?? 0) + (rt.reservedIn[g] ?? 0);
+  }
+  return takesAny ? Math.max(0, (content.places.treatsRoom ?? 12) - held) : 0;
 }
 
 /** Food goods in the order a stall wants them: what it holds least of first (variety). */
@@ -273,7 +345,12 @@ function assign(
     for (const g of goods) {
       let found = false;
       for (const s of spots) {
-        if (s === need.dest || sourceAvail(s.b, s.def, g) <= 0 || !within(reach, s.door)) continue;
+        if (
+          s === need.dest ||
+          sourceAvail(s.b, s.def, g, need.cls === JobClass.input) <= 0 ||
+          !within(reach, s.door)
+        )
+          continue;
         found = true;
         const d = tileDistance(from, s.door);
         if (cls < bestCls || (first === bestFirst ? d < bestD : first)) {
@@ -336,9 +413,12 @@ function assign(
   }
 
   const g = bestGood;
-  let qty = Math.min(carryOf(state, g), sourceAvail(bestSrc.b, bestSrc.def, g));
+  let qty = Math.min(
+    carryOf(state, g),
+    sourceAvail(bestSrc.b, bestSrc.def, g, !!bestNeed && bestNeed.cls === JobClass.input),
+  );
   if (bestNeed) qty = Math.min(qty, bestNeed.want);
-  if (isStorage(bestDest.def)) qty = Math.min(qty, storageSpace(bestDest.def, bestDest.rt));
+  if (isStorage(bestDest.def)) qty = Math.min(qty, storageSpace(bestDest.b, bestDest.rt));
   if (qty <= 0) return;
 
   const lg = state.logistics;
@@ -382,7 +462,7 @@ function findRelay(
       if (other.b === reach.b || !staffed(other) || !within(reach, other.door)) continue;
       if (!within(other, need.dest.door)) continue;
       const dest = spots.find((s) => s.b === other.b);
-      if (!dest || !takes(dest.def, g) || storageSpace(dest.def, dest.rt) <= 0) continue;
+      if (!dest || !takes(dest.def, g) || storageSpace(dest.b, dest.rt) <= 0) continue;
       if (dest.rt.store[g]! + dest.rt.reservedIn[g]! - dest.rt.reservedOut[g]! >= need.want) continue;
       let src: Spot | null = null;
       let bestD = Infinity;
@@ -406,7 +486,7 @@ function nearestStorehouse(spots: readonly Spot[], reach: Reach, src: Spot, good
   let bestD = Infinity;
   for (const s of spots) {
     if (s === src || s.b.stage !== 'built' || !isStorehouse(s.def) || !takes(s.def, good)) continue;
-    if (storageSpace(s.def, s.rt) <= 0 || !within(reach, s.door)) continue;
+    if (storageSpace(s.b, s.rt) <= 0 || !within(reach, s.door)) continue;
     const d = tileDistance(src.door, s.door);
     if (d < bestD) {
       bestD = d;
@@ -514,6 +594,8 @@ function deliver(state: WorldState, ctx: TickCtx, job: PorterJob, dst: Building)
     rt.input[g]! += n;
   }
   addFlow(state, job.from, job.to, n);
+  // R3.0: Follow the thread's door pairs (R3D's body).
+  recordThread(state, job.from, job.to, g, n);
 }
 
 const CART_HOOKS: CartHooks = {
@@ -588,7 +670,7 @@ function rerouteTarget(
   for (const b of state.buildings) {
     if (b.id === exclude || b.stage !== 'built' || !b.rt) continue;
     const def = defOf(b);
-    if (!isStorehouse(def) || !takes(def, good) || storageSpace(def, b.rt) < qty) continue;
+    if (!isStorehouse(def) || !takes(def, good) || storageSpace(b, b.rt) < qty) continue;
     const d = tileDistance(tile, doorTile(b, def));
     if (d < bestD) {
       bestD = d;

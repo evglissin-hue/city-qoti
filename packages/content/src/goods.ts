@@ -195,3 +195,106 @@ export const cider: GoodDef = {
   basePrice: 400,
   carry: 4,
 };
+
+// --- R3.0: the masters' goods (docs/spec/19-evenings.md, Masters), appended after cider ------------
+
+/** A master baker's, from grain; sold by the slice of an evening. */
+export const pies: GoodDef = {
+  id: 'pies',
+  name: 'Pies',
+  label: 'pies',
+  family: 'treats',
+  raw: false,
+  basePrice: 400,
+  carry: 4,
+  spoilsDays: 3,
+};
+
+/** The dairy's land gives it like cheese, once a master cheesemaker is on the crew. */
+export const butter: GoodDef = {
+  id: 'butter',
+  name: 'Butter',
+  label: 'butter',
+  family: 'food',
+  raw: true,
+  basePrice: 400,
+  carry: 4,
+  spoilsDays: 4,
+};
+
+/** A master orchardist's, from fruit at the orchard. */
+export const jam: GoodDef = {
+  id: 'jam',
+  name: 'Jam',
+  label: 'jam',
+  family: 'treats',
+  raw: false,
+  basePrice: 400,
+  carry: 4,
+};
+
+/** A master cider maker's, from fruit at the cider maker's. */
+export const cordial: GoodDef = {
+  id: 'cordial',
+  name: 'Cordial',
+  label: 'cordial',
+  family: 'treats',
+  raw: false,
+  basePrice: 400,
+  carry: 4,
+};
+
+/** A master beekeeper's, from honey at the hives. */
+export const mead: GoodDef = {
+  id: 'mead',
+  name: 'Mead',
+  label: 'mead',
+  family: 'treats',
+  raw: false,
+  basePrice: 600,
+  carry: 4,
+};
+
+/** A master weaver's, from wool at the weaver's. */
+export const coats: GoodDef = {
+  id: 'coats',
+  name: 'Coats',
+  label: 'coats',
+  family: 'wares',
+  raw: false,
+  basePrice: 1200,
+  carry: 2,
+};
+
+/** A master carpenter's, from timber at the carpenter's. */
+export const toys: GoodDef = {
+  id: 'toys',
+  name: 'Toys',
+  label: 'toys',
+  family: 'wares',
+  raw: false,
+  basePrice: 800,
+  carry: 4,
+};
+
+/** A master chandler's, from honey at the chandler's. */
+export const soap: GoodDef = {
+  id: 'soap',
+  name: 'Soap',
+  label: 'soap',
+  family: 'wares',
+  raw: false,
+  basePrice: 300,
+  carry: 6,
+};
+
+/** A master fisher's, from fish at the Fishery; it keeps. */
+export const smokedFish: GoodDef = {
+  id: 'smoked-fish',
+  name: 'Smoked fish',
+  label: 'smoked fish',
+  family: 'food',
+  raw: false,
+  basePrice: 400,
+  carry: 4,
+};

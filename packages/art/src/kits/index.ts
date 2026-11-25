@@ -13,6 +13,9 @@ import * as Gy from './gardens';
 import * as Gn from './greens';
 import * as G from './goods';
 import * as Gr from './grown';
+import * as Lm from './lamplight';
+import * as Md from './masterDecor';
+import * as Ms from './masterSign';
 import * as N from './nature';
 import * as R from './residents';
 import * as Sp from './specialized';
@@ -40,6 +43,7 @@ export const kits: readonly Kit[] = [
   Gd.birdbath,
   D.bollard,
   Fe.bonfire,
+  Lm.brazier,
   V.brickKilnKit,
   Sp.brickworksKit,
   W.buildersYardKit,
@@ -49,6 +53,7 @@ export const kits: readonly Kit[] = [
   Tr.carpenterKit,
   Ve.cart,
   Sv.cartShedKit,
+  Md.carvedStone,
   Tr.chandlerKit,
   V.cheesemakerKit,
   D.cherryTree,
@@ -102,6 +107,7 @@ export const kits: readonly Kit[] = [
   D.lowWall,
   Sp.marketSquareKit,
   W.marketStallKit,
+  Ms.masterSign,
   Fd.maypole,
   N.meadowTuft,
   Cg.millstoneBench,
@@ -111,6 +117,7 @@ export const kits: readonly Kit[] = [
   Fd.noticeBoard,
   T.oak,
   V.orchardKit,
+  Md.ornamentalTree,
   Df.palisadeKit,
   Gn.pearTree,
   Tr.pieShopKit,

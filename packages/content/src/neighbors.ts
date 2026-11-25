@@ -11,7 +11,8 @@ export const millhaven: NeighborDef = {
   id: 'millhaven',
   name: 'Millhaven',
   blurb: 'A farm town downstream: sacks of grain, bales of wool, and a soft spot for good timber.',
-  character: 'Farm country: cheap grain and wool, and it pays well for timber and brick.',
+  character:
+    "Farm country: cheap grain and wool, and it pays well for timber and brick, and has taken a liking to the town's toys, soap and mead.",
   sells: [
     ['grain', 85],
     ['wool', 90],
@@ -29,6 +30,11 @@ export const millhaven: NeighborDef = {
     ['furniture', 115],
     ['candles', 100],
     ['fish', 105],
+    ['toys', 125],
+    ['soap', 120],
+    ['mead', 120],
+    ['smoked-fish', 115],
+    ['cordial', 120],
   ],
   seasonal: [
     ['grain', 1, 80],
@@ -47,7 +53,8 @@ export const stonecross: NeighborDef = {
   id: 'stonecross',
   name: 'Stonecross',
   blurb: 'A hill town of quarries and chimneys, always short of bread and warm cloth.',
-  character: 'Quarry country: cheap stone and firewood, and it pays well for bread, cloth and cheese.',
+  character:
+    'Quarry country: cheap stone and firewood, and it pays well for bread, cloth and cheese, and will pay a premium for a good coat, a pie or a jar of mead from a town that makes them well.',
   sells: [
     ['stone', 80],
     ['firewood', 95],
@@ -65,6 +72,13 @@ export const stonecross: NeighborDef = {
     ['wool', 100],
     ['honey', 105],
     ['cider', 105],
+    ['coats', 130],
+    ['pies', 125],
+    ['mead', 125],
+    ['butter', 120],
+    ['jam', 120],
+    ['smoked-fish', 120],
+    ['cordial', 115],
   ],
   seasonal: [
     ['firewood', 3, 130],

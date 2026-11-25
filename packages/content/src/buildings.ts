@@ -92,6 +92,8 @@ export const fishery: BuildingDef = {
   charm: [{ category: 'noise', value: -6, radius: 3 }],
   tags: ['smelly', 'workshop', 'fishery'],
   specialized: true,
+  // R3H: its levels (a catch carried off; frozen days count neither way); every number tune.
+  levels: { crew: [3, 4, 5], good: 'carried' },
   art: { kit: 'fishers-hut' },
 };
 
@@ -134,6 +136,8 @@ export const forestersLodge: BuildingDef = {
   charm: [{ category: 'noise', value: -6, radius: 3 }],
   tags: ['workshop', 'forestry'],
   specialized: true,
+  // R3H: its levels (a good day fells with the woods above the site rule and the timber carried off); every number tune.
+  levels: { crew: [3, 4, 5], reach: [8, 10, 12], good: 'carried' },
   reach: 8,
   art: { kit: 'foresters-lodge' },
 };
@@ -170,6 +174,8 @@ export const marketStall: BuildingDef = {
   charm: [{ category: 'comfort', value: 2, radius: 2 }],
   tags: ['outlet', 'market'],
   specialized: true,
+  // R3H: its levels (customers at the counter; a second vendor and a longer reach); every number tune.
+  levels: { crew: [1, 2, 2], reach: [14, 18, 22], good: 'customers' },
   reach: 14,
   stores: ['food', 'treats'],
   art: { kit: 'market-stall' },
@@ -202,6 +208,8 @@ export const quarry: BuildingDef = {
   charm: [{ category: 'noise', value: -10, radius: 4 }],
   tags: ['workshop'],
   specialized: true,
+  // R3H: its levels (cut and carried off); every number tune.
+  levels: { crew: [3, 4, 5], good: 'carried' },
   art: { kit: 'quarry' },
 };
 
@@ -240,6 +248,8 @@ export const storehouse: BuildingDef = {
   charm: [{ category: 'noise', value: -3, radius: 2 }],
   tags: ['storehouse', 'outlet'],
   specialized: true,
+  // R3H: its levels (a third full, then half, with every porter at work; stores keep the room they earn); every number tune.
+  levels: { crew: [4, 5, 6], storage: [800, 1120, 1440], fullShare: [33, 50], good: 'full' },
   reach: 24,
   stores: ['fuel', 'materials', 'wares', 'treats'],
   art: { kit: 'storehouse' },
@@ -272,6 +282,8 @@ export const granary: BuildingDef = {
   charm: [{ category: 'noise', value: -2, radius: 2 }],
   tags: ['storehouse', 'outlet', 'granary'],
   specialized: true,
+  // R3H: its levels (a third full, then half, with every porter at work; stores keep the room they earn); every number tune.
+  levels: { crew: [2, 3, 4], storage: [1200, 1680, 2160], fullShare: [33, 50], good: 'full' },
   reach: 24,
   stores: ['food'],
   art: { kit: 'storehouse', params: { kit: 'granary' } },
@@ -362,6 +374,8 @@ export const windmill: BuildingDef = {
   charm: [{ category: 'view', value: 2, radius: 2 }],
   tags: ['mill'],
   specialized: true,
+  // R3H: its levels (every baker it grinds for had grain; room for one more a level); every number tune.
+  levels: { capacity: [2, 3, 4], good: 'served' },
   reach: 24,
   capacity: 2,
   raisedCapacity: [4, 4],

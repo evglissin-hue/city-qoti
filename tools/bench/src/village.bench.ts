@@ -72,9 +72,18 @@ export function villageBench(): { lines: string[]; failures: string[]; report: R
   const ms = time(() => run(state, TICKS_PER_DAY));
   const perTick = ms / TICKS_PER_DAY;
   if (perTick > VILLAGE_TICK_BUDGET_MS) failures.push(`village tick ${perTick.toFixed(4)} ms`);
-  const services = time(() => updateServices(state));
-  const tiers = time(() => updateTiers(state, ctx));
-  const patterns = time(() => runPatterns(state, ctx));
+  // R3X: each pass warmed once, then the best of five against its budget: a single timing swung from
+  // 1.1 to 3.2 ms on one machine between runs (a collection mid-pass), and a host 1.6 to 1.9 times
+  // slower swings further; a real regression still fails, since even the best run is then slow.
+  const best = (f: () => void): number => {
+    f();
+    let b = Infinity;
+    for (let i = 0; i < 5; i++) b = Math.min(b, time(f));
+    return b;
+  };
+  const services = best(() => updateServices(state));
+  const tiers = best(() => updateTiers(state, ctx));
+  const patterns = best(() => runPatterns(state, ctx));
   for (const [name, v] of [
     ['services', services],
     ['tiers', tiers],
@@ -85,7 +94,7 @@ export function villageBench(): { lines: string[]; failures: string[]; report: R
     `village         ${state.residents.length} residents, ${state.buildings.length} buildings, ${state.carts.length} cart: ` +
       `${perTick.toFixed(4)} ms/tick (budget ${VILLAGE_TICK_BUDGET_MS} ms)  ${perTick <= VILLAGE_TICK_BUDGET_MS ? 'ok' : 'OVER BUDGET'}`,
     `village passes  services ${services.toFixed(2)} ms, tiers ${tiers.toFixed(2)} ms, patterns ${patterns.toFixed(2)} ms ` +
-      `(budget ${VILLAGE_PASS_BUDGET_MS} ms each)`,
+      `(best of five, budget ${VILLAGE_PASS_BUDGET_MS} ms each)`,
   );
   return {
     lines,

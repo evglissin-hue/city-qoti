@@ -16,6 +16,7 @@ import { doorTile } from '../movement/api';
 import { placesNear } from '../places/api';
 import { eveningPassers } from './outlets';
 import { averageAround, homeCount, tasteScore, treeCount, waterWithin } from '../residents/desirability';
+import { coverageAt } from '../../state/zones';
 
 const S = MAP_SIZE;
 
@@ -64,7 +65,8 @@ export function servicesOf(state: WorldState, known?: Defs): Services {
     const door = doorTile(b, def);
     for (const c of def.coverage) {
       if (c.kind === 'water') wells.push([door % S, Math.floor(door / S), c.radius]);
-      if (c.kind === 'food') outlets.push([door % S, Math.floor(door / S), c.radius]);
+      // R3H: a Market Stall's food reaches farther at each level.
+      if (c.kind === 'food') outlets.push([door % S, Math.floor(door / S), coverageAt(b, 'food', c.radius)]);
     }
   }
   return { wells, outlets, reach: storehouseReach(state, defs ?? undefined) };

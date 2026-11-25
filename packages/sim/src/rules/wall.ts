@@ -7,10 +7,11 @@
 // porters.
 import { content } from '@qoti/content';
 import { MAP_SIZE, MAX_ZONE_TILES } from '../constants';
-import type { MapReader, RejectReason } from '../contracts';
+import type { MapReader, RejectReason, Rot4 } from '../contracts';
 import { canPlaceBuilding } from './building';
+import { facing } from './footprint';
 import { isInt } from './geometry';
-import { doorFront, reachesTile, townReach, type ReachBuilding } from './reach';
+import { doorReached, townReach, type ReachBuilding } from './reach';
 
 const S = MAP_SIZE;
 
@@ -29,6 +30,8 @@ export interface WallPlan {
   firstBadTile?: [number, number];
   /** Pieces to place: [x, z, def id] (gates where the run crosses a road). */
   pieces: [x: number, z: number, def: string][];
+  /** R3X: the way each piece faces (parallel to `pieces`), chosen so its door has a way in. */
+  rots?: Rot4[];
   /** Buildings the run would cut off, when the reason is WOULD_ENCLOSE. */
   enclosed?: number[];
 }
@@ -48,6 +51,43 @@ export function gateTiles(buildings: Iterable<{ def: string; x: number; z: numbe
   const out = new Set<number>();
   for (const b of buildings) if (isGateDef(b.def)) out.add(b.z * S + b.x);
   return out;
+}
+
+/**
+ * R3X: the way a wall piece faces, so its door is a tile a builder can walk to. Pieces face south
+ * (rot 0) when that tile is open to the town; else the first quarter turn whose step is: a gate turns
+ * to a road neighbor first (it sits on a road; a gate across a lane that runs east to west used to
+ * face south, onto the lots beside the lane), and a piece of a ring turns off the next piece of the
+ * run. Null when no turn has a way in, which refuses the run (the audit's gate and palisade
+ * site-cut-offs). `after` is the town's reach with the run standing.
+ */
+export function chooseRot(
+  reader: MapReader,
+  after: Uint8Array,
+  x: number,
+  z: number,
+  def: string,
+): Rot4 | null {
+  const rots = [0, 1, 2, 3] as Rot4[];
+  const front = (rot: Rot4): number => {
+    const [fx, fz] = facing(rot);
+    const nx = x + fx;
+    const nz = z + fz;
+    return nx < 0 || nz < 0 || nx >= reader.size || nz >= reader.size ? -1 : nz * S + nx;
+  };
+  const gate = isGateDef(def);
+  if (gate) {
+    for (const rot of rots) {
+      const f = front(rot);
+      if (f >= 0 && reader.road(f % S, Math.floor(f / S)) > 0 && after[f]) return rot;
+    }
+  }
+  for (const rot of rots) {
+    const f = front(rot);
+    if (f >= 0 && after[f]) return rot;
+  }
+  for (const rot of rots) if (doorReached(after, reader, { def, x, z, rot })) return rot;
+  return null;
 }
 
 /** Buildings that must keep their way out: homes, workplaces and storehouses. */
@@ -104,9 +144,18 @@ export function canPaintWall(
     pieces.push([x, z, d.id]);
   }
   if (pieces.length === 0) return fail('OCCUPIED');
-  const enclosed = wouldEnclose(reader, pieces, buildings, valleyGate);
+  const after = reachWith(reader, pieces, buildings, valleyGate);
+  const enclosed = enclosedBy(reader, after, buildings, valleyGate);
   if (enclosed.length > 0) return { ok: false, reason: 'WOULD_ENCLOSE', pieces: [], enclosed };
-  return { ok: true, pieces };
+  // R3X: a piece the run itself shuts off from the town has a door nobody can walk to, and the
+  // builders who would raise it never arrive: each takes a way that has one, or the run is refused.
+  const rots: Rot4[] = [];
+  for (const [x, z, d] of pieces) {
+    const rot = chooseRot(reader, after, x, z, d);
+    if (rot === null) return fail('CUT_OFF', [x, z]);
+    rots.push(rot);
+  }
+  return { ok: true, pieces, rots };
 }
 
 /** Reach from the valley gate with extra pieces standing (gates among them stay open). */
@@ -140,8 +189,10 @@ function reachWith(
 }
 
 /**
- * Homes, workplaces and storehouses the pieces would cut off from the valley gate (ids, in the
- * buildings' order): those whose door the valley reaches now and would not with the pieces up.
+ * Buildings the pieces would cut off from the valley gate (ids, in the buildings' order): those whose
+ * door the valley reaches now and would not with the pieces up. R3X: every building counts, not only
+ * homes and workplaces; a fishery's door sealed by the cottage that grew beside it stood cut off for
+ * days. `pieces` may be a building's footprint tile by tile (a def that is not a gate blocks).
  */
 export function wouldEnclose(
   reader: MapReader,
@@ -149,15 +200,24 @@ export function wouldEnclose(
   buildings: readonly WallBuilding[],
   valleyGate: readonly [number, number],
 ): number[] {
-  const after = reachWith(reader, pieces, buildings, valleyGate);
+  return enclosedBy(reader, reachWith(reader, pieces, buildings, valleyGate), buildings, valleyGate);
+}
+
+function enclosedBy(
+  reader: MapReader,
+  after: Uint8Array,
+  buildings: readonly WallBuilding[],
+  valleyGate: readonly [number, number],
+): number[] {
   let before: Uint8Array | null = null;
   const out: number[] = [];
   for (const b of buildings) {
-    if (!mustReach(b.def)) continue;
-    const door = doorFront(b);
-    if (reachesTile(after, reader, door)) continue;
+    if (!content.buildingById.has(b.def)) continue;
+    // A finished wall has no business at its door; one still going up needs its builders to arrive.
+    if (isWallDef(b.def) && b.stage === 'built') continue;
+    if (doorReached(after, reader, b)) continue;
     before ??= reachWith(reader, [], buildings, valleyGate);
-    if (reachesTile(before, reader, door)) out.push(b.id);
+    if (doorReached(before, reader, b)) out.push(b.id);
   }
   return out;
 }

@@ -78,9 +78,14 @@ describe('life lines', () => {
       ['trained', lifePhrases.trained, ['name', 'place']],
       ['retired', lifePhrases.retired, ['name', 'place']],
       ['charterReady', lifePhrases.charterReady, ['rank']],
+      ['charterCrate.letter', lifePhrases.charterCrate.letter, ['candles', 'lanterns', 'nights', 'town']],
+      ['charterCrate.none', lifePhrases.charterCrate.none, ['town']],
+      ['charterCrate.news', lifePhrases.charterCrate.news, []],
     ];
     for (const [name, list, allowed] of lists) {
-      expect(list.length, name).toBeGreaterThanOrEqual(name === 'charterReady' ? 1 : 2);
+      expect(list.length, name).toBeGreaterThanOrEqual(
+        name === 'charterReady' || name.startsWith('charterCrate') ? 1 : 2,
+      );
       for (const t of list) clean(t, allowed, name);
     }
     for (const t of [lifePhrases.planApproved, lifePhrases.planPartly, lifePhrases.planNone]) {

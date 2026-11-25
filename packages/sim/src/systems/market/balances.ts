@@ -17,11 +17,12 @@
 //   open to all) or in its pantry; `Household.seen` keeps the last day it saw each good, and the
 //   family's flavors on offer are those seen in the last VARIETY_DAYS days. Wool is only an input
 //   and never counts. markSeen runs at the 18:00 household pass.
+import { specialtiesOnRound } from '../townbook/api';
 import { content } from '@qoti/content';
 import { GOOD_FAMILIES, MAP_SIZE, TIERS } from '../../constants';
 import type { Household, TierId, WorldState } from '../../contracts';
 import { findById } from '../../state/entities';
-import { GOODS_BY_FAMILY } from '../../state/zones';
+import { coverageAt, GOODS_BY_FAMILY } from '../../state/zones';
 import { townStock } from '../../view/hamlet';
 import { dayIndex } from '../economy/time';
 import { doorTile } from '../movement/api';
@@ -38,6 +39,9 @@ const FUEL = 1;
 const MATERIALS = 2;
 
 /** Good indexes of a family that a household can buy (every one but an input-only good). */
+// R3B: the masters' goods are shelf goods like any. A household only sees, counts or buys what is on
+// a shelf in reach, so a good no master makes is never counted; the one place a household asks for a
+// good it cannot see is the demand tally (baskets.ts `want`, which waits for masterGoodsInTown).
 export const SHELF_GOODS: readonly (readonly number[])[] = GOOD_FAMILIES.map((_, f) =>
   GOODS_BY_FAMILY[f]!.filter((g) => !INPUT_ONLY.has(content.goods[g]!.id)),
 );
@@ -232,7 +236,7 @@ export function markSeen(state: WorldState): void {
       for (let g = 0; g < n; g++) if (shelfFree(rt, g)) any = goods[g] = true;
       if (!any) continue;
       const door = doorTile(b, def);
-      const r = def.coverage?.find((c) => c.kind === 'food')?.radius ?? 14;
+      const r = coverageAt(b, 'food', 14);
       stalls.push({ x: door % MAP_SIZE, z: Math.floor(door / MAP_SIZE), r2: r * r, goods });
     } else {
       for (let g = 0; g < n; g++) if (!open[g] && shelfFree(rt, g)) open[g] = true;
@@ -267,11 +271,14 @@ export function seenLately(state: WorldState, h: Household, good: number): boole
   return d >= 0 && dayIndex(state.tick) - d < VARIETY_DAYS;
 }
 
-/** A household's variety: the family's flavors it could buy in the last three days. */
+/**
+ * A household's variety: the family's flavors it could buy in the last three days. R3.0: plus one for
+ * each specialty of the family at a place its members' rounds pass (R3C's specialtiesOnRound).
+ */
 export function householdVariety(state: WorldState, h: Household, family: number): number {
   let n = 0;
   for (const g of SHELF_GOODS[family]!) if (seenLately(state, h, g)) n++;
-  return n;
+  return n + specialtiesOnRound(state, h, family);
 }
 
 /** By good index: on a shelf in reach of some home, or in a pantry, in the last three days. */

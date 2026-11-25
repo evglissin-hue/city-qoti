@@ -70,6 +70,7 @@ export const PLACES: PlacesTuning = {
   cafeRadius: 2,
   cafeSeats: 2,
   stepsPerCustomer: 10,
+  treatsRoom: 12,
   // Good evenings
   stayInScore: 20,
   friendScore: 8,

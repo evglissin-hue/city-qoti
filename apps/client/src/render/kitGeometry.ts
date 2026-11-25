@@ -5,6 +5,7 @@ import {
   isRowKit,
   kitById,
   mergeFlat,
+  withLevelPole,
   fitModules,
   ShapeBuilder,
   upgradeScaffold,
@@ -13,6 +14,7 @@ import {
 } from '@qoti/art';
 import { content } from '@qoti/content';
 import { drawDef } from './defs';
+import type { CherryLook } from './thin';
 import {
   DECOR_ROTATIONS,
   footprintSize,
@@ -178,6 +180,10 @@ export function buildingParams(b: BuildingView): Record<string, number | string 
   // R1E: a business draws its trade's look at its level (packages/art kits/business.ts).
   const trade = b.trade ? content.tradeById.get(b.trade) : undefined;
   if (trade) Object.assign(p, businessParams(artKitId(trade.look), trade.makes, b.level, trade.look.params));
+  // R3H: a specialized building above level 1 draws its level (level 1 keeps its keys and geometry).
+  if (def?.levels && b.level !== undefined && b.level > 1) p.level = b.level;
+  // R3X: and carries its level pole, one pennant a level (level 1 draws one).
+  if (def?.levels) p.pole = Math.min(3, Math.max(1, b.level ?? 1));
   if (def?.tags?.includes('plot')) p.soil = plotSoil(b);
   if (rowAt && def && isRowKit(artKitId(def.art))) Object.assign(p, rowAt(b));
   if (wallAt && def && WALL_KITS.has(artKitId(def.art))) Object.assign(p, wallAt(b));
@@ -274,6 +280,12 @@ export function buildingVariantGeometry(b: BuildingView, lod: 'high' | 'low' = '
   }
   const opts = { ...buildingKitOptions(b), lod };
   let g = kit.build(opts);
+  // R3X: the level pole stands beside it (the kit's own geometry is left as it was).
+  if (def.levels) {
+    const poled = withLevelPole(g, def.size, def.entrance, Number(opts.params?.pole ?? 1), lod);
+    g.dispose();
+    g = poled;
+  }
   // C5E: modules fitted to the kit as built (the wall kits draw their own).
   if (b.modules?.length && !WALL_KITS.has(artKitId(def.art))) {
     const fitted = fitModules(g, opts);
@@ -288,16 +300,25 @@ export function buildingVariantGeometry(b: BuildingView, lod: 'high' | 'low' = '
 }
 
 /** A decor kit's geometry; V1D: `lod` picks the kit's far level (lod.ts chooses which shows). */
-export function decorGeometry(defId: string, lod: 'high' | 'low' = 'high', thin?: number): BufferGeometry {
+export function decorGeometry(
+  defId: string,
+  lod: 'high' | 'low' = 'high',
+  thin?: number,
+  leaf?: CherryLook,
+): BufferGeometry {
   // V2X: `thin` (the orchard trees' dab thinning) is part of the key; 1 or none is the plain build.
-  const t = thin !== undefined && thin !== 1 ? `:t${thin}` : '';
+  // R3X: so is `leaf` (the cherry's look through the year); 'blossom' or none is the plain build.
+  const l = leaf && leaf !== 'blossom' ? `:l${leaf}` : '';
+  const t = (thin !== undefined && thin !== 1 ? `:t${thin}` : '') + l;
   const key = (lod === 'high' ? `decor:${defId}` : `decor:${defId}:${lod}`) + t;
   let g = cache.get(key);
   if (!g) {
     const def = content.decorById.get(defId);
     const kit = def ? kitById.get(artKitId(def.art)) : undefined;
     const base = def?.art.params ? { params: def.art.params } : {};
-    const params = t ? { params: { ...base.params, thin: thin! } } : base;
+    const params = t
+      ? { params: { ...base.params, ...(thin !== undefined ? { thin } : {}), ...(l ? { leaf: leaf! } : {}) } }
+      : base;
     g = kit ? kit.build(lod === 'high' ? params : { ...params, lod }) : missing();
     cache.set(key, g);
   }
@@ -306,6 +327,12 @@ export function decorGeometry(defId: string, lod: 'high' | 'low' = 'high', thin?
 
 /** V2X: the art kits built by `fruitTree`, whose crowns thin through autumn. */
 const FRUIT_KITS: ReadonlySet<string> = new Set(['apple-tree', 'cherry-tree']);
+
+/** R3X: whether a decor def is the ornamental cherry, whose crown follows the year (`cherryLook`). */
+export function isCherryDecor(defId: string): boolean {
+  const def = content.decorById.get(defId);
+  return !!def && artKitId(def.art) === 'cherry-tree';
+}
 
 /** Whether a decor def is an orchard tree (apple, pear or cherry) that thins with the season. */
 export function isFruitDecor(defId: string): boolean {

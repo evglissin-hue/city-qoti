@@ -243,6 +243,91 @@ test.describe.serial('one seat, one page', () => {
     await page.keyboard.press('Shift');
   });
 
+  // R3X: the surfaces R3 added that wait on the player. Each is a card the guard lists, so skipping
+  // past 90 s idle starts nothing while one is open; a found Town Book page arrives as Hearth news
+  // (`ui.letters`), which is not a card and does not hold a tea break back.
+  test('R3 surfaces that wait on the player hold a tea break back; Hearth news does not', async () => {
+    const setUi = (n: string, v: unknown) =>
+      page.evaluate(([n, v]) => window.__qoti.setUi(n as string, v), [n, v] as [string, unknown]);
+    // Callers put the view in order with `fresh` first, then open the surface, then ask this.
+    const holds = async (label: string, expectOpen: string) => {
+      await skip(page, 90_000);
+      await call(page, 'check');
+      expect(await state(page), `${label}: no tea break`).toBeNull();
+      expect(await due(page), `${label}: not due`).toBe(false);
+      const open = await page.evaluate(() =>
+        (window as unknown as { __qotiTeaBreak: { guards(): { open: string[] } } }).__qotiTeaBreak
+          .guards()
+          .open.slice(),
+      );
+      expect(open, `${label}: the guard names it`).toContain(expectOpen);
+    };
+    // The place card of a place with a supplied piece, its priority control showing.
+    const places = await page.evaluate(() => window.__qoti.places().map((p) => p.id));
+    let withControl: string | null = null;
+    for (const id of places.slice(0, 40)) {
+      await page.evaluate((id) => window.__qoti.select({ kind: 'place', id }), id);
+      if ((await page.getByTestId('place-priority').count()) > 0) {
+        withControl = id;
+        break;
+      }
+    }
+    await page.evaluate(() => window.__qoti.select(null));
+    if (withControl) {
+      await fresh(page);
+      await page.evaluate((id) => window.__qoti.select({ kind: 'place', id }), withControl);
+      await expect(page.getByTestId('place-priority')).toBeVisible();
+      await holds('place card with the priority control', 'selection');
+      test.info().annotations.push({ type: 'covered', description: `place card ${withControl}` });
+      await page.evaluate(() => window.__qoti.select(null));
+    } else {
+      test
+        .info()
+        .annotations.push({ type: 'skipped', description: 'no place with a supplied piece in this valley' });
+    }
+    // The Festival panel on its twist choice, the Town Book and the storybook, as panels.
+    await fresh(page);
+    await page.evaluate(() => window.__qoti.openPanel('festival'));
+    await expect(page.getByTestId('festival-twist')).toBeVisible();
+    await holds('Festival panel on the twist', 'panel');
+    for (const id of ['town-book', 'storybook']) {
+      await fresh(page);
+      await page.evaluate((id) => window.__qoti.openPanel(id), id);
+      await holds(`the ${id} panel`, 'panel');
+    }
+    // The chapter card.
+    await fresh(page);
+    await setUi('chapter', true);
+    await holds('the chapter card', 'chapter');
+    await setUi('chapter', false);
+    // Hearth news (a found Town Book page): shown in the Hearth, not a card, so a tea break starts.
+    await fresh(page);
+    await setUi('letters', [{ key: 9001, kind: 'letter', text: 'A new page for the Town Book.', tick: 0 }]);
+    await skip(page, 90_000);
+    expect(await state(page)).not.toBeNull();
+    await page.keyboard.press('Shift');
+    await setUi('letters', []);
+  });
+
+  test('u ends a tea break, puts the view back and opens the Town Book; Escape closes it', async () => {
+    await fresh(page);
+    const saved = await view(page);
+    await startBreak(page);
+    await expect(page.locator('.game-ui.tea-break')).toHaveCount(1);
+    await page.keyboard.press('u');
+    expect(await state(page)).toBeNull();
+    const after = await view(page);
+    expect(after.goal).toEqual(saved.goal);
+    expect(after.pos).toEqual(saved.pos);
+    await expect.poll(() => page.evaluate(() => window.__qoti.ui()?.['panel']?.value)).toBe('town-book');
+    await expect(page.locator('.game-ui.tea-break')).toHaveCount(0);
+    await expect(page.locator('.toolbar')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect.poll(() => page.evaluate(() => window.__qoti.ui()?.['panel']?.value)).toBeNull();
+    expect(await state(page)).toBeNull();
+    await expect(page.locator('.game-ui.tea-break')).toHaveCount(0);
+  });
+
   test('a question that appears mid tea break ends it and puts the view back', async () => {
     await fresh(page);
     const saved = await view(page);
