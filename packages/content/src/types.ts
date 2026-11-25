@@ -259,7 +259,7 @@ export type RestKind = 'unlit' | 'cold' | 'bare' | 'faded' | 'dry';
 
 /**
  * R3 (R3.0): how a piece is supplied. Index order is the sim's SUPPLY_KINDS; append-only.
- * - nightly: `good`, one unit a night for every `per` pieces (lanterns: a candle for every 4);
+ * - nightly: `good`, one unit a night for every `per` pieces (lanterns: a candle for every 8);
  * - evening: `qty` of `good` on an evening someone comes to its place, in `seasons` (a fire's firewood);
  * - season: `qty` of `good` when put up, once a season (festival cloth);
  * - outlet: an outlet within `radius` with Treats on its shelf, read live (cafe and festival tables);

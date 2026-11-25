@@ -17,6 +17,7 @@ import { startingTown } from '../hamlet';
 import { Planner } from '../planner';
 import { G } from '../town';
 import { advisors } from '.';
+import { LANTERN_FLOOR } from './lamps';
 import {
   CANDLE_POP,
   OWING_OFF_COINS,
@@ -140,6 +141,45 @@ describe('the supplies advisor', () => {
     const pins = p.decisions.filter((d) => d.cmd.t === 'build.pinRecipe');
     expect(pins.map((d) => (d.cmd as { trade: string }).trade)).toContain('chandler');
     expect(pins.every((d) => d.lane === 'ledger')).toBe(true);
+  });
+
+  it('begins the candle chain as the Charter nears with lanterns standing, and not before', () => {
+    const build = (lanterns: number, near: boolean) => {
+      const { p, w } = seen();
+      w.charter.rank = 'hamlet';
+      w.decor = [];
+      for (let i = 0; i < lanterns; i++)
+        w.decor.push({
+          id: 9001 + i,
+          def: 'lantern',
+          fx: (20 + i) * TILE_FP,
+          fz: 20 * TILE_FP,
+          rot: 0,
+          builtBy: 0,
+        });
+      const def = content.charterById.get(w.charter.charter)!;
+      w.charter.progress = def.goals.map((g, i) => (near || i === 0 ? g.target : 0));
+      const base = w.buildings[0]!;
+      const biz = (id: number, trade: string): Building =>
+        ({ ...base, id, stage: 'built', def: 'workshop', trade, pinned: undefined }) as unknown as Building;
+      w.buildings.push(biz(9302, 'carpenter'), biz(9303, 'carpenter'), biz(9304, 'carpenter'));
+      while (w.residents.length < CANDLE_POP)
+        w.residents.push({
+          id: 90000 + w.residents.length,
+          activity: { kind: 'home' },
+        } as unknown as Resident);
+      const store = w.buildings.find((b) => b.rt && content.buildingById.get(b.def)?.storage)!;
+      store.stage = 'built';
+      store.rt!.store[G('honey')] = 10;
+      supplies.create(p).visit({ afternoon: false });
+      return p.decisions.filter((d) => d.cmd.t === 'build.pinRecipe');
+    };
+    // Near, with a street of lanterns: a chandler is pinned beside the honey.
+    expect(build(LANTERN_FLOOR, true).map((d) => (d.cmd as { trade: string }).trade)).toContain('chandler');
+    // The Charter far off: nothing, however many lanterns.
+    expect(build(LANTERN_FLOOR, false)).toEqual([]);
+    // Near, with only a few lanterns: the County's crate will see them through, nothing yet.
+    expect(build(LANTERN_FLOOR - 1, true)).toEqual([]);
   });
 
   it('never buys for places in a Hamlet', () => {

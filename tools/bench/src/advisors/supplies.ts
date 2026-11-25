@@ -39,8 +39,11 @@ import {
   candleStock,
   candlesMadeDaily,
   CHANDLER_DAILY,
+  charterNear,
+  crateStock,
   firewoodAllows,
   isLantern,
+  LANTERN_FLOOR,
   lanternCover,
 } from './lamps';
 import type { Advisor, AdvisorDef } from './types';
@@ -64,17 +67,20 @@ const NET_DAYS = 3;
  * workshops feed it (oak stalled when a farm was retooled on day 19; birch lost a third of its
  * Craftsfolk to a hive and a chandler pinned at 60 to 68 residents).
  */
-export const CANDLE_POP = 80;
+export const CANDLE_POP = 30;
 /** Honey in town before a chandler is pinned. */
 const HONEY_MIN = 4;
 /** Chandlers the town is asked for at most. */
 const CHANDLERS_MAX = 3;
 /** A spare farmstead is tried for hives this many times at most (the sim retools a pin whose ground fails). */
-const HIVE_TRIES = 3;
+const HIVE_TRIES = 4;
+/** Hives the town is asked for at most. */
+const HIVES_MAX = 4;
 /** The Fuel and Wares families (GOOD_FAMILIES indexes) and their ids, for `carrier.setRule`. */
 const FUEL = 'fuel';
 const WARES = 'wares';
 const AUTUMN = 2;
+const WINTER = 3;
 /** Coins a street tile for a master's door may cost (stone too); under this the Ledger waits. */
 const STREET_COINS = 30;
 
@@ -96,8 +102,11 @@ class Supplies implements Advisor {
 
   visit(): void {
     const w = this.w;
-    if (!rankAtLeast(w, content.supplies.fromRank)) return;
-    this.candles();
+    const village = rankAtLeast(w, content.supplies.fromRank);
+    // R3X: as the Charter nears, with lanterns standing, the candle chain is begun (hives, then a
+    // chandler): the County's crate lasts a week and a chandler wants honey.
+    if (village || charterNear(w)) this.candles();
+    if (!village) return;
     this.firewood();
     this.carrierPlaces();
     this.masters();
@@ -130,24 +139,40 @@ class Supplies implements Advisor {
     return of.filter((b) => b.trade !== keep && counts.get(b.trade!)! >= least).sort((a, b) => a.id - b.id);
   }
 
-  /** Hives where the flowers allow, then a chandler beside the honey, while lanterns outrun the candles. */
+  /**
+   * Hives where the flowers allow, then a chandler beside the honey, while the lanterns' candles are
+   * short (R3X: and as the Charter nears with lanterns standing, since the County's crate lasts a week).
+   */
   private candles(): void {
     const w = this.w;
     if (w.residents.length < CANDLE_POP) return;
     const lanterns = this.lanterns();
     if (lanterns === 0) return;
     const per = content.decorById.get('lantern')?.supply?.per ?? 4;
+    // A night's candles: the lanterns' and, a night in each candleNights, every household's own (they
+    // buy first, at the till, so the chandler must make for both).
     const draw = Math.ceil(lanterns / per);
+    const homes = Math.ceil(w.households.length / content.supplies.candleNights);
     // R3X: an open shortOfSupplies gap is the town asking for them: hazel's gaps stood open for forty days
     // with honey in hand, because no trade had three businesses to spare one; two leave one standing.
     const least = w.gaps.open.some((g) => g.kind === 'shortOfSupplies') ? 2 : 3;
-    if (draw <= candleStock(w) + candlesMadeDaily(w)) return;
+    // Before the Charter the lanterns burn for nothing: the chain waits for them to be many enough to matter.
+    const village = rankAtLeast(w, content.supplies.fromRank);
+    if (village ? draw <= candleStock(w) + crateStock(w) / 7 + candlesMadeDaily(w) : lanterns < LANTERN_FLOOR)
+      return;
     const built = (trade: string) =>
       w.buildings.filter((b) => b.trade === trade && (b.stage === 'built' || b.stage === 'construction'))
         .length;
-    const chandlers = Math.min(CHANDLERS_MAX, Math.ceil(draw / CHANDLER_DAILY));
-    const hivesWanted = Math.ceil(chandlers / 2);
-    if (built('hives') < hivesWanted && this.hiveTries.length < HIVE_TRIES) {
+    const chandlers = Math.min(CHANDLERS_MAX, Math.ceil((draw + homes) / CHANDLER_DAILY));
+    // R3X: the hives' honey goes to the Treats shelves first and the chandler gets what they do not
+    // take, so a chandler wants a hive beyond its own.
+    const hivesWanted = Math.min(HIVES_MAX, chandlers + 1);
+    // The bees rest in winter: hives are begun from spring to autumn (honey: spring .8, summer 1, autumn .6).
+    if (
+      calendar(w.tick).season < WINTER &&
+      built('hives') < hivesWanted &&
+      this.hiveTries.length < HIVE_TRIES
+    ) {
       const flowers = content.tradeById.get('hives')?.wants.pollinators ?? 0;
       // A farmstead whose chunk's pollinators already meet the want: the sim would retool a pin that fails it.
       const at = this.spare('farms', 'hives', least).find(

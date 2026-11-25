@@ -353,6 +353,34 @@ describe('the places’ purse and winter mark', () => {
   });
 });
 
+describe('the shelves (R3X)', () => {
+  it('a place draws from a shelf last, above the floor, and a lantern lights on candles that stand only on the stalls', () => {
+    const { f, s, store, lanterns, settleDay } = setup();
+    const stall = findById(s.buildings, f.b.stalls[0])!;
+    // Three in a storehouse, two on a shelf: five are free for places, the storehouse's drawn first.
+    store(CANDLES, 3);
+    stall.rt!.store[CANDLES] = 2;
+    const purse = placesPurse(s);
+    expect(purse.free[CANDLES]).toBe(5);
+    expect(drawForPlaces(s, purse, CANDLES, 4, doorTile(stall))).toBe(4);
+    expect(findById(s.buildings, f.b.storehouses[0])!.rt!.store[CANDLES]).toBe(0);
+    expect(stall.rt!.store[CANDLES]).toBe(1);
+    // Under the floor a shelf is the households' own: nothing is drawn.
+    s.carrier.families[WARES]!.reserve = 1000;
+    const bare = placesPurse(s);
+    expect(drawForPlaces(s, bare, CANDLES, 4, doorTile(stall))).toBe(0);
+    expect(stall.rt!.store[CANDLES]).toBe(1);
+    // Over it, with every candle on a shelf, the night's lanterns are lit.
+    s.carrier.families[WARES]!.reserve = 0;
+    stall.rt!.store[CANDLES] = 3;
+    const ids = lanterns(2 * PER);
+    settleDay(0);
+    expect(litIds(s).length).toBe(2 * PER);
+    expect(ids.length).toBe(2 * PER);
+    expect(stall.rt!.store[CANDLES]).toBe(1);
+  });
+});
+
 describe('what places want, household candles and the place counts', () => {
   it('wants a candle for every PER lanterns, the cloth not up, and firewood in season', () => {
     const { s, lanterns, store, settleDay } = setup();

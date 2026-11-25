@@ -20,7 +20,6 @@ import {
   methodOf,
   placesView,
   rankAtLeast,
-  suppliesView,
   SUPPLY_KINDS,
   townStock,
   winterMark,
@@ -40,8 +39,8 @@ export const FIRE_FLOOR = 3;
 export const LANTERN_FLOOR = 16;
 /** Days a place keeps a priority before the advisor changes it again (no flip-flopping as places merge and grow). */
 const PRIORITY_DAYS = 4;
-/** Candles a built chandler is counted to make a day (honey-limited: a hive pair feeds about two cycles). */
-export const CHANDLER_DAILY = 6;
+/** Candles a built chandler is planned to make a day (honey-limited: a hive pair feeds about two cycles). */
+export const CHANDLER_DAILY = 8;
 /** Days of Fuel use a brazier may draw on top of the reserve and the winter mark. */
 const FIRE_SPARE_DAYS = 1;
 /** A business within this many tiles of a place's site counts as "beside" it for a specialty (the round's reach, 3 to 8). */
@@ -68,49 +67,73 @@ export function candleStock(w: WorldState): number {
   return townStock(w)[G('candles')] ?? 0;
 }
 
-/** Candles the town's chandlers make a day, roughly (built businesses of the trade). */
+/** Nights the town's candles in hand are spread over when the lanterns' feed is reckoned (the crate's week). */
+const FEED_NIGHTS = content.supplies.charterCrateNights ?? 7;
+/** Candles a built chandler is counted to make a day at least, hands or no (a player sees a built workshop and waits a day). */
+const CHANDLER_FLOOR = 2;
+
+/** Candles the County's crate still holds at the Town Hall (a player reads them on its card). */
+export function crateStock(w: WorldState): number {
+  for (const b of w.buildings)
+    if (b.def === 'town-hall' && b.stage === 'built' && b.rt) return b.rt.store[G('candles')] ?? 0;
+  return 0;
+}
+
+/**
+ * Candles the town's chandlers make a day, as a player reads it off the Ledger: what was made
+ * yesterday, and at least `CHANDLER_FLOOR` for each chandler standing built (the first day of a new
+ * workshop, or one that waits for honey).
+ */
 export function candlesMadeDaily(w: WorldState): number {
-  let n = 0;
-  for (const b of w.buildings) if (b.stage === 'built' && b.trade === 'chandler') n += CHANDLER_DAILY;
-  return n;
+  let built = 0;
+  for (const b of w.buildings) if (b.stage === 'built' && b.trade === 'chandler') built++;
+  const yesterday = w.economy.yesterday.produced[G('candles')] ?? 0;
+  return Math.max(yesterday, built * CHANDLER_FLOOR);
 }
 
-/** The nightly draw of `n` lanterns, in candles: `qty` for every `per`, rounded up. */
-function nightlyDraw(n: number): number {
-  const s = content.decorById.get('lantern')?.supply;
-  const per = s?.per ?? 4;
-  const qty = s?.qty ?? 1;
-  return Math.ceil(n / per) * qty;
-}
-
-/** Lanterns the town's candle stock lights tonight. */
+/** Lanterns the town's candles in hand light tonight. */
 export function lanternCover(w: WorldState): number {
   const s = content.decorById.get('lantern')?.supply;
   return Math.floor(candleStock(w) / (s?.qty ?? 1)) * (s?.per ?? 4);
 }
 
 /**
- * Whether candles light nothing here: more lanterns are lit tonight, by the supplies view, than the
- * candles in town could light (as the stand-ins, R3A not merged, leave it). Gating on candles would
- * only starve the town of lanterns for nothing then; once R3A lands the view never lists more.
+ * Lanterns the town's coming candles will feed a night: what its chandlers make a day, and the stock
+ * and the County's crate spread over a week. A player stands lanterns to this, in a Hamlet as well
+ * as a Village (a lantern costs nothing below Village rank, and a Village that stood a hundred
+ * went dark the day the County stopped paying).
  */
-function suppliesDead(w: WorldState): boolean {
-  return suppliesView(w).lamps.length > lanternCover(w);
+export function lanternsFed(w: WorldState): number {
+  const s = content.decorById.get('lantern')?.supply;
+  // Stock is left out: much of what stands in town sits on shelves, which no lantern draws from.
+  // The households' own candles come off what is made (they buy first, at the till).
+  const homes = w.households.length / content.supplies.candleNights;
+  const nights = Math.max(0, candlesMadeDaily(w) - homes) + crateStock(w) / FEED_NIGHTS;
+  return Math.floor(nights / (s?.qty ?? 1)) * (s?.per ?? 4);
 }
 
 /**
- * Whether the town's candles cover `more` further lanterns on top of those standing: the stock plus
- * what the chandlers make a day against a night's draw. Below the supplies' rank a lantern burns for
- * nothing, so it always does.
+ * Whether the town's coming candles feed `more` further lanterns on top of those standing (R3X: at
+ * any rank). A first few lanterns the town can always light (a handful of candles a night: the
+ * wishes for lanterns and the streets' charm do not wait on a chandler).
  */
 export function candlesAllow(w: WorldState, more = 1): boolean {
-  if (!rankAtLeast(w, content.supplies.fromRank)) return true;
   const standing = lanternIds(w).size;
-  // A first few lanterns the town can always light (a handful of candles a night): the wishes for
-  // lanterns and the streets' charm do not wait on a chandler.
   if (standing + more <= LANTERN_FLOOR) return true;
-  if (suppliesDead(w)) return true;
-  return nightlyDraw(standing + more) <= candleStock(w) + candlesMadeDaily(w);
+  return standing + more <= lanternsFed(w);
+}
+
+/** Whether the Charter is within two goals of met (or met): the County's crate comes with it. */
+export function charterNear(w: WorldState): boolean {
+  if (rankAtLeast(w, content.supplies.fromRank)) return false;
+  const def = content.charterById.get(w.charter.charter);
+  if (!def) return false;
+  if (w.charter.ready) return true;
+  let met = 0;
+  def.goals.forEach((g, i) => {
+    if ((w.charter.progress[i] ?? 0) >= g.target) met++;
+  });
+  return met >= def.goals.length - 2;
 }
 
 /**

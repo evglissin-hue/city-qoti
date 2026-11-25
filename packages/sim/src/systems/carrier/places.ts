@@ -2,8 +2,8 @@
 // homes are served first, then businesses, then places. A place draws only on what the town holds
 // above the family's reserve and the places' winter mark, which falls through winter (the season
 // plan's mark times the winter days left over the winter's length, derived, never saved; homes and
-// businesses keep the flat mark), and only from the storehouses and makers' output buffers, never a
-// shelf. The carrier buys for places only where the Ledger switched it on (`CarrierFamily.places`),
+// businesses keep the flat mark), and from the storehouses and makers' output buffers first and, since R3X, the
+// outlets' shelves last. The carrier buys for places only where the Ledger switched it on (`CarrierFamily.places`),
 // within the day's budget and never on the County tab (carrier/index.ts, step 4b).
 import { content } from '@qoti/content';
 import { DAYS_PER_SEASON } from '../../constants';
@@ -71,8 +71,10 @@ export interface PlacesPurse {
 interface Source {
   b: Building;
   door: number;
-  /** A storehouse (taken from `store`, any good), or a maker (taken from `output`, its outputs only). */
+  /** A storehouse or an outlet's shelf (taken from `store`, any good), or a maker (taken from `output`, its outputs only). */
   store: boolean;
+  /** R3X: an outlet's shelf: drawn last, after the storehouses and the makers' buffers. */
+  shelf?: boolean;
   /** A maker's outputs, by good index (empty for a storehouse). */
   makes: readonly number[];
 }
@@ -101,6 +103,11 @@ function sources(state: WorldState): Source[] {
     if (b.stage !== 'built' || !b.rt) continue;
     const def = content.buildingById.get(b.def);
     if (isStorehouse(def)) out.push({ b, door: doorTile(b, def), store: true, makes: [] });
+    // R3X: a shelf holds goods above the floor too. Candles stood on the stalls' shelves all week while the
+    // lanterns went dark (willow, 22 on the shelves and none in a storehouse, a Village's lanterns unlit),
+    // and the carrier, counting them as stock, bought none. The floor keeps the households' share.
+    else if (def?.tags?.includes('outlet'))
+      out.push({ b, door: doorTile(b, def), store: true, shelf: true, makes: [] });
     else if (!def?.storage) {
       const makes = outputsOf(b);
       if (makes.length > 0) out.push({ b, door: doorTile(b, def), store: false, makes });
@@ -183,6 +190,7 @@ export function drawForPlaces(
       .filter((s) => sourceFree(s, good) > 0)
       .sort(
         (a, b) =>
+          Number(!!a.shelf) - Number(!!b.shelf) ||
           Number(b.store) - Number(a.store) ||
           tileDistance(a.door, from) - tileDistance(b.door, from) ||
           a.b.id - b.b.id,

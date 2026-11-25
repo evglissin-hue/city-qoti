@@ -10,6 +10,7 @@ import { G } from '../town';
 import { advisors } from '.';
 import {
   candlesAllow,
+  charterNear,
   firewoodAllows,
   lamps,
   FIRE_FLOOR,
@@ -19,6 +20,9 @@ import {
 } from './lamps';
 
 const S = 128;
+/** Lanterns one candle lights a night, and the nights the town's candles in hand are spread over (the crate's week). */
+const PER = content.decorById.get('lantern')!.supply!.per!;
+const NIGHTS = content.supplies.charterCrateNights!;
 
 /** A willow town at the given rank with `lanterns` lanterns (ids 9001 up) and `candles` candles in one storehouse. */
 function town(lanterns: number, candles: number, rank: 'hamlet' | 'village' = 'village'): WorldState {
@@ -70,10 +74,11 @@ describe('the lamps advisor', () => {
   });
 
   it('with candles short keeps the busiest place and lets the far, quiet one rest', () => {
-    // Eight lanterns, one candle: it lights four (a candle for every four).
-    const w = town(8, 1);
-    const busy = place('busy', 30, [9001, 9002, 9003, 9004], [20, 22, 25]);
-    const far = place('far', 90, [9005, 9006, 9007, 9008], [2, 1, 3]);
+    // Two candles' worth of lanterns, one candle: it lights the first half.
+    const w = town(2 * PER, 1);
+    const ids = (from: number) => Array.from({ length: PER }, (_, k) => 9001 + from + k);
+    const busy = place('busy', 30, ids(0), [20, 22, 25]);
+    const far = place('far', 90, ids(PER), [2, 1, 3]);
     const got = priorityChanges(w, [far, busy]);
     expect(got.map((c) => [c.place.id, c.priority])).toEqual([
       ['busy', 'keep'],
@@ -82,47 +87,79 @@ describe('the lamps advisor', () => {
   });
 
   it('puts a rest back to normal once candles cover every lantern, and sends nothing already set', () => {
-    const w = town(8, 3);
-    const busy = place('busy', 30, [9001, 9002, 9003, 9004], [20], 'keep');
-    const far = place('far', 90, [9005, 9006, 9007, 9008], [2], 'rest');
+    const ids = (from: number) => Array.from({ length: PER }, (_, k) => 9001 + from + k);
+    const w = town(2 * PER, 3);
+    const busy = place('busy', 30, ids(0), [20], 'keep');
+    const far = place('far', 90, ids(PER), [2], 'rest');
     expect(priorityChanges(w, [busy, far]).map((c) => [c.place.id, c.priority])).toEqual([['far', 'normal']]);
     // Short again, with the priorities already as they should be: nothing to send.
-    const short = town(8, 1);
+    const short = town(2 * PER, 1);
     expect(priorityChanges(short, [busy, far])).toEqual([]);
   });
 
   it('sends at most a few priorities a visit and none below Village rank', () => {
-    const w = town(16, 0);
+    const w = town(4 * PER, 0);
     const many = [0, 1, 2, 3].map((k) =>
-      place(`p${k}`, 10 + k * 10, [9001 + k * 4, 9002 + k * 4, 9003 + k * 4, 9004 + k * 4], [k]),
+      place(
+        `p${k}`,
+        10 + k * 10,
+        Array.from({ length: PER }, (_, i) => 9001 + k * PER + i),
+        [k],
+      ),
     );
     expect(priorityChanges(w, many).length).toBeLessThanOrEqual(3);
-    expect(priorityChanges(town(16, 0, 'hamlet'), many)).toEqual([]);
+    expect(priorityChanges(town(4 * PER, 0, 'hamlet'), many)).toEqual([]);
   });
 
-  it('places a lantern only while the candles cover it at Village rank; a Hamlet places freely', () => {
-    expect(candlesAllow(town(0, 0, 'hamlet'))).toBe(true);
-    expect(candlesAllow(town(40, 0, 'hamlet'))).toBe(true);
+  /** The County's crate, held at the Town Hall's store. */
+  const crate = (w: WorldState, n: number): void => {
+    const hall = w.buildings.find((b) => b.def === 'town-hall')!;
+    hall.stage = 'built';
+    hall.rt!.store[G('candles')] = n;
+  };
+
+  it('stands lanterns to the candles coming, at every rank: the stock and the crate over a week, and what is made a day', () => {
     // The first few lanterns need no cover.
     expect(candlesAllow(town(0, 0))).toBe(true);
     expect(candlesAllow(town(LANTERN_FLOOR - 1, 0))).toBe(true);
-    // With every lantern lit regardless of the candles (the stand-ins), candles gate nothing.
-    expect(candlesAllow(town(LANTERN_FLOOR, 0))).toBe(true);
-    expect(candlesAllow(town(LANTERN_FLOOR, 1))).toBe(true);
-    // Twenty lanterns need five candles a night; a twenty-first needs a sixth.
-    expect(candlesAllow(town(20, 5))).toBe(false);
-    expect(candlesAllow(town(20, 6))).toBe(true);
-    // More than one at once: twenty-five lanterns need seven candles.
-    expect(candlesAllow(town(20, 6), 5)).toBe(false);
-    expect(candlesAllow(town(20, 7), 5)).toBe(true);
+    // Past them, a Hamlet's lanterns want candles coming too (they will burn them from the Charter).
+    expect(candlesAllow(town(LANTERN_FLOOR, 0, 'hamlet'))).toBe(false);
+    expect(candlesAllow(town(LANTERN_FLOOR, 0))).toBe(false);
+    // A week of candles in stock feeds PER lanterns for each candle a night it holds over the week.
+    const nightsToFeed = Math.ceil((LANTERN_FLOOR + 1) / PER);
+    expect(candlesAllow(town(LANTERN_FLOOR, nightsToFeed * NIGHTS - 1))).toBe(false);
+    expect(candlesAllow(town(LANTERN_FLOOR, nightsToFeed * NIGHTS))).toBe(true);
+    expect(candlesAllow(town(LANTERN_FLOOR, nightsToFeed * NIGHTS), PER + 1)).toBe(false);
+    expect(candlesAllow(town(LANTERN_FLOOR, nightsToFeed * NIGHTS, 'hamlet'))).toBe(true);
+    // The County's crate at the Town Hall counts as it does in stock.
+    const held = town(LANTERN_FLOOR, 0, 'hamlet');
+    crate(held, nightsToFeed * NIGHTS);
+    expect(candlesAllow(held)).toBe(true);
+    // What the town made yesterday counts a night's worth each day.
+    const made = town(LANTERN_FLOOR, 0);
+    made.economy.yesterday.produced[G('candles')] = nightsToFeed;
+    expect(candlesAllow(made)).toBe(true);
+    made.economy.yesterday.produced[G('candles')] = nightsToFeed - 1;
+    expect(candlesAllow(made)).toBe(false);
   });
 
-  it('counts a built chandler toward the candle cover', () => {
-    const w = town(20, 5);
+  it('counts a built chandler toward what is made a day, as soon as it stands', () => {
+    const w = town(4 * PER, 0);
     expect(candlesAllow(w)).toBe(false);
     const base = w.buildings[0]!;
-    w.buildings.push({ ...base, id: 9100, stage: 'built', trade: 'chandler' } as Building);
+    for (let k = 0; k < 4; k++)
+      w.buildings.push({ ...base, id: 9100 + k, stage: 'built', trade: 'chandler' } as Building);
     expect(candlesAllow(w)).toBe(true);
+  });
+
+  it('reads the Charter as near when it is within two goals of met', () => {
+    const w = town(0, 0, 'hamlet');
+    const def = content.charterById.get(w.charter.charter)!;
+    w.charter.progress = def.goals.map(() => 0);
+    expect(charterNear(w)).toBe(false);
+    w.charter.progress = def.goals.map((g, i) => (i < def.goals.length - 2 ? g.target : 0));
+    expect(charterNear(w)).toBe(true);
+    expect(charterNear(town(0, 0))).toBe(false);
   });
 
   it('keeps braziers for when firewood stands above the winter mark, past the first few', () => {

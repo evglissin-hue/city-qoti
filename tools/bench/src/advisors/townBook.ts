@@ -27,7 +27,7 @@ import {
 } from '@qoti/sim';
 import { REPAY_RESERVE, type Planner } from '../planner';
 import { idx, S } from '../town';
-import { supplyPlaceFor } from './lamps';
+import { candlesAllow, supplyPlaceFor } from './lamps';
 import { PLACES_OFF_COINS } from './supplies';
 import { shopsNear } from './shops';
 import type { Advisor, AdvisorDef } from './types';
@@ -194,6 +194,8 @@ class TownBook implements Advisor {
     const have = this.pieceDefs(pl);
     for (const k of KIND_PIECES) {
       if (have.some(k.has)) continue;
+      // R3X: a lantern goes up only where the town's coming candles will feed it.
+      if (k.def === 'lantern' && !candlesAllow(this.w)) continue;
       if (this.recent(`piece:${pl.id}:${k.def}`)) continue;
       if (this.addPiece(k.def, pl, 'to raise its draw')) return true;
     }

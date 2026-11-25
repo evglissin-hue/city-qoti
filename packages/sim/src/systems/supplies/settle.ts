@@ -177,7 +177,7 @@ export function settle(state: WorldState, ctx: TickCtx): void {
     const start = startTile(state);
     const purse = placesPurse(state);
 
-    // Lanterns: a candle for every `per`, the kept ones first, then the nearest the store.
+    // Lanterns: a candle for every `per` (R3X: the County's crate at the Town Hall lights the first lanterns), the kept ones first, then the nearest the store.
     if (lanterns.length > 0) {
       const { good, per } = supplyOfPiece(ix, lanterns[0]!);
       const eligible = settledOrder(
